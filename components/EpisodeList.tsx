@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Play, Calendar, Film, CheckCircle2, Clock } from 'lucide-react';
 import { JikanEpisode } from '@/types/anime';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
+import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 import { Tooltip } from './Tooltip';
 
 interface EpisodeListProps {
@@ -20,6 +21,7 @@ export function EpisodeList({
   totalEpisodes,
   isLoading = false,
 }: EpisodeListProps) {
+  const { ref: rangeScrollRef, isDragging: isRangeDragging } = useDraggableScroll<HTMLDivElement>();
   const [searchFilter, setSearchFilter] = useState('');
   const { progressMap } = useWatchProgress();
 
@@ -129,7 +131,12 @@ export function EpisodeList({
 
         {/* Range Selector Chunks for Long Series (e.g. 1-50, 51-100) */}
         {numChunks > 1 && (
-          <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-white/5 no-scrollbar">
+          <div
+            ref={rangeScrollRef}
+            className={`flex items-center gap-2 overflow-x-auto pt-2 border-t border-white/5 no-scrollbar cursor-grab active:cursor-grabbing select-none ${
+              isRangeDragging ? 'scroll-auto' : 'scroll-smooth'
+            }`}
+          >
             <span className="text-xs text-gray-400 font-bold whitespace-nowrap mr-1">Faixa:</span>
             {Array.from({ length: numChunks }).map((_, idx) => {
               const start = idx * CHUNK_SIZE + 1;

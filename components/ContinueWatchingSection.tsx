@@ -2,15 +2,17 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Play, Clock, ChevronRight, CheckCircle2, Trash2 } from 'lucide-react';
+import { Play, Clock, ChevronRight, Trash2 } from 'lucide-react';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { useConfirmation } from '@/context/ConfirmationContext';
+import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 import { SafeImage } from './SafeImage';
 import { Tooltip } from './Tooltip';
 
 export function ContinueWatchingSection() {
   const { getContinueWatchingList, removeProgress } = useWatchProgress();
   const { confirm } = useConfirmation();
+  const { ref: scrollRef, isDragging } = useDraggableScroll<HTMLDivElement>();
   const continueList = getContinueWatchingList();
 
   if (continueList.length === 0) return null;
@@ -51,11 +53,16 @@ export function ContinueWatchingSection() {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {continueList.slice(0, 4).map((item) => (
+      <div
+        ref={scrollRef}
+        className={`flex gap-4 overflow-x-auto no-scrollbar touch-pan-x py-2 px-1 cursor-grab active:cursor-grabbing select-none ${
+          isDragging ? 'scroll-auto' : 'scroll-smooth'
+        }`}
+      >
+        {continueList.map((item) => (
           <div
             key={`${item.animeId}_ep_${item.episodeNum}`}
-            className="group relative glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-[#FF6B00]/50 transition-all flex flex-col justify-between"
+            className="w-[260px] sm:w-[300px] flex-shrink-0 group relative glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-[#FF6B00]/50 transition-all flex flex-col justify-between"
           >
             {/* Cover & Overlay */}
             <div className="relative h-36 w-full bg-neutral-900 overflow-hidden">
@@ -64,11 +71,11 @@ export function ContinueWatchingSection() {
                 animeId={item.animeId}
                 alt={item.animeTitle}
                 fill
-                sizes="(max-width: 768px) 100vw, 300px"
-                className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-60 group-hover:opacity-80"
+                sizes="300px"
+                className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-60 group-hover:opacity-80 pointer-events-none"
               />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/40 to-transparent pointer-events-none" />
 
               {/* Episode Tag */}
               <div className="absolute top-3 left-3 bg-[#FF6B00] text-white px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider shadow-md">
@@ -102,7 +109,7 @@ export function ContinueWatchingSection() {
               </Link>
 
               {/* Progress bar overlay at bottom of image */}
-              <div className="absolute inset-x-0 bottom-0 h-1.5 bg-white/20">
+              <div className="absolute inset-x-0 bottom-0 h-1.5 bg-white/20 pointer-events-none">
                 <div
                   className="h-full bg-[#FF6B00]"
                   style={{ width: `${item.percentage}%` }}

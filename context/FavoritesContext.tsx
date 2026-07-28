@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { JikanAnime, JikanEpisode } from '@/types/anime';
 import { jikanService } from '@/services/jikan';
+import { offlineCacheDB } from '@/utils/offlineCacheDB';
 
 const FAVORITES_KEY = 'anistream_favorites_v1';
 const NEW_EPISODES_MAP_KEY = 'anistream_new_episodes_map_v1';
@@ -107,6 +108,40 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Load and sync favorites from IndexedDB on mount
+  useEffect(() => {
+    let active = true;
+    async function syncDB() {
+      try {
+        const idbFavs = await offlineCacheDB.getFavorites();
+        if (!active) return;
+        setFavorites((prev) => {
+          if (idbFavs.length > 0) {
+            const map = new Map<number, JikanAnime>();
+            idbFavs.forEach((a) => map.set(a.mal_id, a));
+            prev.forEach((a) => map.set(a.mal_id, a));
+            const merged = Array.from(map.values());
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(FAVORITES_KEY, JSON.stringify(merged));
+            }
+            return merged;
+          } else if (prev.length > 0) {
+            for (const anime of prev) {
+              offlineCacheDB.saveFavorite(anime);
+            }
+          }
+          return prev;
+        });
+      } catch (e) {
+        console.warn('Error syncing favorites with IndexedDB:', e);
+      }
+    }
+    syncDB();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const addFavorite = (anime: JikanAnime) => {
     setFavorites((prev) => {
       if (prev.some((a) => a.mal_id === anime.mal_id)) return prev;
@@ -114,6 +149,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
       return updated;
     });
+    offlineCacheDB.saveFavorite(anime);
   };
 
   const removeFavorite = (malId: number) => {
@@ -122,6 +158,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
       return updated;
     });
+    offlineCacheDB.removeFavorite(malId);
 
     // Also remove from newEpisodesMap
     setNewEpisodesMap((prev) => {

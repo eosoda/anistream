@@ -16,6 +16,7 @@ import { jikanService } from '@/services/jikan';
 import { AnimeCard } from '@/components/AnimeCard';
 import { AnimeCardSkeleton } from '@/components/LoadingSkeleton';
 import { EmptyState } from '@/components/EmptyState';
+import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 
 const ALPHABET = [
   'Todos',
@@ -49,6 +50,7 @@ const ALPHABET = [
 ];
 
 export default function AnimeListPage() {
+  const { ref: alphabetScrollRef, isDragging: isAlphabetDragging } = useDraggableScroll<HTMLDivElement>();
   const [selectedLetter, setSelectedLetter] = useState<string>('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -169,7 +171,12 @@ export default function AnimeListPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2 px-1">
+          <div
+            ref={alphabetScrollRef}
+            className={`flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2 px-1 cursor-grab active:cursor-grabbing select-none ${
+              isAlphabetDragging ? 'scroll-auto' : 'scroll-smooth'
+            }`}
+          >
             {ALPHABET.map((letter) => {
               const isSelected = selectedLetter === letter;
               return (

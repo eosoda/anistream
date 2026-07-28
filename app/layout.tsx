@@ -4,6 +4,7 @@ import QueryProvider from '@/components/QueryProvider';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { FloatingRecommendationsWidget } from '@/components/FloatingRecommendationsWidget';
+import { OfflineStatusBanner } from '@/components/OfflineStatusBanner';
 
 export const metadata: Metadata = {
   title: 'AniStream - Catálogo & Streaming de Animes',
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-[#0B0B0F] text-white min-h-screen flex flex-col antialiased selection:bg-[#FF6B00] selection:text-white" suppressHydrationWarning>
         <QueryProvider>
           <Navbar />
+          <OfflineStatusBanner />
           <main className="flex-grow w-full pb-20 lg:pb-0">{children}</main>
           <FloatingRecommendationsWidget />
           <Footer />

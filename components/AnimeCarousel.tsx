@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
 import { AnimeCard } from './AnimeCard';
 import { AnimeCardSkeleton } from './LoadingSkeleton';
+import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 
 interface AnimeCarouselProps {
   title: string;
@@ -24,18 +25,18 @@ export function AnimeCarousel({
   viewAllHref,
   subtitle,
 }: AnimeCarouselProps) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { ref: scrollContainerRef, isDragging } = useDraggableScroll<HTMLDivElement>();
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  const checkScroll = () => {
-    if (!scrollContainerRef.current) return;
-    const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-    setCanScrollLeft(scrollLeft > 10);
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
-  };
-
   useEffect(() => {
+    const checkScroll = () => {
+      if (!scrollContainerRef.current) return;
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+    };
+
     checkScroll();
     const currentRef = scrollContainerRef.current;
     if (currentRef) {
@@ -48,7 +49,7 @@ export function AnimeCarousel({
       }
       window.removeEventListener('resize', checkScroll);
     };
-  }, [animes, isLoading]);
+  }, [animes, isLoading, scrollContainerRef]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
@@ -117,7 +118,9 @@ export function AnimeCarousel({
       {/* Track */}
       <div
         ref={scrollContainerRef}
-        className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory touch-pan-x py-2 px-1"
+        className={`flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar touch-pan-x py-2 px-1 cursor-grab active:cursor-grabbing select-none ${
+          isDragging ? 'scroll-auto snap-none' : 'scroll-smooth snap-x snap-mandatory'
+        }`}
       >
         {!isLoading && (!animes || animes.length === 0) ? (
           <div className="w-full py-8 text-center glass-panel rounded-2xl border border-white/5 text-gray-400 text-xs font-semibold">

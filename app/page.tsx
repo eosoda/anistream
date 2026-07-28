@@ -70,7 +70,7 @@ export default function HomePage() {
       />
 
       {/* Main Content Sections */}
-      <div className="max-w-7xl mx-auto px-2 space-y-8">
+      <div id="main-content" className="max-w-7xl mx-auto px-2 space-y-8 scroll-mt-20 md:scroll-mt-24">
         {/* Continue Watching Section */}
         <ContinueWatchingSection />
 

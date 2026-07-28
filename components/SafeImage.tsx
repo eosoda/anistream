@@ -162,6 +162,7 @@ export function SafeImage({
       className={className}
       unoptimized={unoptimized !== undefined ? unoptimized : isExternalCdn}
       referrerPolicy="no-referrer"
+      draggable={false}
       onError={handleError}
     />
   );

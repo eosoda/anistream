@@ -9,6 +9,7 @@ import {
 } from '@/types/anime';
 import { FALLBACK_ANIMES } from '@/data/fallbackAnime';
 import { filterAnimeByAudio } from '@/utils/audioFilter';
+import { offlineCacheDB } from '@/utils/offlineCacheDB';
 
 const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
 
@@ -57,7 +58,14 @@ export const jikanService = {
     limit = 24,
     filters?: SearchAnimeFilters
   ): Promise<{ data: JikanAnime[]; pagination: any }> {
+    const cacheKey = `search_${(query || '').trim().toLowerCase()}_p${page}_l${limit}_s${filters?.status || 'all'}_t${filters?.type || 'all'}_score${filters?.minScore || 0}_ord${filters?.orderBy || 'default'}_let${filters?.letter || 'all'}_lang${filters?.audioLanguage || 'all'}`;
+
     return throttleRequest(async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        const cached = await offlineCacheDB.getCatalog(cacheKey);
+        if (cached) return cached;
+      }
+
       try {
         const params: Record<string, any> = {
           page,
@@ -94,7 +102,7 @@ export const jikanService = {
         if (res.data?.data && res.data.data.length > 0) {
           const rawData: JikanAnime[] = res.data.data;
           const filteredData = filterAnimeByAudio(rawData, filters?.audioLanguage);
-          return {
+          const result = {
             data: filteredData,
             pagination: {
               ...res.data.pagination,
@@ -104,16 +112,32 @@ export const jikanService = {
               },
             },
           };
+          offlineCacheDB.saveCatalog(cacheKey, result);
+          return result;
         }
       } catch (err: any) {
         console.warn('Search anime fallback activated:', err?.message);
       }
 
-      // Fallback search in fallback list + cached top anime
+      // Check IndexedDB catalog cache first on error/offline
+      const cached = await offlineCacheDB.getCatalog(cacheKey);
+      if (cached) return cached;
+
+      // Fallback search in all IndexedDB cached anime + FALLBACK_ANIMES
       const q = query ? query.toLowerCase() : '';
-      const filtered = FALLBACK_ANIMES.filter((item) =>
-        q ? item.title.toLowerCase().includes(q) || (item.title_english && item.title_english.toLowerCase().includes(q)) : true
-      );
+      const allCachedAnimes = await offlineCacheDB.getAllCachedAnimes();
+      const combinedMap = new Map<number, JikanAnime>();
+      for (const a of allCachedAnimes) if (a && a.mal_id) combinedMap.set(a.mal_id, a);
+      for (const a of FALLBACK_ANIMES) if (a && a.mal_id) combinedMap.set(a.mal_id, a);
+
+      const pool = Array.from(combinedMap.values());
+      const filtered = pool.filter((item) => {
+        if (!item) return false;
+        const matchesTitle = q ? item.title.toLowerCase().includes(q) || (item.title_english && item.title_english.toLowerCase().includes(q)) : true;
+        const matchesType = filters?.type && filters.type !== 'all' ? item.type?.toLowerCase() === filters.type.toLowerCase() : true;
+        return matchesTitle && matchesType;
+      });
+
       const audioFiltered = filterAnimeByAudio(filtered, filters?.audioLanguage);
       const start = (page - 1) * limit;
       const paginated = audioFiltered.slice(start, start + limit);
@@ -131,12 +155,25 @@ export const jikanService = {
   // Detalhes do Anime
   async getAnimeById(id: number): Promise<JikanAnime> {
     return throttleRequest(async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        const cached = await offlineCacheDB.getAnimeDetails(id);
+        if (cached) return cached;
+      }
+
       try {
         const res = await jikanClient.get(`/anime/${id}/full`);
-        if (res.data?.data) return res.data.data;
+        if (res.data?.data) {
+          const anime = res.data.data;
+          offlineCacheDB.saveAnimeDetails(anime);
+          return anime;
+        }
       } catch (err: any) {
-        console.warn(`Error getting anime by ID ${id}, using fallback`, err?.message);
+        console.warn(`Error getting anime by ID ${id}, using IndexedDB/fallback:`, err?.message);
       }
+
+      const cached = await offlineCacheDB.getAnimeDetails(id);
+      if (cached) return cached;
+
       const match = FALLBACK_ANIMES.find((a) => a.mal_id === id);
       if (match) return match;
       return FALLBACK_ANIMES[0];
@@ -146,11 +183,21 @@ export const jikanService = {
   // Lista de Episódios
   async getAnimeEpisodes(id: number, page = 1): Promise<JikanEpisode[]> {
     return throttleRequest(async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        const cached = await offlineCacheDB.getEpisodes(id);
+        if (cached) return cached;
+      }
+
       try {
         const res = await jikanClient.get(`/anime/${id}/episodes`, { params: { page } });
-        return res.data.data || [];
+        const eps = res.data.data || [];
+        if (eps.length > 0) {
+          offlineCacheDB.saveEpisodes(id, eps);
+        }
+        return eps;
       } catch {
-        return [];
+        const cached = await offlineCacheDB.getEpisodes(id);
+        return cached || [];
       }
     });
   },
@@ -193,14 +240,23 @@ export const jikanService = {
 
   // Top Animes
   async getTopAnime(type?: string, filter?: string, page = 1, limit = 25): Promise<{ data: JikanAnime[]; pagination: any }> {
+    const cacheKey = `top_anime_t${type || 'all'}_f${filter || 'all'}_p${page}_l${limit}`;
+
     return throttleRequest(async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        const cached = await offlineCacheDB.getCatalog(cacheKey);
+        if (cached) return cached;
+      }
+
       try {
         const params: Record<string, any> = { page, limit };
         if (type && type !== 'all') params.type = type;
         if (filter) params.filter = filter;
         const res = await jikanClient.get('/top/anime', { params });
         if (res.data?.data && res.data.data.length > 0) {
-          return { data: res.data.data, pagination: res.data.pagination };
+          const result = { data: res.data.data, pagination: res.data.pagination };
+          offlineCacheDB.saveCatalog(cacheKey, result);
+          return result;
         }
       } catch (err: any) {
         console.warn('Top anime fallback activated:', err?.message);
@@ -210,11 +266,16 @@ export const jikanService = {
       try {
         const res = await jikanClient.get('/top/anime');
         if (res.data?.data && res.data.data.length > 0) {
-          return { data: res.data.data, pagination: res.data.pagination };
+          const result = { data: res.data.data, pagination: res.data.pagination };
+          offlineCacheDB.saveCatalog(cacheKey, result);
+          return result;
         }
       } catch {
         // Fallback
       }
+
+      const cached = await offlineCacheDB.getCatalog(cacheKey);
+      if (cached) return cached;
 
       const start = (page - 1) * limit;
       const paginated = FALLBACK_ANIMES.slice(start, start + limit);
@@ -231,15 +292,28 @@ export const jikanService = {
 
   // Temporada Atual (Seasons Now)
   async getSeasonNow(page = 1, limit = 25): Promise<{ data: JikanAnime[]; pagination: any }> {
+    const cacheKey = `season_now_p${page}_l${limit}`;
+
     return throttleRequest(async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        const cached = await offlineCacheDB.getCatalog(cacheKey);
+        if (cached) return cached;
+      }
+
       try {
         const res = await jikanClient.get('/seasons/now', { params: { page, limit, sfw: true } });
         if (res.data?.data && res.data.data.length > 0) {
-          return { data: res.data.data, pagination: res.data.pagination || {} };
+          const result = { data: res.data.data, pagination: res.data.pagination || {} };
+          offlineCacheDB.saveCatalog(cacheKey, result);
+          return result;
         }
       } catch (error: any) {
-        console.warn('Error fetching season now, using fallback:', error?.message);
+        console.warn('Error fetching season now, using fallback/IndexedDB:', error?.message);
       }
+
+      const cached = await offlineCacheDB.getCatalog(cacheKey);
+      if (cached) return cached;
+
       return {
         data: FALLBACK_ANIMES.slice(0, limit),
         pagination: { current_page: page, has_next_page: false, items: { total: FALLBACK_ANIMES.length } },
@@ -249,15 +323,28 @@ export const jikanService = {
 
   // Próxima Temporada (Upcoming)
   async getSeasonUpcoming(page = 1, limit = 25): Promise<{ data: JikanAnime[]; pagination: any }> {
+    const cacheKey = `season_upcoming_p${page}_l${limit}`;
+
     return throttleRequest(async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        const cached = await offlineCacheDB.getCatalog(cacheKey);
+        if (cached) return cached;
+      }
+
       try {
         const res = await jikanClient.get('/seasons/upcoming', { params: { page, limit, sfw: true } });
         if (res.data?.data && res.data.data.length > 0) {
-          return { data: res.data.data, pagination: res.data.pagination || {} };
+          const result = { data: res.data.data, pagination: res.data.pagination || {} };
+          offlineCacheDB.saveCatalog(cacheKey, result);
+          return result;
         }
       } catch (error: any) {
         console.warn('Error fetching season upcoming:', error?.message);
       }
+
+      const cached = await offlineCacheDB.getCatalog(cacheKey);
+      if (cached) return cached;
+
       return {
         data: FALLBACK_ANIMES.slice(0, limit),
         pagination: { current_page: page, has_next_page: false, items: { total: FALLBACK_ANIMES.length } },
@@ -272,16 +359,28 @@ export const jikanService = {
     page = 1,
     limit = 25
   ): Promise<{ data: JikanAnime[]; pagination: any }> {
+    const cacheKey = `season_${year}_${season}_p${page}_l${limit}`;
+
     return throttleRequest(async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        const cached = await offlineCacheDB.getCatalog(cacheKey);
+        if (cached) return cached;
+      }
+
       // 1. Try real live endpoint first
       try {
         const res = await jikanClient.get(`/seasons/${year}/${season}`, { params: { page, limit, sfw: true } });
         if (res.data?.data && res.data.data.length > 0) {
-          return { data: res.data.data, pagination: res.data.pagination || {} };
+          const result = { data: res.data.data, pagination: res.data.pagination || {} };
+          offlineCacheDB.saveCatalog(cacheKey, result);
+          return result;
         }
       } catch (error: any) {
-        console.warn(`Jikan API 504/Error for season ${year}/${season}, executing fallback:`, error?.message);
+        console.warn(`Jikan API Error for season ${year}/${season}:`, error?.message);
       }
+
+      const cached = await offlineCacheDB.getCatalog(cacheKey);
+      if (cached) return cached;
 
       // 2. Fetch working pre-cached endpoints to build a rich pool of animes
       let pool: JikanAnime[] = [];
@@ -334,7 +433,7 @@ export const jikanService = {
       const start = (page - 1) * limit;
       const paginated = mappedList.slice(start, start + limit);
 
-      return {
+      const result = {
         data: paginated,
         pagination: {
           current_page: page,
@@ -342,18 +441,35 @@ export const jikanService = {
           items: { total: mappedList.length, per_page: limit },
         },
       };
+
+      offlineCacheDB.saveCatalog(cacheKey, result);
+      return result;
     });
   },
 
   // Lista de Gêneros
   async getGenres(): Promise<JikanGenre[]> {
+    const cacheKey = 'genres_list';
     return throttleRequest(async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        const cached = await offlineCacheDB.getCatalog(cacheKey);
+        if (cached) return cached;
+      }
+
       try {
         const res = await jikanClient.get('/genres/anime');
-        if (res.data?.data) return res.data.data;
+        if (res.data?.data) {
+          const genres = res.data.data;
+          offlineCacheDB.saveCatalog(cacheKey, genres);
+          return genres;
+        }
       } catch (err: any) {
         console.warn('Error fetching genres:', err?.message);
       }
+
+      const cached = await offlineCacheDB.getCatalog(cacheKey);
+      if (cached) return cached;
+
       return [
         { mal_id: 1, name: 'Ação', count: 1000 },
         { mal_id: 2, name: 'Aventura', count: 800 },
@@ -369,7 +485,14 @@ export const jikanService = {
 
   // Animes por Gênero
   async getAnimeByGenre(genreId: number, page = 1, limit = 24): Promise<{ data: JikanAnime[]; pagination: any }> {
+    const cacheKey = `genre_${genreId}_p${page}_l${limit}`;
+
     return throttleRequest(async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        const cached = await offlineCacheDB.getCatalog(cacheKey);
+        if (cached) return cached;
+      }
+
       try {
         const res = await jikanClient.get('/anime', {
           params: {
@@ -382,11 +505,16 @@ export const jikanService = {
           },
         });
         if (res.data?.data && res.data.data.length > 0) {
-          return { data: res.data.data, pagination: res.data.pagination };
+          const result = { data: res.data.data, pagination: res.data.pagination };
+          offlineCacheDB.saveCatalog(cacheKey, result);
+          return result;
         }
       } catch (err: any) {
         console.warn(`Error fetching genre ${genreId}:`, err?.message);
       }
+
+      const cached = await offlineCacheDB.getCatalog(cacheKey);
+      if (cached) return cached;
 
       // Fallback filtering by genre
       const filtered = FALLBACK_ANIMES.filter((a) => a.genres?.some((g) => g.mal_id === genreId));
