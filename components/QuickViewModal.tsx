@@ -10,6 +10,8 @@ import { SafeImage } from './SafeImage';
 import { formatSeasonName, formatStatus } from '@/utils/formatters';
 import { checkPtBrAvailability } from '@/utils/audioFilter';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useToast } from '@/context/ToastContext';
+import { Share2 } from 'lucide-react';
 
 interface QuickViewModalProps {
   anime: JikanAnime | null;
@@ -19,6 +21,7 @@ interface QuickViewModalProps {
 
 export function QuickViewModal({ anime, isOpen, onClose }: QuickViewModalProps) {
   const { isFavorite, toggleFavoriteWithConfirm } = useFavorites();
+  const { copyToClipboard } = useToast();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,6 +53,11 @@ export function QuickViewModal({ anime, isOpen, onClose }: QuickViewModalProps) 
     anime.images?.jpg?.image_url;
 
   const year = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : 'N/A');
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/anime/${anime.mal_id}`;
+    copyToClipboard(url, `Link para "${title}" copiado!`);
+  };
 
   return (
     <AnimatePresence>
@@ -202,6 +210,14 @@ export function QuickViewModal({ anime, isOpen, onClose }: QuickViewModalProps) 
                 <Heart size={16} className={favorited ? 'fill-current' : ''} />
                 <span>{favorited ? 'Salvo' : 'Favoritar'}</span>
               </button>
+
+              <button
+                onClick={handleShare}
+                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-gray-300 hover:text-white transition-all"
+                title="Compartilhar Link"
+              >
+                <Share2 size={16} />
+              </button>
             </div>
           </div>
         </motion.div>
@@ -209,3 +225,4 @@ export function QuickViewModal({ anime, isOpen, onClose }: QuickViewModalProps) 
     </AnimatePresence>
   );
 }
+

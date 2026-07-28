@@ -25,9 +25,15 @@ import {
   Captions,
   Keyboard,
   X,
-  HelpCircle,
+  SkipForward,
+  PictureInPicture2,
+  FastForward,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
+import { useToast } from '@/context/ToastContext';
+import { SafeImage } from './SafeImage';
 import { Tooltip } from './Tooltip';
 
 interface VideoPlayerProps {
@@ -96,7 +102,7 @@ const getCurrentSubtitleCue = (seconds: number, langId: string) => {
   } else if (loopSec >= 18 && loopSec < 24) {
     if (langId === 'pt') return 'A verdadeira força desperta no momento de maior escuridão.';
     if (langId === 'en') return 'True strength awakens in the moment of greatest darkness.';
-    if (langId === 'es') return 'La verdadera fuerza despierta en el momento de mayor oscuridad.';
+    if (langId === 'es') return 'La verdadeira fuerza despierta en el momento de mayor oscuridad.';
   } else if (loopSec >= 24 && loopSec < 29) {
     if (langId === 'pt') return 'A jornada continua. Este é o destino dos escolhidos!';
     if (langId === 'en') return 'The journey continues. This is the destiny of the chosen ones!';
@@ -119,6 +125,7 @@ export function VideoPlayer({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const { saveProgress, getProgress } = useWatchProgress();
+  const { showToast } = useToast();
 
   const [activeServer, setActiveServer] = useState(SAMPLE_STREAMS[0]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -129,10 +136,115 @@ export function VideoPlayer({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [isLightDimmed, setIsLightDimmed] = useState(false);
+  const [isPipActive, setIsPipActive] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+
+  // Picture-in-Picture event listeners
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    const onEnterPip = () => setIsPipActive(true);
+    const onLeavePip = () => setIsPipActive(false);
+
+    videoEl.addEventListener('enterpictureinpicture', onEnterPip);
+    videoEl.addEventListener('leavepictureinpicture', onLeavePip);
+
+    return () => {
+      videoEl.removeEventListener('enterpictureinpicture', onEnterPip);
+      videoEl.removeEventListener('leavepictureinpicture', onLeavePip);
+    };
+  }, []);
+
+  // Toggle Native Picture-in-Picture
+  const togglePip = async () => {
+    if (!videoRef.current) return;
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (document.pictureInPictureEnabled) {
+        await videoRef.current.requestPictureInPicture();
+      } else {
+        showToast({
+          type: 'warning',
+          title: 'PiP Indisponível',
+          message: 'Seu navegador não suporta Picture-in-Picture nativo.',
+        });
+      }
+    } catch (err) {
+      console.error('Error toggling PiP:', err);
+    }
+  };
+
+  // Skip Intro (+85s)
+  const skipIntro = useCallback(() => {
+    if (!videoRef.current) return;
+    const dur = duration || videoRef.current.duration || 1000;
+    const newTime = Math.min(videoRef.current.currentTime + 85, dur);
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    showToast({
+      type: 'info',
+      title: 'Abertura Pulada (+85s)',
+      duration: 2000,
+    });
+  }, [duration, showToast]);
+
+  // Autoplay & Next Episode Countdown Card state
+  const [autoplayCountdown, setAutoplayCountdown] = useState<number | null>(null);
+
+  // Handle countdown interval
+  useEffect(() => {
+    if (autoplayCountdown === null) return;
+
+    if (autoplayCountdown <= 0) {
+      setAutoplayCountdown(null);
+      if (onNextEpisode) {
+        onNextEpisode();
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setAutoplayCountdown((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [autoplayCountdown, onNextEpisode]);
+
+  const handleEpisodeCompletion = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+
+    const dur = videoRef.current?.duration || duration || 100;
+    saveProgress({
+      animeId,
+      animeTitle,
+      animeImage,
+      episodeNum,
+      episodeTitle,
+      currentTime: dur,
+      duration: dur,
+    });
+
+    showToast({
+      type: 'success',
+      title: `Episódio ${episodeNum} Concluído!`,
+      message: `Salvo em Continuar Assistindo.`,
+      animeImage,
+      animeId,
+    });
+
+    if (nextEpNum && onNextEpisode) {
+      setAutoplayCountdown(5);
+    }
+  };
 
   // Audio and Subtitle language states
   const [audioLang, setAudioLang] = useState(AUDIO_LANGUAGES[0]);
@@ -180,12 +292,21 @@ export function VideoPlayer({
   // Handle Video Metadata Loaded
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+      const dur = videoRef.current.duration;
+      setDuration(dur);
       const saved = getProgress(animeId, episodeNum);
-      if (saved && saved.currentTime > 5 && saved.percentage < 90) {
+      if (saved && saved.currentTime > 10 && saved.percentage < 92) {
+        videoRef.current.currentTime = saved.currentTime;
+        setCurrentTime(saved.currentTime);
         setResumePrompt({
           show: true,
           time: saved.currentTime,
+        });
+        showToast({
+          type: 'info',
+          title: `Vídeo Retomado (${formatTime(saved.currentTime)})`,
+          message: 'Retomado automaticamente do ponto salvo.',
+          duration: 4000,
         });
       } else {
         setResumePrompt({ show: false, time: 0 });
@@ -358,6 +479,9 @@ export function VideoPlayer({
         } else if (isTheaterMode) {
           setIsTheaterMode(false);
           e.preventDefault();
+        } else if (isLightDimmed) {
+          setIsLightDimmed(false);
+          e.preventDefault();
         }
         return;
       }
@@ -370,6 +494,9 @@ export function VideoPlayer({
 
       if (e.key === ' ' || e.key === 'k' || e.key === 'K') {
         togglePlay();
+        e.preventDefault();
+      } else if (e.key === 's' || e.key === 'S') {
+        skipIntro();
         e.preventDefault();
       } else if (e.key === 'f' || e.key === 'F') {
         toggleFullscreen();
@@ -457,10 +584,13 @@ export function VideoPlayer({
         </div>
       </div>
 
-      {/* Dark Backdrop for Cinema Mode */}
-      {isTheaterMode && (
+      {/* Dark Backdrop for Cinema Mode or Light Dimmer */}
+      {(isTheaterMode || isLightDimmed) && (
         <div
-          onClick={() => setIsTheaterMode(false)}
+          onClick={() => {
+            setIsTheaterMode(false);
+            setIsLightDimmed(false);
+          }}
           className="fixed inset-0 z-40 bg-black/90 backdrop-blur-md transition-opacity animate-fade-in"
         />
       )}
@@ -484,23 +614,65 @@ export function VideoPlayer({
           poster={animeImage}
           onLoadedMetadata={handleLoadedMetadata}
           onTimeUpdate={handleTimeUpdate}
-          onEnded={() => {
-            setIsPlaying(false);
-            if (duration > 0) {
-              saveProgress({
-                animeId,
-                animeTitle,
-                animeImage,
-                episodeNum,
-                episodeTitle,
-                currentTime: duration,
-                duration,
-              });
-            }
-          }}
+          onEnded={handleEpisodeCompletion}
           onClick={togglePlay}
           className="w-full h-full object-contain cursor-pointer"
         />
+
+        {/* Floating Binge-Watching Autoplay Mini Card Overlay */}
+        {autoplayCountdown !== null && (
+          <div className="absolute bottom-16 right-4 sm:bottom-20 sm:right-6 z-40 max-w-xs w-full p-4 rounded-2xl glass-panel bg-neutral-900/95 border-2 border-[#FF6B00] shadow-2xl backdrop-blur-xl animate-fade-in text-white select-none">
+            <div className="flex items-center gap-3">
+              {animeImage && (
+                <div className="relative w-12 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-800 border border-white/10">
+                  <SafeImage src={animeImage} animeId={animeId} alt={animeTitle} fill className="object-cover" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-[#FF6B00] uppercase tracking-wider">Próximo Episódio</span>
+                  <span className="w-6 h-6 rounded-full bg-[#FF6B00] text-white flex items-center justify-center font-black text-xs animate-pulse shadow-md">
+                    {autoplayCountdown}s
+                  </span>
+                </div>
+                <h4 className="text-xs font-black text-white truncate mt-0.5">
+                  Episódio {nextEpNum}
+                </h4>
+                <p className="text-[10px] text-gray-400 font-medium truncate mt-0.5">
+                  {animeTitle}
+                </p>
+              </div>
+            </div>
+
+            {/* Countdown progress bar */}
+            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden my-2.5">
+              <div
+                className="h-full bg-[#FF6B00] transition-all duration-1000 ease-linear shadow-sm"
+                style={{ width: `${(autoplayCountdown / 5) * 100}%` }}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setAutoplayCountdown(null);
+                  if (onNextEpisode) onNextEpisode();
+                }}
+                className="flex-1 px-3 py-1.5 rounded-xl bg-[#FF6B00] hover:bg-[#FF8533] text-white font-bold text-xs shadow-md shadow-[#FF6B00]/30 transition-all text-center flex items-center justify-center gap-1"
+              >
+                <span>Assistir Agora</span>
+                <ChevronRight size={14} />
+              </button>
+              <button
+                onClick={() => setAutoplayCountdown(null)}
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 font-bold text-xs border border-white/10 transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
 
         {/* Keyboard Shortcuts Modal */}
         {showShortcutsModal && (
@@ -549,6 +721,11 @@ export function VideoPlayer({
                 <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/5">
                   <span className="text-gray-300 font-bold">Voltar / Avançar 10s</span>
                   <kbd className="px-2 py-1 rounded bg-neutral-800 border border-white/20 font-mono text-[10px] text-[#FF6B00] font-black">◄  ►</kbd>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/5">
+                  <span className="text-gray-300 font-bold">Pular Abertura (+85s)</span>
+                  <kbd className="px-2 py-1 rounded bg-neutral-800 border border-white/20 font-mono text-[10px] text-[#FF6B00] font-black">S</kbd>
                 </div>
 
                 <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/5">
@@ -840,6 +1017,28 @@ export function VideoPlayer({
                 )}
               </div>
 
+              {/* Skip Intro Button */}
+              <Tooltip content="Pular Abertura (+85s) (Teclas S)" position="top">
+                <button
+                  onClick={skipIntro}
+                  className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-[#FF6B00] text-gray-200 hover:text-white font-bold text-xs border border-white/10 transition-all"
+                >
+                  <FastForward size={13} />
+                  <span>Pular +85s</span>
+                </button>
+              </Tooltip>
+
+              {/* Concluir Episódio Button */}
+              <Tooltip content="Marcar episódio como concluído e iniciar contagem regressiva" position="top">
+                <button
+                  onClick={handleEpisodeCompletion}
+                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-black font-bold text-xs border border-emerald-500/30 transition-all"
+                >
+                  <CheckCircle2 size={13} />
+                  <span>Concluir</span>
+                </button>
+              </Tooltip>
+
               {/* Next Episode Button */}
               {nextEpNum && onNextEpisode && (
                 <Tooltip content={`Avançar para episódio ${nextEpNum}`} position="top">
@@ -852,6 +1051,37 @@ export function VideoPlayer({
                   </button>
                 </Tooltip>
               )}
+
+              {/* Light Dimmer Button */}
+              <Tooltip content={isLightDimmed ? 'Acender as Luzes (Esc)' : 'Apagar as Luzes'} position="top">
+                <button
+                  onClick={() => setIsLightDimmed(!isLightDimmed)}
+                  className={`p-1.5 sm:p-2 rounded-lg transition-colors flex items-center gap-1.5 ${
+                    isLightDimmed
+                      ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/40'
+                      : 'hover:bg-white/10 text-gray-300 hover:text-white'
+                  }`}
+                >
+                  {isLightDimmed ? <Sun size={16} className="sm:w-4 sm:h-4" /> : <Moon size={16} className="sm:w-4 sm:h-4" />}
+                  <span className="hidden lg:inline text-xs font-bold">
+                    {isLightDimmed ? 'Luzes On' : 'Luzes Off'}
+                  </span>
+                </button>
+              </Tooltip>
+
+              {/* Picture-in-Picture Button */}
+              <Tooltip content={isPipActive ? 'Sair do Picture-in-Picture' : 'Modo Picture-in-Picture'} position="top">
+                <button
+                  onClick={togglePip}
+                  className={`p-1.5 sm:p-2 rounded-lg transition-colors flex items-center gap-1.5 ${
+                    isPipActive
+                      ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/40'
+                      : 'hover:bg-white/10 text-gray-300 hover:text-white'
+                  }`}
+                >
+                  <PictureInPicture2 size={16} className="sm:w-4 sm:h-4" />
+                </button>
+              </Tooltip>
 
               {/* Keyboard Shortcuts Button (desktop only) */}
               <Tooltip content="Atalhos de teclado (?)" position="top">

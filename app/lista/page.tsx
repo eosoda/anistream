@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ListFilter,
@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
 import { AnimeCard } from '@/components/AnimeCard';
+import { CompactAnimeCard } from '@/components/CompactAnimeCard';
+import { ViewToggle, ViewMode } from '@/components/ViewToggle';
+import { QuickMultiFilter, QuickFilterState, GENRE_MAL_ID_MAP } from '@/components/QuickMultiFilter';
 import { AnimeCardSkeleton } from '@/components/LoadingSkeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
@@ -49,20 +52,53 @@ const ALPHABET = [
   'Z',
 ];
 
+const DEFAULT_QUICK_FILTERS: QuickFilterState = {
+  genre: 'all',
+  status: 'all',
+  orderBy: 'popularity',
+};
+
 export default function AnimeListPage() {
   const { ref: alphabetScrollRef, isDragging: isAlphabetDragging } = useDraggableScroll<HTMLDivElement>();
   const [selectedLetter, setSelectedLetter] = useState<string>('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<'all' | 'tv' | 'movie' | 'ova' | 'ona'>('all');
+  const [quickFilters, setQuickFilters] = useState<QuickFilterState>(DEFAULT_QUICK_FILTERS);
 
-  // Fetch anime in alphabetical/symbol order
+  // Persistent view mode state (grid vs compact list)
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
+      if (stored === 'grid' || stored === 'list') {
+        setViewMode(stored);
+      }
+    }
+  }, []);
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('anistream_view_mode', mode);
+    }
+  };
+
+  // Fetch anime in alphabetical/symbol order + combined filters
   const { data: animeListData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['animeListAlphabetical', selectedLetter, searchQuery, page, typeFilter],
+    queryKey: [
+      'animeListAlphabetical',
+      selectedLetter,
+      searchQuery,
+      page,
+      typeFilter,
+      quickFilters,
+    ],
     queryFn: () =>
       jikanService.searchAnime(searchQuery, page, 24, {
-        orderBy: 'title',
-        sort: 'asc',
+        orderBy: quickFilters.orderBy || 'title',
+        sort: quickFilters.orderBy === 'title' ? 'asc' : 'desc',
         letter:
           selectedLetter !== 'Todos'
             ? selectedLetter === '#'
@@ -70,6 +106,8 @@ export default function AnimeListPage() {
               : selectedLetter.toLowerCase()
             : undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
+        status: quickFilters.status !== 'all' ? quickFilters.status : undefined,
+        genres: quickFilters.genre && quickFilters.genre !== 'all' ? GENRE_MAL_ID_MAP[quickFilters.genre] : undefined,
       }),
   });
 
@@ -85,6 +123,16 @@ export default function AnimeListPage() {
 
   const handleClearSearch = () => {
     setSearchQuery('');
+    setPage(1);
+  };
+
+  const handleQuickFilterChange = (newFilters: QuickFilterState) => {
+    setQuickFilters(newFilters);
+    setPage(1);
+  };
+
+  const handleResetQuickFilters = () => {
+    setQuickFilters(DEFAULT_QUICK_FILTERS);
     setPage(1);
   };
 
@@ -106,12 +154,19 @@ export default function AnimeListPage() {
             Lista de <span className="text-[#FF6B00]">Animes</span>
           </h1>
           <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
-            Navegue por todo o acervo. Filtre por símbolos e números (#), por ordem alfabética (A-Z) ou faça buscas diretas.
+            Navegue por todo o acervo. Combine filtros rápidos, formato, ordem alfabética (A-Z) e alterne entre a visão em Grade ou Lista Compacta.
           </p>
         </div>
       </div>
 
-      {/* Dynamic Search Box & Type Filter */}
+      {/* Quick Multi-Filter Chips */}
+      <QuickMultiFilter
+        filters={quickFilters}
+        onChange={handleQuickFilterChange}
+        onReset={handleResetQuickFilters}
+      />
+
+      {/* Dynamic Search Box & Type Filter & View Toggle Bar */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {/* Dynamic Search Bar */}
@@ -122,7 +177,7 @@ export default function AnimeListPage() {
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Buscar título na lista alfabética..."
-              className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-gray-400 text-xs sm:text-sm focus:outline-none focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] transition-all"
+              className="w-full pl-11 pr-10 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-gray-400 text-xs sm:text-sm focus:outline-none focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] transition-all"
             />
             {searchQuery && (
               <button
@@ -152,6 +207,9 @@ export default function AnimeListPage() {
               <option value="ona" className="bg-[#12131C]">ONAs / Web</option>
             </select>
           </div>
+
+          {/* View Toggle (Grid vs Compact List) */}
+          <ViewToggle mode={viewMode} onChange={handleViewModeChange} />
         </div>
 
         {/* Alphabet Selector Bar */}
@@ -239,16 +297,29 @@ export default function AnimeListPage() {
         />
       )}
 
-      {/* Anime Grid */}
+      {/* Content Rendering: Grid vs Compact List */}
       {!isError && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {isLoading
-            ? Array.from({ length: 24 }).map((_, i) => <AnimeCardSkeleton key={i} />)
-            : animeListData?.data?.map((anime, index) => (
-                <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
-              ))}
-        </div>
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {isLoading
+              ? Array.from({ length: 24 }).map((_, i) => <AnimeCardSkeleton key={i} />)
+              : animeListData?.data?.map((anime, index) => (
+                  <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
+                ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {isLoading
+              ? Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="h-20 bg-white/5 rounded-2xl animate-pulse" />
+                ))
+              : animeListData?.data?.map((anime, index) => (
+                  <CompactAnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
+                ))}
+          </div>
+        )
       )}
+
 
       {/* Empty State */}
       {!isLoading && !isError && animeListData?.data?.length === 0 && (

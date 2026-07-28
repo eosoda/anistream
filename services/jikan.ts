@@ -47,6 +47,7 @@ export interface SearchAnimeFilters {
   orderBy?: 'score' | 'popularity' | 'title' | 'start_date';
   sort?: 'asc' | 'desc';
   letter?: string;
+  genres?: string;
   audioLanguage?: 'all' | 'subbed_pt' | 'dubbed_pt' | 'pt_br';
 }
 
@@ -91,6 +92,10 @@ export const jikanService = {
 
         if (filters?.letter && filters.letter !== 'all') {
           params.letter = filters.letter;
+        }
+
+        if (filters?.genres) {
+          params.genres = filters.genres;
         }
 
         if (filters?.orderBy) {

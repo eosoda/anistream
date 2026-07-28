@@ -417,7 +417,23 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 export function useFavoritesContext() {
   const context = useContext(FavoritesContext);
   if (!context) {
-    throw new Error('useFavoritesContext must be used within a FavoritesProvider');
+    return {
+      favorites: [],
+      addFavorite: () => {},
+      removeFavorite: () => {},
+      isFavorite: () => false,
+      toggleFavorite: () => {},
+      newEpisodesMap: {},
+      newEpisodesCount: 0,
+      isCheckingNewEpisodes: false,
+      lastCheckTime: null,
+      checkNewEpisodes: async () => {},
+      markAsSeen: () => {},
+      markAllAsSeen: () => {},
+      recommendationsEnabled: true,
+      setRecommendationsEnabled: () => {},
+      toggleRecommendationsEnabled: () => {},
+    };
   }
   return context;
 }

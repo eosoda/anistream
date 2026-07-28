@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
@@ -8,6 +8,8 @@ import { jikanService, SearchAnimeFilters } from '@/services/jikan';
 import { SearchBar } from '@/components/SearchBar';
 import { SearchFilters } from '@/components/SearchFilters';
 import { AnimeCard } from '@/components/AnimeCard';
+import { CompactAnimeCard } from '@/components/CompactAnimeCard';
+import { ViewToggle, ViewMode } from '@/components/ViewToggle';
 import { AnimeCardSkeleton } from '@/components/LoadingSkeleton';
 import { EmptyState } from '@/components/EmptyState';
 
@@ -27,6 +29,25 @@ function SearchContent() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<SearchAnimeFilters>(DEFAULT_FILTERS);
   const [isOpenFilters, setIsOpenFilters] = useState(false);
+
+  // View mode state (persistent grid vs compact list)
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
+      if (stored === 'grid' || stored === 'list') {
+        setViewMode(stored);
+      }
+    }
+  }, []);
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('anistream_view_mode', mode);
+    }
+  };
 
   // Calculate active filters count
   const activeCount =
@@ -82,7 +103,7 @@ function SearchContent() {
       </div>
 
       {hasSearchOrFilter && (
-        <div className="border-b border-white/10 pb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="border-b border-white/10 pb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 className="text-lg md:text-xl font-bold text-white">
               {query ? (
@@ -95,7 +116,7 @@ function SearchContent() {
             </h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {activeCount > 0 && (
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/40">
                 {activeCount} {activeCount === 1 ? 'filtro ativo' : 'filtros ativos'}
@@ -107,6 +128,8 @@ function SearchContent() {
                 {searchData.pagination.items.total} encontrados
               </span>
             )}
+
+            <ViewToggle mode={viewMode} onChange={handleViewModeChange} />
           </div>
         </div>
       )}
@@ -123,13 +146,27 @@ function SearchContent() {
         />
       )}
 
-      {/* Grid */}
+      {/* Content Rendering (Grid vs Compact List) */}
       {!isError && hasSearchOrFilter ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {isLoading
-            ? Array.from({ length: 18 }).map((_, i) => <AnimeCardSkeleton key={i} />)
-            : searchData?.data?.map((anime, index) => <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />)}
-        </div>
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {isLoading
+              ? Array.from({ length: 18 }).map((_, i) => <AnimeCardSkeleton key={i} />)
+              : searchData?.data?.map((anime, index) => (
+                  <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
+                ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {isLoading
+              ? Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="h-20 bg-white/5 rounded-2xl animate-pulse" />
+                ))
+              : searchData?.data?.map((anime, index) => (
+                  <CompactAnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
+                ))}
+          </div>
+        )
       ) : !hasSearchOrFilter ? (
         <EmptyState
           title="Pesquise ou use os Filtros Avançados"
@@ -138,6 +175,7 @@ function SearchContent() {
           actionText="Ver Animes Populares"
         />
       ) : null}
+
 
       {!isLoading && !isError && hasSearchOrFilter && searchData?.data?.length === 0 && (
         <EmptyState

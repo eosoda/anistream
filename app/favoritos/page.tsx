@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Heart,
   Sparkles,
@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
 import { AnimeCard } from '@/components/AnimeCard';
+import { CompactAnimeCard } from '@/components/CompactAnimeCard';
+import { ViewToggle, ViewMode } from '@/components/ViewToggle';
 import { EmptyState } from '@/components/EmptyState';
 import { EpisodeRemindersPanel } from '@/components/EpisodeRemindersPanel';
 import { ForYouSection } from '@/components/ForYouSection';
@@ -32,6 +34,23 @@ export default function FavoritesPage() {
   } = useFavorites();
 
   const [activeTab, setActiveTab] = useState<'all' | 'new_episodes' | 'airing'>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
+      if (stored === 'grid' || stored === 'list') {
+        setViewMode(stored);
+      }
+    }
+  }, []);
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('anistream_view_mode', mode);
+    }
+  };
 
   const airingFavorites = favorites.filter(
     (a) => a.airing || a.status === 'Currently Airing' || a.status === 'Airing'
@@ -65,6 +84,8 @@ export default function FavoritesPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <ViewToggle mode={viewMode} onChange={handleViewModeChange} />
+
           <Tooltip content="Verificar datas de lançamentos de episódios na API Jikan" position="bottom">
             <button
               onClick={() => checkNewEpisodes(true)}
@@ -242,13 +263,21 @@ export default function FavoritesPage() {
         </div>
       )}
 
-      {/* Grid */}
+      {/* Grid or Compact List */}
       {displayedFavorites.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {displayedFavorites.map((anime, index) => (
-            <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
-          ))}
-        </div>
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {displayedFavorites.map((anime, index) => (
+              <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {displayedFavorites.map((anime, index) => (
+              <CompactAnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
+            ))}
+          </div>
+        )
       ) : activeTab === 'new_episodes' ? (
         <EmptyState
           title="Nenhum anime com novos episódios no momento"

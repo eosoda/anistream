@@ -20,6 +20,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
   const [results, setResults] = useState<JikanAnime[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
 
@@ -42,7 +43,6 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
   const toggleVoiceSearch = () => {
     setSpeechError(null);
 
-    // Check window / browser support for SpeechRecognition
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -107,13 +107,14 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
     }
   };
 
-  // Instant debounced search
+  // Instant debounced search - exactly 5 top results
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (!query.trim() || query.length < 2) {
         setResults([]);
         setIsLoading(false);
         setIsOpen(false);
+        setSelectedIndex(-1);
         return;
       }
 
@@ -121,23 +122,50 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
       setIsOpen(true);
 
       try {
-        const response = await jikanService.searchAnime(query, 1, 6);
-        setResults(response.data || []);
+        const response = await jikanService.searchAnime(query, 1, 5);
+        setResults(response.data?.slice(0, 5) || []);
+        setSelectedIndex(-1);
       } catch (err) {
         console.error('Erro na pesquisa:', err);
         setResults([]);
       } finally {
         setIsLoading(false);
       }
-    }, 350);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [query]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && query.trim()) {
+    if (e.key === 'Escape') {
       setIsOpen(false);
-      router.push(`/pesquisa?q=${encodeURIComponent(query.trim())}`);
+      setSelectedIndex(-1);
+      return;
+    }
+
+    if (isOpen && results.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+        return;
+      }
+    }
+
+    if (e.key === 'Enter') {
+      if (isOpen && selectedIndex >= 0 && results[selectedIndex]) {
+        e.preventDefault();
+        const targetAnime = results[selectedIndex];
+        setIsOpen(false);
+        router.push(`/anime/${targetAnime.mal_id}`);
+      } else if (query.trim()) {
+        setIsOpen(false);
+        router.push(`/pesquisa?q=${encodeURIComponent(query.trim())}`);
+      }
     }
   };
 
@@ -163,7 +191,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
         />
 
         <div className="absolute right-3 flex items-center gap-1.5">
-          {/* Voice Search Mic Button with Pulsing Ring */}
+          {/* Voice Search Mic Button */}
           <div className="relative flex items-center justify-center">
             {isListening && (
               <>
@@ -197,6 +225,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
                     setQuery('');
                     setResults([]);
                     setIsOpen(false);
+                    setSelectedIndex(-1);
                   }}
                   className="text-gray-400 hover:text-white p-1"
                 >
@@ -215,48 +244,61 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
         </div>
       )}
 
-      {/* Autocomplete Popup */}
+      {/* Instant Live Search Preview Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 glass-panel rounded-2xl shadow-2xl overflow-hidden border border-white/10 divide-y divide-white/5">
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 glass-panel bg-[#0B0B0F]/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/15 divide-y divide-white/5 animate-fade-in">
           {isLoading && results.length === 0 ? (
             <div className="p-4 text-center text-sm text-gray-400 flex items-center justify-center gap-2">
               <Loader2 size={16} className="animate-spin text-[#FF6B00]" />
-              Procurando...
+              Buscando animes...
             </div>
           ) : results.length > 0 ? (
             <>
-              {results.map((anime) => {
+              <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-[#FF6B00] bg-white/5 flex items-center justify-between">
+                <span>Pré-visualização instantânea (Top 5)</span>
+                <span className="text-gray-400 font-normal">Use ↑ ↓ e Enter</span>
+              </div>
+
+              {results.map((anime, idx) => {
                 const imageUrl =
                   anime.images?.jpg?.small_image_url || anime.images?.jpg?.image_url;
                 const title = anime.title || anime.title_english || 'Anime';
                 const year = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : 'N/A');
+                const isSelected = selectedIndex === idx;
 
                 return (
                   <Link
                     key={anime.mal_id}
                     href={`/anime/${anime.mal_id}`}
                     onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-3 p-3 hover:bg-[#FF6B00]/10 transition-colors group"
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={`flex items-center gap-3 p-2.5 transition-colors group ${
+                      isSelected ? 'bg-[#FF6B00]/20 border-l-4 border-[#FF6B00]' : 'hover:bg-white/5'
+                    }`}
                   >
-                    <div className="relative w-12 h-16 flex-shrink-0 rounded-md overflow-hidden bg-neutral-800">
+                    <div className="relative w-11 h-15 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-800 border border-white/10 shadow-sm">
                       <SafeImage
                         src={imageUrl}
                         fallbackSrc={anime.images?.jpg?.image_url}
                         animeId={anime.mal_id}
                         alt={title}
                         fill
-                        sizes="48px"
+                        sizes="44px"
                         className="object-cover"
                       />
                     </div>
                     <div className="flex-grow min-w-0">
-                      <h4 className="text-sm font-bold text-white group-hover:text-[#FF6B00] transition-colors truncate">
+                      <h4
+                        className={`text-xs sm:text-sm font-bold transition-colors truncate ${
+                          isSelected ? 'text-[#FF6B00]' : 'text-white group-hover:text-[#FF6B00]'
+                        }`}
+                      >
                         {title}
                       </h4>
-                      <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 flex-wrap">
+                      <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-1 flex-wrap">
                         {anime.score && (
-                          <span className="flex items-center gap-0.5 text-amber-400 font-semibold">
-                            <Star size={12} className="fill-current" />
+                          <span className="flex items-center gap-0.5 text-amber-400 font-bold">
+                            <Star size={11} className="fill-current" />
                             {anime.score.toFixed(1)}
                           </span>
                         )}
@@ -268,7 +310,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
                           {anime.type || 'TV'}
                         </span>
                         <span>•</span>
-                        <span className="text-gray-300">{formatStatus(anime.status)}</span>
+                        <span className="text-gray-300 font-medium">{formatStatus(anime.status)}</span>
                       </div>
                     </div>
                   </Link>
@@ -278,7 +320,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
               <Link
                 href={`/pesquisa?q=${encodeURIComponent(query.trim())}`}
                 onClick={() => setIsOpen(false)}
-                className="block p-3 text-center text-xs font-semibold text-[#FF6B00] bg-white/5 hover:bg-white/10 transition-colors"
+                className="block p-3 text-center text-xs font-bold text-[#FF6B00] bg-white/5 hover:bg-[#FF6B00]/10 transition-colors"
               >
                 Ver todos os resultados para &quot;{query}&quot; →
               </Link>

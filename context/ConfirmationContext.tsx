@@ -159,7 +159,7 @@ export function ConfirmationProvider({ children }: { children: React.ReactNode }
 export function useConfirmation() {
   const context = useContext(ConfirmationContext);
   if (!context) {
-    throw new Error('useConfirmation must be used within a ConfirmationProvider');
+    return { confirm: async () => false };
   }
   return context;
 }

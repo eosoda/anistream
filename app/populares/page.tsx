@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Flame, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
 import { AnimeCard } from '@/components/AnimeCard';
+import { CompactAnimeCard } from '@/components/CompactAnimeCard';
+import { ViewToggle, ViewMode } from '@/components/ViewToggle';
 import { AnimeCardSkeleton } from '@/components/LoadingSkeleton';
 import { EmptyState } from '@/components/EmptyState';
 
@@ -20,6 +22,23 @@ const TYPE_FILTERS = [
 export default function PopularPage() {
   const [activeType, setActiveType] = useState('all');
   const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
+      if (stored === 'grid' || stored === 'list') {
+        setViewMode(stored);
+      }
+    }
+  }, []);
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('anistream_view_mode', mode);
+    }
+  };
 
   // Query Top Anime with type filter
   const { data: topData, isLoading, isError, refetch } = useQuery({
@@ -35,16 +54,20 @@ export default function PopularPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
       {/* Header */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-[#FF6B00]">
-          <Flame size={24} />
-          <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">
-            Animes mais Populares
-          </h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-[#FF6B00]">
+            <Flame size={24} />
+            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">
+              Animes mais Populares
+            </h1>
+          </div>
+          <p className="text-sm text-gray-400">
+            Ranking dos animes mais aclamados, assistidos e favoritados no mundo.
+          </p>
         </div>
-        <p className="text-sm text-gray-400">
-          Ranking dos animes mais aclamados, assistidos e favoritados no mundo.
-        </p>
+
+        <ViewToggle mode={viewMode} onChange={handleViewModeChange} />
       </div>
 
       {/* Filter Tabs */}
@@ -80,13 +103,27 @@ export default function PopularPage() {
         />
       )}
 
-      {/* Anime Grid */}
+      {/* Anime Grid vs Compact List */}
       {!isError && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {isLoading
-            ? Array.from({ length: 24 }).map((_, i) => <AnimeCardSkeleton key={i} />)
-            : topData?.data?.map((anime, index) => <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />)}
-        </div>
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {isLoading
+              ? Array.from({ length: 24 }).map((_, i) => <AnimeCardSkeleton key={i} />)
+              : topData?.data?.map((anime, index) => (
+                  <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
+                ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {isLoading
+              ? Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="h-20 bg-white/5 rounded-2xl animate-pulse" />
+                ))
+              : topData?.data?.map((anime, index) => (
+                  <CompactAnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
+                ))}
+          </div>
+        )
       )}
 
       {!isLoading && !isError && topData?.data?.length === 0 && (
