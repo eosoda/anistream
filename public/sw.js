@@ -1,6 +1,7 @@
-const CACHE_NAME = 'anistream-v1';
+const CACHE_NAME = 'anistream-v2';
 const STATIC_ASSETS = [
   '/',
+  '/offline.html',
   '/manifest.json',
   '/favoritos',
   '/lista',
@@ -53,19 +54,30 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
 
-      return fetch(event.request).then((networkResponse) => {
-        if (
-          networkResponse.ok &&
-          event.request.url.startsWith(self.location.origin) &&
-          !event.request.url.includes('/api/')
-        ) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return networkResponse;
-      });
+      return fetch(event.request)
+        .then((networkResponse) => {
+          if (
+            networkResponse.ok &&
+            event.request.url.startsWith(self.location.origin) &&
+            !event.request.url.includes('/api/')
+          ) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Se for requisição de navegação HTML de página e falhou por falta de rede
+          if (
+            event.request.mode === 'navigate' ||
+            (event.request.headers.get('accept') &&
+              event.request.headers.get('accept').includes('text/html'))
+          ) {
+            return caches.match('/offline.html');
+          }
+        });
     })
   );
 });
