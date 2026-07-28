@@ -5,6 +5,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { FloatingRecommendationsWidget } from '@/components/home/FloatingRecommendationsWidget';
 import { OfflineStatusBanner } from '@/components/ui/OfflineStatusBanner';
+import { PwaRegister } from '@/components/layout/PwaRegister';
 
 export const metadata: Metadata = {
   title: 'AniStream - Catálogo & Streaming de Animes',
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryProvider>
           <Navbar />
           <OfflineStatusBanner />
+          <PwaRegister />
           <main className="flex-grow w-full pb-20 lg:pb-0">{children}</main>
           <FloatingRecommendationsWidget />
           <Footer />

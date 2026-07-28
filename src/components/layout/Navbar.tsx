@@ -3,22 +3,24 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Play, Flame, Calendar, Film, ListFilter, Heart, Menu, X, Search } from 'lucide-react';
+import { Play, Flame, Calendar, Film, ListFilter, Heart, Menu, X, Search, Trophy } from 'lucide-react';
 import { SearchBar } from '@/components/catalog/SearchBar';
 import { useFavorites } from '@/hooks/useFavorites';
+import { UserStatsModal } from '@/components/user/UserStatsModal';
 
 export function Navbar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
   const { favorites, newEpisodesCount } = useFavorites();
 
   const navLinks = [
     { name: 'Home', href: '/', icon: <Play size={18} /> },
     { name: 'Populares', href: '/populares', icon: <Flame size={18} /> },
-    { name: 'Temporadas', href: '/temporadas', icon: <Calendar size={18} /> },
+    { name: 'Calendário', href: '/calendario', icon: <Calendar size={18} /> },
     { name: 'Filmes', href: '/filmes', icon: <Film size={18} /> },
-    { name: 'Lista de Animes', href: '/lista', icon: <ListFilter size={18} /> },
+    { name: 'Catálogo', href: '/lista', icon: <ListFilter size={18} /> },
     {
       name: 'Favoritos',
       href: '/favoritos',
@@ -30,6 +32,8 @@ export function Navbar() {
 
   return (
     <>
+      <UserStatsModal isOpen={isStatsOpen} onClose={() => setIsStatsOpen(false)} />
+
       <header className="sticky top-0 z-50 w-full bg-[#0B0B0F]/85 backdrop-blur-xl border-b border-white/10 transition-all">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 md:h-20 flex items-center justify-between gap-4">
           {/* Logo */}
@@ -56,7 +60,7 @@ export function Navbar() {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`flex items-center gap-1.5 px-2.5 xl:px-3.5 py-2 rounded-full font-bold text-xs xl:text-sm transition-all relative whitespace-nowrap shrink-0 ${
+                  className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-2 rounded-full font-bold text-xs xl:text-sm transition-all relative whitespace-nowrap shrink-0 ${
                     isActive
                       ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/30'
                       : 'text-gray-300 hover:text-white hover:bg-white/5'
@@ -83,6 +87,15 @@ export function Navbar() {
                 </Link>
               );
             })}
+
+            {/* Botão de Estatísticas Pessoais */}
+            <button
+              onClick={() => setIsStatsOpen(true)}
+              className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/10"
+              title="Ver Estatísticas de Maratonas"
+            >
+              <Trophy size={18} className="text-[#FF6B00]" />
+            </button>
           </nav>
 
           {/* Desktop Search */}
@@ -92,6 +105,13 @@ export function Navbar() {
 
           {/* Mobile Search Toggle & Menu Button */}
           <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={() => setIsStatsOpen(true)}
+              className="p-2.5 rounded-full bg-white/5 text-gray-300 border border-white/10"
+              title="Estatísticas"
+            >
+              <Trophy size={18} className="text-[#FF6B00]" />
+            </button>
             <button
               onClick={() => {
                 setIsMobileSearchOpen(!isMobileSearchOpen);
@@ -178,7 +198,7 @@ export function Navbar() {
             <Link
               key={`bottom-${link.name}`}
               href={link.href}
-              className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+              className={`relative flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all ${
                 isActive ? 'text-[#FF6B00] font-bold' : 'text-gray-400 hover:text-white font-medium'
               }`}
             >

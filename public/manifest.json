@@ -1,0 +1,22 @@
+{
+  "name": "AniStream — Anime Streaming",
+  "short_name": "AniStream",
+  "description": "Plataforma de streaming de animes com suporte offline, HLS e modo escuro",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0B0F",
+  "theme_color": "#FF6B00",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

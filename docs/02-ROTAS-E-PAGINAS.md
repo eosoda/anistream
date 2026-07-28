@@ -10,6 +10,8 @@ O AniStream utiliza o **Next.js 15 App Router** localizado na pasta `app/`. A es
 app/
 ├── page.tsx                           # Rota "/" - Página Inicial (Home)
 ├── lista/page.tsx                     # Rota "/lista" - Catálogo Alfabético Geral
+├── lista/importar/page.tsx            # Rota "/lista/importar" - Importador de Lista MAL
+├── calendario/page.tsx                # Rota "/calendario" - Calendário Semanal de Lançamentos
 ├── pesquisa/page.tsx                  # Rota "/pesquisa" - Busca & Filtros Avançados
 ├── populares/page.tsx                 # Rota "/populares" - Ranking dos Mais Populares
 ├── temporadas/page.tsx                # Rota "/temporadas" - Lançamentos por Temporada/Ano

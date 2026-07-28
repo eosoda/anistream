@@ -44,6 +44,7 @@ Armazena os animes favoritados pelo usuário e executa checagens periódicas de 
 | Hook | Arquivo | Responsabilidade |
 | :--- | :--- | :--- |
 | `useFavorites` | `hooks/useFavorites.ts` | Interface direta para consumir `FavoritesContext` com fallbacks seguros contra React SSG. |
-| `useWatchProgress` | `hooks/useWatchProgress.ts` | Salva e recupera o tempo exato e porcentagem assistida dos episódios em `localStorage`. |
+| `usePlaybackProgress` | `hooks/usePlaybackProgress.ts` | Salva o tempo exato assistido via LocalStorage + IndexedDB a cada 5s e restaura timestamp. |
+| `useWebNotifications` | `hooks/useWebNotifications.ts` | Gerencia permissões e dispara Notificações Web Push de novos episódios. |
 | `useDraggableScroll` | `hooks/useDraggableScroll.ts` | Permite rolar listas e carrosséis horizontais clicando e arrastando com o mouse. |
 | `useMobile` | `hooks/use-mobile.ts` | Detecta se a largura de tela atual é menor que 768px (Mobile Breakpoint). |

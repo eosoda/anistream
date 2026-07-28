@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Play, Heart, ExternalLink } from 'lucide-react';
+import { Play, Heart, ExternalLink, ShieldCheck } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -18,8 +18,8 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-xs text-gray-400 max-w-sm leading-relaxed">
-              Plataforma moderna de exploração e catálogo de animes. Inspirada na experiência visual
-              da Crunchyroll, Netflix e AniList. Preparada para streaming com arquitetura desacoplada.
+              Plataforma moderna de exploração, catálogo e streaming de animes com suporte offline PWA,
+              assistente de instalação e atalhos avançados de player.
             </p>
             <div className="text-xs text-gray-500 pt-2 flex items-center gap-1">
               Desenvolvido com <Heart size={12} className="text-[#FF6B00] fill-current" /> para a comunidade otaku.
@@ -43,8 +43,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/temporadas" className="hover:text-[#FF6B00] transition-colors">
-                  Animes de Temporada
+                <Link href="/calendario" className="hover:text-[#FF6B00] transition-colors text-[#FF6B00]">
+                  Calendário Semanal
                 </Link>
               </li>
               <li>
@@ -53,8 +53,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/lista" className="hover:text-[#FF6B00] transition-colors">
-                  Lista de Animes
+                <Link href="/lista/importar" className="hover:text-[#FF6B00] transition-colors">
+                  Importar Lista MAL
                 </Link>
               </li>
               <li>
@@ -65,10 +65,10 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Column 3: API Credits */}
+          {/* Column 3: API Credits & Admin */}
           <div>
             <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">
-              Fontes de Dados
+              Fontes & Administração
             </h4>
             <ul className="space-y-2.5 text-xs font-semibold">
               <li>
@@ -93,16 +93,14 @@ export function Footer() {
                   <ExternalLink size={12} />
                 </a>
               </li>
-              <li>
-                <a
-                  href="https://myanimelist.net"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 hover:text-[#FF6B00] transition-colors"
+              <li className="pt-2">
+                <Link
+                  href="/admin/login"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold transition-all"
                 >
-                  MyAnimeList Database
-                  <ExternalLink size={12} />
-                </a>
+                  <ShieldCheck size={14} className="text-[#FF6B00]" />
+                  <span>Painel Administrativo</span>
+                </Link>
               </li>
             </ul>
           </div>
@@ -113,7 +111,7 @@ export function Footer() {
           <p>© {new Date().getFullYear()} AniStream. Todos os direitos reservados.</p>
           <div className="flex items-center gap-4">
             <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-gray-400">
-              Fase 1: Módulo de Metadados
+              Versão 2.0.0 (PWA + HLS Player + Admin CRUD)
             </span>
           </div>
         </div>

@@ -37,6 +37,13 @@ graph TD
 
 ---
 
-## 🔔 Componente de Banner Offline
+## 📱 Suporte PWA Instalável & Service Worker (Fase 3)
 
-Quando a conexão de internet é interrompida, o componente [`components/ui/OfflineStatusBanner.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/ui/OfflineStatusBanner.tsx) é ativado automaticamente no topo da tela, informando que a aplicação está operando em modo de cache offline.
+1. **Manifest Web App (`public/manifest.json`)**:
+   - Define nome, ícones, cor de tema (`#FF6B00`), cor de fundo (`#0B0B0F`) e exibição `standalone`.
+2. **Service Worker (`public/sw.js`)**:
+   - Cache de rotas HTML e ativos estáticos com estratégia **Stale-While-Revalidate**.
+3. **PWA Registration Component (`PwaRegister.tsx`)**:
+   - Registra `/sw.js` e intercepta o evento `beforeinstallprompt` exibindo o botão de instalação nativa no celular ou desktop.
+4. **Notificações Web Push (`useWebNotifications.ts`)**:
+   - Hook nativo para gerenciar permissões de notificação do navegador e enviar alertas de lançamentos de episódios favoritados.
