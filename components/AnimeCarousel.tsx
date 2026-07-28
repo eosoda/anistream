@@ -135,7 +135,7 @@ export function AnimeCarousel({
               key={`${anime.mal_id}-${index}`}
               className="w-[145px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start"
             >
-              <AnimeCard anime={anime} />
+              <AnimeCard anime={anime} index={index} />
             </div>
           ))
         )}

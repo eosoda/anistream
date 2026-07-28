@@ -6,6 +6,7 @@ import { Play, Clock, ChevronRight, CheckCircle2, Trash2 } from 'lucide-react';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { useConfirmation } from '@/context/ConfirmationContext';
 import { SafeImage } from './SafeImage';
+import { Tooltip } from './Tooltip';
 
 export function ContinueWatchingSection() {
   const { getContinueWatchingList, removeProgress } = useWatchProgress();
@@ -75,17 +76,20 @@ export function ContinueWatchingSection() {
               </div>
 
               {/* Remove progress button */}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleRemoveItem(item.animeId, item.episodeNum, item.animeTitle, item.animeImage);
-                }}
-                className="absolute top-3 right-3 p-1.5 rounded-lg bg-black/60 hover:bg-red-500/80 text-gray-400 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                title="Remover do histórico"
-              >
-                <Trash2 size={14} />
-              </button>
+              <div className="absolute top-3 right-3 z-20">
+                <Tooltip content="Remover do histórico" position="left">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleRemoveItem(item.animeId, item.episodeNum, item.animeTitle, item.animeImage);
+                    }}
+                    className="p-1.5 rounded-lg bg-black/60 hover:bg-red-500/80 text-gray-400 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </Tooltip>
+              </div>
 
               {/* Center Play Icon */}
               <Link

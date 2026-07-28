@@ -8,6 +8,7 @@ import { jikanService } from '@/services/jikan';
 import { JikanAnime } from '@/types/anime';
 import { formatStatus } from '@/utils/formatters';
 import { SafeImage } from './SafeImage';
+import { Tooltip } from './Tooltip';
 
 interface SearchBarProps {
   placeholder?: string;
@@ -170,36 +171,38 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
                 <span className="absolute -inset-1 rounded-full bg-red-500/40 animate-pulse blur-xs" />
               </>
             )}
-            <button
-              type="button"
-              onClick={toggleVoiceSearch}
-              title={isListening ? 'Parar escuta' : 'Pesquisar por voz'}
-              className={`relative z-10 p-1.5 rounded-full transition-all flex items-center justify-center ${
-                isListening
-                  ? 'bg-red-500 text-white shadow-lg shadow-red-500/50 scale-105'
-                  : 'text-gray-400 hover:text-[#FF6B00] hover:bg-white/10'
-              }`}
-            >
-              {isListening ? <MicOff size={16} /> : <Mic size={16} />}
-            </button>
+            <Tooltip content={isListening ? 'Parar escuta' : 'Pesquisar por voz'} position="bottom">
+              <button
+                type="button"
+                onClick={toggleVoiceSearch}
+                className={`relative z-10 p-1.5 rounded-full transition-all flex items-center justify-center ${
+                  isListening
+                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/50 scale-105'
+                    : 'text-gray-400 hover:text-[#FF6B00] hover:bg-white/10'
+                }`}
+              >
+                {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+              </button>
+            </Tooltip>
           </div>
 
           {isLoading ? (
             <Loader2 size={16} className="text-[#FF6B00] animate-spin" />
           ) : (
             query && (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery('');
-                  setResults([]);
-                  setIsOpen(false);
-                }}
-                className="text-gray-400 hover:text-white p-1"
-                title="Limpar busca"
-              >
-                <X size={16} />
-              </button>
+              <Tooltip content="Limpar busca" position="bottom">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery('');
+                    setResults([]);
+                    setIsOpen(false);
+                  }}
+                  className="text-gray-400 hover:text-white p-1"
+                >
+                  <X size={16} />
+                </button>
+              </Tooltip>
             )
           )}
         </div>

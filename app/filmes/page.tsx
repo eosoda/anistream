@@ -204,7 +204,7 @@ export default function FilmesPage() {
           {isLoading
             ? Array.from({ length: 18 }).map((_, i) => <AnimeCardSkeleton key={i} />)
             : moviesData?.data?.map((anime, index) => (
-                <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} />
+                <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
               ))}
         </div>
       )}

@@ -128,7 +128,7 @@ function SearchContent() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {isLoading
             ? Array.from({ length: 18 }).map((_, i) => <AnimeCardSkeleton key={i} />)
-            : searchData?.data?.map((anime, index) => <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} />)}
+            : searchData?.data?.map((anime, index) => <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />)}
         </div>
       ) : !hasSearchOrFilter ? (
         <EmptyState

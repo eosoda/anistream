@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Play, Calendar, Film, CheckCircle2, Clock } from 'lucide-react';
 import { JikanEpisode } from '@/types/anime';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
+import { Tooltip } from './Tooltip';
 
 interface EpisodeListProps {
   animeId: number;
@@ -101,24 +102,27 @@ export function EpisodeList({
             />
 
             <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/10">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
-                  viewMode === 'list' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:text-white'
-                }`}
-                title="Visão em Lista"
-              >
-                Lista
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
-                  viewMode === 'grid' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:text-white'
-                }`}
-                title="Visão em Grade Compacta"
-              >
-                Grade
-              </button>
+              <Tooltip content="Visão em Lista" position="bottom">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
+                    viewMode === 'list' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Lista
+                </button>
+              </Tooltip>
+
+              <Tooltip content="Visão em Grade Compacta" position="bottom">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
+                    viewMode === 'grid' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Grade
+                </button>
+              </Tooltip>
             </div>
           </div>
         </div>

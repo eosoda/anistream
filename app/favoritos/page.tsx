@@ -16,6 +16,7 @@ import { AnimeCard } from '@/components/AnimeCard';
 import { EmptyState } from '@/components/EmptyState';
 import { EpisodeRemindersPanel } from '@/components/EpisodeRemindersPanel';
 import { ForYouSection } from '@/components/ForYouSection';
+import { Tooltip } from '@/components/Tooltip';
 
 export default function FavoritesPage() {
   const {
@@ -64,20 +65,21 @@ export default function FavoritesPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => checkNewEpisodes(true)}
-            disabled={isCheckingNewEpisodes}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 transition-all flex items-center gap-1.5"
-            title="Verificar datas de lançamentos de episódios na API Jikan"
-          >
-            <RefreshCw
-              size={14}
-              className={`text-[#FF6B00] ${isCheckingNewEpisodes ? 'animate-spin' : ''}`}
-            />
-            <span>
-              {isCheckingNewEpisodes ? 'Verificando Jikan...' : 'Verificar API'}
-            </span>
-          </button>
+          <Tooltip content="Verificar datas de lançamentos de episódios na API Jikan" position="bottom">
+            <button
+              onClick={() => checkNewEpisodes(true)}
+              disabled={isCheckingNewEpisodes}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 transition-all flex items-center gap-1.5"
+            >
+              <RefreshCw
+                size={14}
+                className={`text-[#FF6B00] ${isCheckingNewEpisodes ? 'animate-spin' : ''}`}
+              />
+              <span>
+                {isCheckingNewEpisodes ? 'Verificando Jikan...' : 'Verificar API'}
+              </span>
+            </button>
+          </Tooltip>
 
           {newEpisodesCount > 0 && (
             <button
@@ -244,7 +246,7 @@ export default function FavoritesPage() {
       {displayedFavorites.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {displayedFavorites.map((anime, index) => (
-            <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} />
+            <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
           ))}
         </div>
       ) : activeTab === 'new_episodes' ? (

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { motion } from 'motion/react';
 import { Play, Heart, Tv, Sparkles, CheckCircle, PlayCircle, Mic, MessageSquare } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
 import { RatingBadge } from './RatingBadge';
@@ -9,14 +10,16 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { SafeImage } from './SafeImage';
 import { checkPtBrAvailability } from '@/utils/audioFilter';
+import { Tooltip } from './Tooltip';
 
 interface AnimeCardProps {
   anime: JikanAnime;
   aspectRatio?: 'portrait' | 'wide';
   priority?: boolean;
+  index?: number;
 }
 
-export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }: AnimeCardProps) {
+export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, index }: AnimeCardProps) {
   const { isFavorite, toggleFavoriteWithConfirm, newEpisodesMap, markAsSeen } = useFavorites();
   const { getAnimeOverallProgress } = useWatchProgress();
 
@@ -45,7 +48,14 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
   const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.35,
+        delay: index !== undefined ? Math.min((index % 12) * 0.04, 0.36) : 0,
+        ease: [0.21, 0.47, 0.32, 0.98],
+      }}
       className={`group relative flex flex-col w-full h-full rounded-xl overflow-hidden glass-panel glass-panel-hover transition-all duration-300 ease-out ${
         hasNewEpisode ? 'ring-2 ring-emerald-500/70 shadow-lg shadow-emerald-500/20' : ''
       }`}
@@ -109,19 +119,17 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
           </div>
 
           {hasDub ? (
-            <span
-              className="px-1.5 py-0.5 rounded bg-purple-600/80 text-white font-extrabold text-[9px] border border-purple-400/30 flex items-center gap-0.5"
-              title="Dublagem em Português disponível"
-            >
-              <Mic size={9} /> DUB
-            </span>
+            <Tooltip content="Dublagem em Português disponível" position="top">
+              <span className="px-1.5 py-0.5 rounded bg-purple-600/80 text-white font-extrabold text-[9px] border border-purple-400/30 flex items-center gap-0.5 cursor-help">
+                <Mic size={9} /> DUB
+              </span>
+            </Tooltip>
           ) : (
-            <span
-              className="px-1.5 py-0.5 rounded bg-emerald-600/80 text-white font-extrabold text-[9px] border border-emerald-400/30 flex items-center gap-0.5"
-              title="Legendas em Português disponíveis"
-            >
-              <MessageSquare size={9} /> LEG
-            </span>
+            <Tooltip content="Legendas em Português disponíveis" position="top">
+              <span className="px-1.5 py-0.5 rounded bg-emerald-600/80 text-white font-extrabold text-[9px] border border-emerald-400/30 flex items-center gap-0.5 cursor-help">
+                <MessageSquare size={9} /> LEG
+              </span>
+            </Tooltip>
           )}
         </div>
 
@@ -186,17 +194,18 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
             <span className="truncate pr-1" title={epInfo?.latestEpisodeTitle}>
               {epInfo?.latestEpisodeTitle || 'Novo episódio lançado!'}
             </span>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                markAsSeen(anime.mal_id);
-              }}
-              title="Marcar como visto"
-              className="p-0.5 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors flex-shrink-0"
-            >
-              <CheckCircle size={13} />
-            </button>
+            <Tooltip content="Marcar como visto" position="top">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  markAsSeen(anime.mal_id);
+                }}
+                className="p-0.5 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors flex-shrink-0"
+              >
+                <CheckCircle size={13} />
+              </button>
+            </Tooltip>
           </div>
         )}
 
@@ -210,23 +219,24 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
             ))}
           </div>
 
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleFavoriteWithConfirm(anime);
-            }}
-            title={favorited ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'}
-            className={`p-1.5 rounded-full transition-colors ${
-              favorited
-                ? 'text-[#FF6B00] bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20'
-                : 'text-gray-400 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <Heart size={14} className={favorited ? 'fill-current' : ''} />
-          </button>
+          <Tooltip content={favorited ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'} position="left">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleFavoriteWithConfirm(anime);
+              }}
+              className={`p-1.5 rounded-full transition-colors ${
+                favorited
+                  ? 'text-[#FF6B00] bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20'
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Heart size={14} className={favorited ? 'fill-current' : ''} />
+            </button>
+          </Tooltip>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

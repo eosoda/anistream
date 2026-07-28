@@ -20,6 +20,7 @@ import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { jikanService } from '@/services/jikan';
 import { SafeImage } from './SafeImage';
 import { RatingBadge } from './RatingBadge';
+import { Tooltip } from './Tooltip';
 
 export function FloatingRecommendationsWidget() {
   const { favorites, recommendationsEnabled, toggleRecommendationsEnabled, isFavorite, toggleFavoriteWithConfirm } =
@@ -115,13 +116,14 @@ export function FloatingRecommendationsWidget() {
         </button>
 
         {/* Small Close/Dismiss Floating Icon */}
-        <button
-          onClick={() => setIsDismissed(true)}
-          className="p-2 rounded-full bg-black/80 hover:bg-black text-gray-400 hover:text-white border border-white/10 transition-colors shadow-lg"
-          title="Ocultar ícone flutuante de recomendações"
-        >
-          <X size={14} />
-        </button>
+        <Tooltip content="Ocultar ícone flutuante" position="top">
+          <button
+            onClick={() => setIsDismissed(true)}
+            className="p-2 rounded-full bg-black/80 hover:bg-black text-gray-400 hover:text-white border border-white/10 transition-colors shadow-lg"
+          >
+            <X size={14} />
+          </button>
+        </Tooltip>
       </div>
 
       {/* Recommendations Slide-Over Drawer / Modal */}
@@ -244,26 +246,28 @@ export function FloatingRecommendationsWidget() {
 
                       {/* Actions */}
                       <div className="flex flex-col gap-1.5 flex-shrink-0">
-                        <Link
-                          href={`/anime/${anime.mal_id}`}
-                          onClick={() => setIsOpen(false)}
-                          className="p-2 rounded-xl bg-[#FF6B00] hover:bg-[#FF7A1A] text-white shadow-md transition-all flex items-center justify-center"
-                          title="Assistir"
-                        >
-                          <Play size={14} className="fill-current ml-0.5" />
-                        </Link>
+                        <Tooltip content="Assistir" position="left">
+                          <Link
+                            href={`/anime/${anime.mal_id}`}
+                            onClick={() => setIsOpen(false)}
+                            className="p-2 rounded-xl bg-[#FF6B00] hover:bg-[#FF7A1A] text-white shadow-md transition-all flex items-center justify-center"
+                          >
+                            <Play size={14} className="fill-current ml-0.5" />
+                          </Link>
+                        </Tooltip>
 
-                        <button
-                          onClick={() => toggleFavoriteWithConfirm(anime)}
-                          className={`p-2 rounded-xl border transition-all flex items-center justify-center ${
-                            favorited
-                              ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                              : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border-white/10'
-                          }`}
-                          title={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-                        >
-                          <Heart size={14} className={favorited ? 'fill-current' : ''} />
-                        </button>
+                        <Tooltip content={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'} position="left">
+                          <button
+                            onClick={() => toggleFavoriteWithConfirm(anime)}
+                            className={`p-2 rounded-xl border transition-all flex items-center justify-center ${
+                              favorited
+                                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border-white/10'
+                            }`}
+                          >
+                            <Heart size={14} className={favorited ? 'fill-current' : ''} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   );

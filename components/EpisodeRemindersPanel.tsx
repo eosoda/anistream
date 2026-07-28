@@ -20,6 +20,7 @@ import {
 import { JikanAnime } from '@/types/anime';
 
 import { useFavorites } from '@/hooks/useFavorites';
+import { Tooltip } from './Tooltip';
 
 const REMINDERS_CONFIG_KEY = 'anistream_reminders_config_v1';
 
@@ -385,15 +386,16 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
                       </div>
 
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => sendTestNotification(anime.title)}
-                          title="Simular notificação deste anime"
-                          className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-gray-300 font-bold text-[11px] transition-colors border border-white/10 flex items-center gap-1"
-                        >
-                          <Send size={12} className="text-[#FF6B00]" />
-                          <span className="hidden md:inline">Testar</span>
-                        </button>
+                        <Tooltip content="Simular notificação deste anime" position="left">
+                          <button
+                            type="button"
+                            onClick={() => sendTestNotification(anime.title)}
+                            className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-gray-300 font-bold text-[11px] transition-colors border border-white/10 flex items-center gap-1"
+                          >
+                            <Send size={12} className="text-[#FF6B00]" />
+                            <span className="hidden md:inline">Testar</span>
+                          </button>
+                        </Tooltip>
 
                         <button
                           type="button"

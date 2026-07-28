@@ -238,7 +238,7 @@ export default function AnimeListPage() {
           {isLoading
             ? Array.from({ length: 24 }).map((_, i) => <AnimeCardSkeleton key={i} />)
             : animeListData?.data?.map((anime, index) => (
-                <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} />
+                <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
               ))}
         </div>
       )}

@@ -28,6 +28,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
+import { Tooltip } from './Tooltip';
 
 interface VideoPlayerProps {
   animeId: number;
@@ -659,29 +660,32 @@ export function VideoPlayer({
           <div className="flex items-center justify-between text-white text-xs font-semibold gap-1 sm:gap-2">
             {/* Left Controls: Play, Skip, Time */}
             <div className="flex items-center gap-1 sm:gap-2.5 min-w-0">
-              <button
-                onClick={togglePlay}
-                className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-white transition-colors"
-                title={isPlaying ? 'Pausar' : 'Reproduzir'}
-              >
-                {isPlaying ? <Pause size={18} className="sm:w-5 sm:h-5" /> : <Play size={18} className="sm:w-5 sm:h-5 fill-current" />}
-              </button>
+              <Tooltip content={isPlaying ? 'Pausar (Espaço)' : 'Reproduzir (Espaço)'} position="top">
+                <button
+                  onClick={togglePlay}
+                  className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-white transition-colors"
+                >
+                  {isPlaying ? <Pause size={18} className="sm:w-5 sm:h-5" /> : <Play size={18} className="sm:w-5 sm:h-5 fill-current" />}
+                </button>
+              </Tooltip>
 
-              <button
-                onClick={() => skipTime(-10)}
-                className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
-                title="Voltar 10s"
-              >
-                <RotateCcw size={16} className="sm:w-4 sm:h-4" />
-              </button>
+              <Tooltip content="Voltar 10s (←)" position="top">
+                <button
+                  onClick={() => skipTime(-10)}
+                  className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
+                >
+                  <RotateCcw size={16} className="sm:w-4 sm:h-4" />
+                </button>
+              </Tooltip>
 
-              <button
-                onClick={() => skipTime(10)}
-                className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
-                title="Avançar 10s"
-              >
-                <RotateCw size={16} className="sm:w-4 sm:h-4" />
-              </button>
+              <Tooltip content="Avançar 10s (→)" position="top">
+                <button
+                  onClick={() => skipTime(10)}
+                  className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
+                >
+                  <RotateCw size={16} className="sm:w-4 sm:h-4" />
+                </button>
+              </Tooltip>
 
               {/* Volume Slider */}
               <div className="flex items-center gap-1 group/vol">
@@ -714,23 +718,24 @@ export function VideoPlayer({
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               {/* Audio & Subtitle Language Selector */}
               <div className="relative">
-                <button
-                  onClick={() => {
-                    setShowLangMenu(!showLangMenu);
-                    setShowSpeedMenu(false);
-                  }}
-                  className={`px-2 sm:px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 text-[11px] sm:text-xs font-bold ${
-                    showLangMenu || subtitleLang.id !== 'off'
-                      ? 'bg-[#FF6B00]/20 text-[#FF6B00] border-[#FF6B00]/40'
-                      : 'bg-white/10 hover:bg-white/20 text-gray-200 border-white/10'
-                  }`}
-                  title="Idiomas e Legendas"
-                >
-                  <Languages size={14} />
-                  <span className="hidden sm:inline font-mono uppercase">
-                    {audioLang.code} {subtitleLang.id !== 'off' ? `| CC: ${subtitleLang.code}` : ''}
-                  </span>
-                </button>
+                <Tooltip content="Idiomas e Legendas (DUB/LEG)" position="top">
+                  <button
+                    onClick={() => {
+                      setShowLangMenu(!showLangMenu);
+                      setShowSpeedMenu(false);
+                    }}
+                    className={`px-2 sm:px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 text-[11px] sm:text-xs font-bold ${
+                      showLangMenu || subtitleLang.id !== 'off'
+                        ? 'bg-[#FF6B00]/20 text-[#FF6B00] border-[#FF6B00]/40'
+                        : 'bg-white/10 hover:bg-white/20 text-gray-200 border-white/10'
+                    }`}
+                  >
+                    <Languages size={14} />
+                    <span className="hidden sm:inline font-mono uppercase">
+                      {audioLang.code} {subtitleLang.id !== 'off' ? `| CC: ${subtitleLang.code}` : ''}
+                    </span>
+                  </button>
+                </Tooltip>
 
                 {showLangMenu && (
                   <div className="absolute bottom-10 right-0 p-3 rounded-2xl glass-panel bg-neutral-900 border border-white/10 shadow-2xl space-y-3 z-30 min-w-[200px] sm:min-w-[230px] max-w-[calc(100vw-2rem)]">
@@ -837,53 +842,57 @@ export function VideoPlayer({
 
               {/* Next Episode Button */}
               {nextEpNum && onNextEpisode && (
-                <button
-                  onClick={onNextEpisode}
-                  className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FF6B00]/20 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white font-bold text-xs border border-[#FF6B00]/30 transition-all"
-                  title="Próximo Episódio"
-                >
-                  <span>Próximo</span>
-                  <ChevronRight size={14} />
-                </button>
+                <Tooltip content={`Avançar para episódio ${nextEpNum}`} position="top">
+                  <button
+                    onClick={onNextEpisode}
+                    className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FF6B00]/20 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white font-bold text-xs border border-[#FF6B00]/30 transition-all"
+                  >
+                    <span>Próximo</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </Tooltip>
               )}
 
               {/* Keyboard Shortcuts Button (desktop only) */}
-              <button
-                onClick={() => setShowShortcutsModal(!showShortcutsModal)}
-                className={`hidden sm:flex p-1.5 sm:p-2 rounded-lg transition-colors items-center gap-1.5 ${
-                  showShortcutsModal
-                    ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/40'
-                    : 'hover:bg-white/10 text-gray-300 hover:text-white'
-                }`}
-                title="Atalhos de teclado (?)"
-              >
-                <Keyboard size={16} className="sm:w-4 sm:h-4" />
-              </button>
+              <Tooltip content="Atalhos de teclado (?)" position="top">
+                <button
+                  onClick={() => setShowShortcutsModal(!showShortcutsModal)}
+                  className={`hidden sm:flex p-1.5 sm:p-2 rounded-lg transition-colors items-center gap-1.5 ${
+                    showShortcutsModal
+                      ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/40'
+                      : 'hover:bg-white/10 text-gray-300 hover:text-white'
+                  }`}
+                >
+                  <Keyboard size={16} className="sm:w-4 sm:h-4" />
+                </button>
+              </Tooltip>
 
               {/* Cinema Mode Button */}
-              <button
-                onClick={() => setIsTheaterMode(!isTheaterMode)}
-                className={`p-1.5 sm:p-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-                  isTheaterMode
-                    ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/40'
-                    : 'hover:bg-white/10 text-gray-300 hover:text-white'
-                }`}
-                title={isTheaterMode ? 'Sair do Modo Cinema (Esc)' : 'Modo Cinema'}
-              >
-                <Film size={16} className="sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline text-xs font-bold">
-                  {isTheaterMode ? 'Sair do Cinema' : 'Cinema'}
-                </span>
-              </button>
+              <Tooltip content={isTheaterMode ? 'Sair do Modo Cinema (Esc)' : 'Modo Cinema (C)'} position="top">
+                <button
+                  onClick={() => setIsTheaterMode(!isTheaterMode)}
+                  className={`p-1.5 sm:p-2 rounded-lg transition-colors flex items-center gap-1.5 ${
+                    isTheaterMode
+                      ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/40'
+                      : 'hover:bg-white/10 text-gray-300 hover:text-white'
+                  }`}
+                >
+                  <Film size={16} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline text-xs font-bold">
+                    {isTheaterMode ? 'Sair do Cinema' : 'Cinema'}
+                  </span>
+                </button>
+              </Tooltip>
 
               {/* Fullscreen Button */}
-              <button
-                onClick={toggleFullscreen}
-                className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
-                title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
-              >
-                {isFullscreen ? <Minimize size={16} className="sm:w-4 sm:h-4" /> : <Maximize size={16} className="sm:w-4 sm:h-4" />}
-              </button>
+              <Tooltip content={isFullscreen ? 'Sair da tela cheia (F)' : 'Tela cheia (F)'} position="top">
+                <button
+                  onClick={toggleFullscreen}
+                  className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
+                >
+                  {isFullscreen ? <Minimize size={16} className="sm:w-4 sm:h-4" /> : <Maximize size={16} className="sm:w-4 sm:h-4" />}
+                </button>
+              </Tooltip>
             </div>
           </div>
         </div>
