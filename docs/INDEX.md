@@ -15,6 +15,8 @@ Bem-vindo à documentação modular oficial do **AniStream**. Esta pasta contém
 | [`05-PLAYER-E-STREAMING.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/05-PLAYER-E-STREAMING.md) | **Player de Vídeo & Experiência de Streaming** | Atalhos, Pular Abertura (+85s), PiP Nativo, Light Dimmer e Autoplay. |
 | [`06-SERVICOS-E-APIS.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/06-SERVICOS-E-APIS.md) | **Serviços de API & Resiliência** | Fila de Throttling (350ms) da API Jikan v4, AniList GraphQL e tratamento de erros. |
 | [`07-OFFLINE-E-CACHE-IDB.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/07-OFFLINE-E-CACHE-IDB.md) | **Armazenamento Offline e IndexedDB** | Estrutura das stores no IndexedDB, sincronia e fallback com dados estáticos. |
+| [`08-DEPLOYMENT-E-RAILWAY.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/08-DEPLOYMENT-E-RAILWAY.md) | **Guia de Hospedagem & Deploy no Railway** | Configuração do Docker Multi-stage, PostgreSQL Gerenciado e Deploy. |
+| [`09-PAINEL-ADMINISTRATIVO.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/09-PAINEL-ADMINISTRATIVO.md) | **Painel Administrativo & Gestão de Catálogo** | CRUD de Animes, Auto-preenchimento Jikan/MAL, episódios e fontes M3U. |
 
 ---
 
