@@ -1,0 +1,8 @@
+{
+  "name": "AniStream",
+  "description": "Plataforma moderna de catálogo de animes inspirada em Crunchyroll e AniList.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
