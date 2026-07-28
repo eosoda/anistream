@@ -1,8 +1,8 @@
-# Dockerfile otimizado para Next.js 15 Standalone + Railway / Render / Dokku
+# Dockerfile otimizado para Next.js 15 Standalone + Railway / Render / Dokku / Docker Compose
 
 # 1. Estágio de Dependências
 FROM node:20-alpine AS deps
-RUN apk add --no-libc-dev libc6-compat
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -38,17 +38,18 @@ ENV HOSTNAME="0.0.0.0"
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copiar arquivos públicos e build standalone
-COPY --from=builder /app/public ./public
+# Copiar arquivos públicos, build standalone e artefatos Prisma com permissões adequadas
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 
 USER nextjs
 
 EXPOSE 3000
 
-# Executar migração leve do banco e iniciar servidor standalone
+# Executar criação das tabelas no banco se necessário e iniciar servidor standalone
 CMD ["sh", "-c", "npx prisma db push --skip-generate || true && node server.js"]

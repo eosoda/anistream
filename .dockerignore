@@ -3,11 +3,16 @@ Dockerfile
 node_modules
 .next
 .git
+.gitignore
 .env
 .env.local
 .env.production
+.env*.local
 README.md
+ARCHITECTURE.md
 docs
 tests
 vitest.config.ts
 playwright.config.ts
+.agents
+.setup-key

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ShieldCheck,
   Database,
@@ -17,11 +17,12 @@ import {
   Lock,
   Mail,
   RefreshCcw,
-  FileText,
+  KeyRound,
 } from 'lucide-react';
 
 export default function SetupWizardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,9 @@ export default function SetupWizardPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Form State
+  const [setupKey, setSetupKey] = useState('');
+  const [keyValid, setKeyValid] = useState<boolean | null>(null);
+
   const [adminName, setAdminName] = useState('Administrador Principal');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -48,11 +52,20 @@ export default function SetupWizardPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [providerName, setProviderName] = useState('authorized-m3u-main');
 
+  // Inicializar a chave de segurança a partir da URL (?key=...) se disponível
+  useEffect(() => {
+    const urlKey = searchParams.get('key');
+    if (urlKey) {
+      setSetupKey(urlKey);
+    }
+  }, [searchParams]);
+
   // Check initial system status & DB ping
   const checkStatus = async () => {
     setTestingDb(true);
     try {
-      const res = await fetch('/api/setup/status');
+      const keyQuery = setupKey ? `?key=${encodeURIComponent(setupKey)}` : '';
+      const res = await fetch(`/api/setup/status${keyQuery}`);
       const data = await res.json();
 
       if (data.isInitialized) {
@@ -63,6 +76,9 @@ export default function SetupWizardPage() {
       setDbConnected(data.dbConnected);
       setPostgresPingMs(data.postgresPingMs || 0);
       setStats(data.stats || null);
+      if (setupKey) {
+        setKeyValid(data.keyValid);
+      }
     } catch {
       setDbConnected(false);
       setPostgresPingMs(null);
@@ -74,7 +90,7 @@ export default function SetupWizardPage() {
 
   useEffect(() => {
     checkStatus();
-  }, [router]);
+  }, [router, setupKey]);
 
   // Upload M3U File Handler
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,6 +116,7 @@ export default function SetupWizardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          setupKey,
           admin: {
             name: adminName,
             email: adminEmail,
@@ -146,7 +163,7 @@ export default function SetupWizardPage() {
           </div>
           <h1 className="text-3xl font-black text-white">Assistente de Instalação Inicial</h1>
           <p className="text-xs text-gray-400">
-            Configure seu banco de dados, conta mestre e hosts autorizados em poucas etapas
+            Configure seu banco de dados, chave de segurança e conta mestre em poucas etapas
           </p>
 
           {/* Barra de Progresso */}
@@ -169,9 +186,33 @@ export default function SetupWizardPage() {
           </div>
         )}
 
-        {/* Passo 1: Verificação de Banco de Dados com Teste em Tempo Real */}
+        {/* Passo 1: Validação de Segurança & Banco de Dados */}
         {currentStep === 1 && (
           <div className="space-y-6">
+            {/* Campo da Chave de Segurança */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-gray-300">
+                Chave de Instalação (Setup Key)
+              </label>
+              <div className="relative">
+                <KeyRound size={16} className="absolute left-3 top-3 text-[#FF6B00]" />
+                <input
+                  type="text"
+                  placeholder="Ex: setup_a8f94b2c9e1d3f5a"
+                  value={setupKey}
+                  onChange={(e) => {
+                    setSetupKey(e.target.value);
+                    setKeyValid(null);
+                  }}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs font-mono text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
+                />
+              </div>
+              <p className="text-[10px] text-gray-400">
+                Consulte os logs do container Docker (`docker logs anistream_app`) para visualizar a chave randômica impressa na inicialização.
+              </p>
+            </div>
+
+            {/* Status da Conexão PostgreSQL */}
             <div className="p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -223,7 +264,7 @@ export default function SetupWizardPage() {
             </div>
 
             <button
-              disabled={!dbConnected}
+              disabled={!dbConnected || !setupKey.trim()}
               onClick={() => setCurrentStep(2)}
               className="w-full py-3.5 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             >

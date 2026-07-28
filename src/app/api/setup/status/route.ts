@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { getOrCreateSetupKey, validateSetupKey } from '@/lib/security/setup-key';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const startTime = Date.now();
 
   try {
@@ -26,10 +27,24 @@ export async function GET() {
       dbConnected = false;
     }
 
+    const isInitialized = adminCount > 0;
+
+    // Se ainda não inicializado, garante que a chave do setup existe nos logs
+    if (!isInitialized) {
+      getOrCreateSetupKey();
+    }
+
+    // Verificar se uma chave foi fornecida na query string
+    const searchParams = request.nextUrl.searchParams;
+    const providedKey = searchParams.get('key') || request.headers.get('x-setup-key');
+    const keyValid = !isInitialized && providedKey ? validateSetupKey(providedKey) : false;
+
     return NextResponse.json({
       dbConnected,
       postgresPingMs,
-      isInitialized: adminCount > 0,
+      isInitialized,
+      setupKeyRequired: !isInitialized,
+      keyValid,
       stats: {
         adminCount,
         animeCount,

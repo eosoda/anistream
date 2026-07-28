@@ -5,6 +5,7 @@ import { hashPassword } from '@/lib/security/password';
 import { parseM3uContent } from '@/lib/streams/m3u-parser';
 import { validateUrlSsrf } from '@/lib/security/ssrf';
 import { encryptData } from '@/lib/security/crypto';
+import { validateSetupKey, clearSetupKey } from '@/lib/security/setup-key';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +19,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { admin, m3uContent, providerName } = body;
+    const { admin, m3uContent, providerName, setupKey } = body;
+
+    const keyToValidate = setupKey || request.headers.get('x-setup-key');
+
+    // 2. Validar Chave de Segurança de Instalação (Setup Key)
+    if (!validateSetupKey(keyToValidate)) {
+      return NextResponse.json(
+        {
+          error:
+            'Acesso Negado: Chave de instalação inválida ou não fornecida. Verifique a chave gerada nos logs do servidor/container Docker.',
+        },
+        { status: 403 }
+      );
+    }
 
     if (!admin?.email || !admin?.password || !admin?.name) {
       return NextResponse.json(
@@ -34,7 +48,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Criar Usuário Administrador Principal
+    // 3. Criar Usuário Administrador Principal
     const passwordHash = await hashPassword(admin.password);
     const newAdmin = await prisma.adminUser.create({
       data: {
@@ -44,7 +58,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 3. Criar Sessão de Login e Cookie HTTP-Only
+    // Destruir chave de instalação temporária após criação bem-sucedida do admin
+    clearSetupKey();
+
+    // 4. Criar Sessão de Login e Cookie HTTP-Only
     const sessionToken = `adm_${crypto.randomBytes(32).toString('hex')}`;
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
 
@@ -56,7 +73,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 4. Importar Playlist M3U Inicial (se fornecida)
+    // 5. Importar Playlist M3U Inicial (se fornecida)
     let m3uImportSummary = null;
     if (m3uContent && typeof m3uContent === 'string' && m3uContent.trim().length > 0) {
       const parsedItems = parseM3uContent(m3uContent);
