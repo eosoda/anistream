@@ -6,7 +6,7 @@ import { Play, Calendar, Film, CheckCircle2, Clock } from 'lucide-react';
 import { JikanEpisode } from '@/types/anime';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
-import { Tooltip } from './Tooltip';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 interface EpisodeListProps {
   animeId: number;

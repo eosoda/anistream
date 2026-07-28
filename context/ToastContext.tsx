@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Sparkles } from 'lucide-react';
-import { SafeImage } from '@/components/SafeImage';
+import { SafeImage } from '@/components/ui/SafeImage';
 
 export type ToastType = 'success' | 'info' | 'warning' | 'error';
 

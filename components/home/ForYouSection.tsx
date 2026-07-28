@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { jikanService } from '@/services/jikan';
-import { AnimeCarousel } from './AnimeCarousel';
+import { AnimeCarousel } from '@/components/anime/AnimeCarousel';
 import { JikanAnime } from '@/types/anime';
 
 export function ForYouSection() {

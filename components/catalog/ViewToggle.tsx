@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { LayoutGrid, List } from 'lucide-react';
-import { Tooltip } from './Tooltip';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 export type ViewMode = 'grid' | 'list';
 

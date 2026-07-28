@@ -6,8 +6,8 @@ import { Play, Clock, ChevronRight, Trash2 } from 'lucide-react';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { useConfirmation } from '@/context/ConfirmationContext';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
-import { SafeImage } from './SafeImage';
-import { Tooltip } from './Tooltip';
+import { SafeImage } from '@/components/ui/SafeImage';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 export function ContinueWatchingSection() {
   const { getContinueWatchingList, removeProgress } = useWatchProgress();

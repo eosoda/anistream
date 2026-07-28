@@ -5,13 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { jikanService, SearchAnimeFilters } from '@/services/jikan';
-import { SearchBar } from '@/components/SearchBar';
-import { SearchFilters } from '@/components/SearchFilters';
-import { AnimeCard } from '@/components/AnimeCard';
-import { CompactAnimeCard } from '@/components/CompactAnimeCard';
-import { ViewToggle, ViewMode } from '@/components/ViewToggle';
-import { AnimeCardSkeleton } from '@/components/LoadingSkeleton';
-import { EmptyState } from '@/components/EmptyState';
+import { SearchBar } from '@/components/catalog/SearchBar';
+import { SearchFilters } from '@/components/catalog/SearchFilters';
+import { AnimeCard } from '@/components/anime/AnimeCard';
+import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
+import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
+import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 const DEFAULT_FILTERS: SearchAnimeFilters = {
   status: 'all',

@@ -5,9 +5,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Flame, Star, Calendar, TrendingUp, Compass } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
 import { anilistService } from '@/services/anilist';
-import { BannerHero } from '@/components/BannerHero';
-import { AnimeCarousel } from '@/components/AnimeCarousel';
-import { ContinueWatchingSection } from '@/components/ContinueWatchingSection';
+import { BannerHero } from '@/components/home/BannerHero';
+import { AnimeCarousel } from '@/components/anime/AnimeCarousel';
+import { ContinueWatchingSection } from '@/components/home/ContinueWatchingSection';
 import { JikanAnime } from '@/types/anime';
 
 export default function HomePage() {

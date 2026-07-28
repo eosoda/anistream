@@ -13,8 +13,8 @@ import {
   Clock,
 } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
-import { DetailSkeleton } from '@/components/LoadingSkeleton';
-import { VideoPlayer } from '@/components/VideoPlayer';
+import { DetailSkeleton } from '@/components/ui/LoadingSkeleton';
+import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 
 export default function EpisodePlayerPage({

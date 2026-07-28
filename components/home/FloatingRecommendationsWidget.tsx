@@ -18,9 +18,9 @@ import Link from 'next/link';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { jikanService } from '@/services/jikan';
-import { SafeImage } from './SafeImage';
-import { RatingBadge } from './RatingBadge';
-import { Tooltip } from './Tooltip';
+import { SafeImage } from '@/components/ui/SafeImage';
+import { RatingBadge } from '@/components/ui/RatingBadge';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 export function FloatingRecommendationsWidget() {
   const { favorites, recommendationsEnabled, toggleRecommendationsEnabled, isFavorite, toggleFavoriteWithConfirm } =

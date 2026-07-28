@@ -14,9 +14,9 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
-import { AnimeCard } from '@/components/AnimeCard';
-import { AnimeCardSkeleton } from '@/components/LoadingSkeleton';
-import { EmptyState } from '@/components/EmptyState';
+import { AnimeCard } from '@/components/anime/AnimeCard';
+import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default function FilmesPage() {
   const [searchQuery, setSearchQuery] = useState('');

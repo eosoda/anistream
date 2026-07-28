@@ -13,12 +13,12 @@ import {
   Filter,
 } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
-import { AnimeCard } from '@/components/AnimeCard';
-import { CompactAnimeCard } from '@/components/CompactAnimeCard';
-import { ViewToggle, ViewMode } from '@/components/ViewToggle';
-import { QuickMultiFilter, QuickFilterState, GENRE_MAL_ID_MAP } from '@/components/QuickMultiFilter';
-import { AnimeCardSkeleton } from '@/components/LoadingSkeleton';
-import { EmptyState } from '@/components/EmptyState';
+import { AnimeCard } from '@/components/anime/AnimeCard';
+import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
+import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
+import { QuickMultiFilter, QuickFilterState, GENRE_MAL_ID_MAP } from '@/components/catalog/QuickMultiFilter';
+import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 
 const ALPHABET = [

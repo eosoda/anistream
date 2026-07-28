@@ -3,7 +3,7 @@
 import React, { useState, use } from 'react';
 import Link from 'next/link';
 import { useQuery as useReactQuery } from '@tanstack/react-query';
-import { SafeImage } from '@/components/SafeImage';
+import { SafeImage } from '@/components/ui/SafeImage';
 import {
   Play,
   Heart,
@@ -29,13 +29,13 @@ import {
 } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
 import { anilistService } from '@/services/anilist';
-import { RatingBadge } from '@/components/RatingBadge';
-import { GenreBadge } from '@/components/GenreBadge';
-import { EpisodeList } from '@/components/EpisodeList';
-import { CharacterCard } from '@/components/CharacterCard';
-import { RecommendationCard } from '@/components/RecommendationCard';
-import { DetailSkeleton } from '@/components/LoadingSkeleton';
-import { EmptyState } from '@/components/EmptyState';
+import { RatingBadge } from '@/components/ui/RatingBadge';
+import { GenreBadge } from '@/components/ui/GenreBadge';
+import { EpisodeList } from '@/components/player/EpisodeList';
+import { CharacterCard } from '@/components/anime/CharacterCard';
+import { RecommendationCard } from '@/components/anime/RecommendationCard';
+import { DetailSkeleton } from '@/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import {

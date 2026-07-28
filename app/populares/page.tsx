@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Flame, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
-import { AnimeCard } from '@/components/AnimeCard';
-import { CompactAnimeCard } from '@/components/CompactAnimeCard';
-import { ViewToggle, ViewMode } from '@/components/ViewToggle';
-import { AnimeCardSkeleton } from '@/components/LoadingSkeleton';
-import { EmptyState } from '@/components/EmptyState';
+import { AnimeCard } from '@/components/anime/AnimeCard';
+import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
+import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
+import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 const TYPE_FILTERS = [
   { id: 'all', label: 'Todos' },

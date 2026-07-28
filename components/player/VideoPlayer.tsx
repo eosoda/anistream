@@ -33,8 +33,8 @@ import {
 } from 'lucide-react';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { useToast } from '@/context/ToastContext';
-import { SafeImage } from './SafeImage';
-import { Tooltip } from './Tooltip';
+import { SafeImage } from '@/components/ui/SafeImage';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 interface VideoPlayerProps {
   animeId: number;

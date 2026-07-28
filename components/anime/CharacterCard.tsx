@@ -1,6 +1,6 @@
 import React from 'react';
 import { JikanCharacter } from '@/types/anime';
-import { SafeImage } from './SafeImage';
+import { SafeImage } from '@/components/ui/SafeImage';
 
 interface CharacterCardProps {
   item: JikanCharacter;

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
 import { AnimeCard } from './AnimeCard';
-import { AnimeCardSkeleton } from './LoadingSkeleton';
+import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 
 interface AnimeCarouselProps {

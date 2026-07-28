@@ -7,8 +7,8 @@ import { Search, X, Loader2, Star, Tv, Mic, MicOff } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
 import { JikanAnime } from '@/types/anime';
 import { formatStatus } from '@/utils/formatters';
-import { SafeImage } from './SafeImage';
-import { Tooltip } from './Tooltip';
+import { SafeImage } from '@/components/ui/SafeImage';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 interface SearchBarProps {
   placeholder?: string;

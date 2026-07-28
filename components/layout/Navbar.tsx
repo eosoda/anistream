@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Play, Flame, Calendar, Film, ListFilter, Heart, Menu, X, Search } from 'lucide-react';
-import { SearchBar } from './SearchBar';
+import { SearchBar } from '@/components/catalog/SearchBar';
 import { useFavorites } from '@/hooks/useFavorites';
 
 export function Navbar() {

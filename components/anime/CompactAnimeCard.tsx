@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { motion } from 'motion/react';
 import { Play, Heart, Star, Tv, Eye, Mic, MessageSquare, Sparkles, CheckCircle2 } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
-import { RatingBadge } from './RatingBadge';
+import { RatingBadge } from '@/components/ui/RatingBadge';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
-import { SafeImage } from './SafeImage';
+import { SafeImage } from '@/components/ui/SafeImage';
 import { checkPtBrAvailability } from '@/utils/audioFilter';
-import { Tooltip } from './Tooltip';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { QuickViewModal } from './QuickViewModal';
 import { formatStatus } from '@/utils/formatters';
 

@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ThumbsUp } from 'lucide-react';
 import { JikanRecommendation } from '@/types/anime';
-import { SafeImage } from './SafeImage';
+import { SafeImage } from '@/components/ui/SafeImage';
 
 interface RecommendationCardProps {
   item: JikanRecommendation;

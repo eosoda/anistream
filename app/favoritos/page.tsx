@@ -12,13 +12,13 @@ import {
   HeartOff,
 } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
-import { AnimeCard } from '@/components/AnimeCard';
-import { CompactAnimeCard } from '@/components/CompactAnimeCard';
-import { ViewToggle, ViewMode } from '@/components/ViewToggle';
-import { EmptyState } from '@/components/EmptyState';
-import { EpisodeRemindersPanel } from '@/components/EpisodeRemindersPanel';
-import { ForYouSection } from '@/components/ForYouSection';
-import { Tooltip } from '@/components/Tooltip';
+import { AnimeCard } from '@/components/anime/AnimeCard';
+import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
+import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { EpisodeRemindersPanel } from '@/components/home/EpisodeRemindersPanel';
+import { ForYouSection } from '@/components/home/ForYouSection';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 export default function FavoritesPage() {
   const {

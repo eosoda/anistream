@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Play, Heart, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
-import { RatingBadge } from './RatingBadge';
+import { RatingBadge } from '@/components/ui/RatingBadge';
 import { formatSeasonName } from '@/utils/formatters';
 import { useFavorites } from '@/hooks/useFavorites';
 import { motion, AnimatePresence } from 'motion/react';
-import { SafeImage } from './SafeImage';
+import { SafeImage } from '@/components/ui/SafeImage';
 
 interface BannerHeroProps {
   animes: JikanAnime[];

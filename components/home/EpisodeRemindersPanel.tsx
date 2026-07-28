@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { SafeImage } from './SafeImage';
+import { SafeImage } from '@/components/ui/SafeImage';
 import {
   Bell,
   BellRing,
@@ -20,7 +20,7 @@ import {
 import { JikanAnime } from '@/types/anime';
 
 import { useFavorites } from '@/hooks/useFavorites';
-import { Tooltip } from './Tooltip';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 const REMINDERS_CONFIG_KEY = 'anistream_reminders_config_v1';
 

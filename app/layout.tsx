@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import QueryProvider from '@/components/QueryProvider';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { FloatingRecommendationsWidget } from '@/components/FloatingRecommendationsWidget';
-import { OfflineStatusBanner } from '@/components/OfflineStatusBanner';
+import QueryProvider from '@/components/layout/QueryProvider';
+import { Navbar } from '@/components/layout/Navbar';
+import { Footer } from '@/components/layout/Footer';
+import { FloatingRecommendationsWidget } from '@/components/home/FloatingRecommendationsWidget';
+import { OfflineStatusBanner } from '@/components/ui/OfflineStatusBanner';
 
 export const metadata: Metadata = {
   title: 'AniStream - Catálogo & Streaming de Animes',

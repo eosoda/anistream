@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
-import { SafeImage } from '@/components/SafeImage';
+import { SafeImage } from '@/components/ui/SafeImage';
 import { AlertTriangle, Trash2, HeartOff, Check, X } from 'lucide-react';
 
 export interface ConfirmationOptions {

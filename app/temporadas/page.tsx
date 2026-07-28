@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
-import { SeasonSelector } from '@/components/SeasonSelector';
-import { AnimeCard } from '@/components/AnimeCard';
-import { AnimeCardSkeleton } from '@/components/LoadingSkeleton';
-import { EmptyState } from '@/components/EmptyState';
+import { SeasonSelector } from '@/components/anime/SeasonSelector';
+import { AnimeCard } from '@/components/anime/AnimeCard';
+import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { SeasonName } from '@/types/anime';
 import { formatSeasonName } from '@/utils/formatters';
 
