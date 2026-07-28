@@ -1,0 +1,264 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { motion } from 'motion/react';
+import { Play, Heart, Tv, Sparkles, CheckCircle, PlayCircle, Mic, MessageSquare, Eye } from 'lucide-react';
+import { JikanAnime } from '@/types/anime';
+import { RatingBadge } from '@/components/ui/RatingBadge';
+import { useFavorites } from '@/hooks/useFavorites';
+import { useWatchProgress } from '@/hooks/useWatchProgress';
+import { SafeImage } from '@/components/ui/SafeImage';
+import { checkPtBrAvailability } from '@/utils/audioFilter';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { QuickViewModal } from './QuickViewModal';
+
+interface AnimeCardProps {
+  anime: JikanAnime;
+  aspectRatio?: 'portrait' | 'wide';
+  priority?: boolean;
+  index?: number;
+}
+
+export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, index }: AnimeCardProps) {
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const { isFavorite, toggleFavoriteWithConfirm, newEpisodesMap, markAsSeen } = useFavorites();
+  const { getAnimeOverallProgress } = useWatchProgress();
+
+  const favorited = isFavorite(anime.mal_id);
+  const overallProgress = getAnimeOverallProgress(anime.mal_id, anime.episodes);
+
+  const epInfo = favorited ? newEpisodesMap[anime.mal_id] : undefined;
+  const hasNewEpisode = epInfo?.hasNewEpisode;
+
+  const { hasDub } = checkPtBrAvailability(anime);
+
+  const imageUrl =
+    anime.images?.jpg?.image_url ||
+    anime.images?.webp?.image_url ||
+    anime.images?.jpg?.large_image_url ||
+    anime.images?.webp?.large_image_url;
+
+  const fallbackImageUrl =
+    anime.images?.webp?.image_url ||
+    anime.images?.jpg?.large_image_url ||
+    `https://picsum.photos/seed/anime_${anime.mal_id}/300/450`;
+
+  const title = anime.title || anime.title_english || anime.title_japanese || 'Sem título';
+  const typeStr = anime.type || 'TV';
+  const episodesCount = anime.episodes ? `${anime.episodes} eps` : 'Em lançamento';
+  const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.35,
+        delay: index !== undefined ? Math.min((index % 12) * 0.04, 0.36) : 0,
+        ease: [0.21, 0.47, 0.32, 0.98],
+      }}
+      className={`group relative flex flex-col w-full h-full rounded-xl overflow-hidden glass-panel glass-panel-hover transition-all duration-300 ease-out ${
+        hasNewEpisode ? 'ring-2 ring-emerald-500/70 shadow-lg shadow-emerald-500/20' : ''
+      }`}
+    >
+      <Link href={`/anime/${anime.mal_id}`} className="block relative overflow-hidden aspect-[2/3] w-full bg-neutral-900">
+        <SafeImage
+          src={imageUrl}
+          fallbackSrc={fallbackImageUrl}
+          animeId={anime.mal_id}
+          alt={title}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+          className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          priority={priority}
+        />
+
+        {/* Gradient dark overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0F] via-transparent to-black/30 opacity-80 group-hover:opacity-90 transition-opacity" />
+
+        {/* Top Badges */}
+        <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-10 pointer-events-none gap-1">
+          {hasNewEpisode ? (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/50 border border-emerald-300/40 flex items-center gap-1 animate-pulse">
+              <Sparkles size={11} className="text-yellow-200 fill-current" />
+              <span>{epInfo?.latestEpisodeNum ? `EP. ${epInfo.latestEpisodeNum} NOVO` : 'NOVO EP'}</span>
+            </span>
+          ) : (
+            <RatingBadge score={anime.score} />
+          )}
+
+          {favorited && (
+            <span className="p-1.5 rounded-full bg-[#FF6B00] text-white shadow-md">
+              <Heart size={12} className="fill-current" />
+            </span>
+          )}
+        </div>
+
+        {/* Hover Play Button & Quick View Button Overlay */}
+        <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px]">
+          <div className="w-12 h-12 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shadow-lg shadow-[#FF6B00]/50 transform scale-75 group-hover:scale-100 transition-transform">
+            <Play size={22} className="fill-current ml-1" />
+          </div>
+
+          <Tooltip content="Prévia Rápida" position="top">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsQuickViewOpen(true);
+              }}
+              className="w-10 h-10 rounded-full bg-black/70 hover:bg-black text-white border border-white/20 flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform backdrop-blur-md"
+            >
+              <Eye size={18} />
+            </button>
+          </Tooltip>
+        </div>
+
+        {/* Type & Season Overlay at bottom of poster */}
+        <div
+          className={`absolute left-2 right-2 flex items-center justify-between gap-1 text-[11px] font-semibold text-gray-300 transition-all ${
+            overallProgress ? 'bottom-9' : 'bottom-2'
+          }`}
+        >
+          <div className="flex items-center gap-1">
+            <span className="px-1.5 py-0.5 rounded bg-black/60 border border-white/10 flex items-center gap-1">
+              <Tv size={10} className="text-[#FF6B00]" />
+              {typeStr}
+            </span>
+            {yearStr && (
+              <span className="px-1.5 py-0.5 rounded bg-black/60 border border-white/10">
+                {yearStr}
+              </span>
+            )}
+          </div>
+
+          {hasDub ? (
+            <Tooltip content="Dublagem em Português disponível" position="top">
+              <span className="px-1.5 py-0.5 rounded bg-purple-600/80 text-white font-extrabold text-[9px] border border-purple-400/30 flex items-center gap-0.5 cursor-help">
+                <Mic size={9} /> DUB
+              </span>
+            </Tooltip>
+          ) : (
+            <Tooltip content="Legendas em Português disponíveis" position="top">
+              <span className="px-1.5 py-0.5 rounded bg-emerald-600/80 text-white font-extrabold text-[9px] border border-emerald-400/30 flex items-center gap-0.5 cursor-help">
+                <MessageSquare size={9} /> LEG
+              </span>
+            </Tooltip>
+          )}
+        </div>
+
+        {/* Global Watch Progress Indicator Overlay on Poster */}
+        {overallProgress && (
+          <div className="absolute bottom-0 left-0 right-0 z-20 overflow-hidden pointer-events-none">
+            <div className="px-2 py-0.5 bg-black/85 backdrop-blur-md flex items-center justify-between text-[10px] font-extrabold text-white">
+              <span className="flex items-center gap-1 text-emerald-400">
+                <PlayCircle size={10} className="fill-emerald-500/30 text-emerald-400" />
+                <span>
+                  {overallProgress.totalEpisodes
+                    ? `${overallProgress.watchedEpCount}/${overallProgress.totalEpisodes} eps`
+                    : `${overallProgress.watchedEpCount} ep${overallProgress.watchedEpCount > 1 ? 's' : ''}`}
+                </span>
+              </span>
+              <span className="text-emerald-400 font-black">
+                {overallProgress.percentage !== null ? `${overallProgress.percentage}%` : 'Assistindo'}
+              </span>
+            </div>
+
+            {/* Glowing horizontal progress bar */}
+            <div className="w-full h-1.5 bg-black/70 overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 ${
+                  overallProgress.isFinished
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-300 shadow-sm shadow-emerald-500'
+                    : 'bg-gradient-to-r from-[#FF6B00] via-amber-400 to-emerald-400 shadow-sm shadow-[#FF6B00]'
+                }`}
+                style={{
+                  width: `${overallProgress.percentage !== null ? Math.max(overallProgress.percentage, 6) : 100}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </Link>
+
+      {/* Card Details */}
+      <div className="p-3 flex flex-col justify-between flex-grow gap-2">
+        <div>
+          <Link href={`/anime/${anime.mal_id}`} className="hover:text-[#FF6B00] transition-colors">
+            <h3 className="font-bold text-sm text-white line-clamp-1 group-hover:text-[#FF6B00] transition-colors" title={title}>
+              {title}
+            </h3>
+          </Link>
+          <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+            {overallProgress ? (
+              <span className="text-emerald-400 font-bold">
+                {overallProgress.percentage !== null
+                  ? `${overallProgress.percentage}% assistido (${overallProgress.watchedEpCount}/${overallProgress.totalEpisodes} eps)`
+                  : `${overallProgress.watchedEpCount} ep(s) assistidos`}
+              </span>
+            ) : (
+              episodesCount
+            )}
+          </p>
+        </div>
+
+        {/* New Episode info & mark as seen bar */}
+        {hasNewEpisode && (
+          <div className="flex items-center justify-between text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
+            <span className="truncate pr-1" title={epInfo?.latestEpisodeTitle}>
+              {epInfo?.latestEpisodeTitle || 'Novo episódio lançado!'}
+            </span>
+            <Tooltip content="Marcar como visto" position="top">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  markAsSeen(anime.mal_id);
+                }}
+                className="p-0.5 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors flex-shrink-0"
+              >
+                <CheckCircle size={13} />
+              </button>
+            </Tooltip>
+          </div>
+        )}
+
+        {/* Favorite Action Button */}
+        <div className="flex items-center justify-between pt-1 border-t border-white/5">
+          <div className="flex flex-wrap gap-1">
+            {anime.genres?.slice(0, 1).map((genre) => (
+              <span key={genre.mal_id} className="text-[10px] text-gray-400 bg-white/5 px-2 py-0.5 rounded">
+                {genre.name}
+              </span>
+            ))}
+          </div>
+
+          <Tooltip content={favorited ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'} position="left">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleFavoriteWithConfirm(anime);
+              }}
+              className={`p-1.5 rounded-full transition-colors ${
+                favorited
+                  ? 'text-[#FF6B00] bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20'
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Heart size={14} className={favorited ? 'fill-current' : ''} />
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+
+      {/* Quick View Modal */}
+      <QuickViewModal
+        anime={anime}
+        isOpen={isQuickViewOpen}
+        onClose={() => setIsQuickViewOpen(false)}
+      />
+    </motion.div>
+  );
+}

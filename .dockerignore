@@ -1,0 +1,13 @@
+Dockerfile
+.dockerignore
+node_modules
+.next
+.git
+.env
+.env.local
+.env.production
+README.md
+docs
+tests
+vitest.config.ts
+playwright.config.ts

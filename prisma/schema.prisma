@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Anime {
+  id              String   @id @default(cuid())
+  title           String
+  normalizedTitle String
+  originalTitle   String?
+  slug            String   @unique
+  description     String?
+  posterUrl       String?
+  bannerUrl       String?
+  releaseYear     Int?
+  status          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  aliases     AnimeAlias[]
+  identifiers AnimeIdentifier[]
+  episodes    Episode[]
+
+  @@index([normalizedTitle])
+  @@index([slug])
+}
+
+model AnimeAlias {
+  id              String @id @default(cuid())
+  animeId         String
+  value           String
+  normalizedValue String
+
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+
+  @@index([normalizedValue])
+  @@index([animeId])
+}
+
+model AnimeIdentifier {
+  id       String @id @default(cuid())
+  animeId  String
+  provider String
+  value    String
+
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, value])
+  @@index([animeId, provider])
+}
+
+model Episode {
+  id              String    @id @default(cuid())
+  animeId         String
+  season          Int       @default(1)
+  number          Float
+  title           String?
+  description     String?
+  thumbnailUrl    String?
+  durationSeconds Int?
+  airedAt         DateTime?
+
+  anime   Anime           @relation(fields: [animeId], references: [id], onDelete: Cascade)
+  sources EpisodeSource[]
+
+  @@unique([animeId, season, number])
+  @@index([animeId, season])
+}
+
+model EpisodeSource {
+  id               String          @id @default(cuid())
+  episodeId        String
+  provider         String
+  urlEncrypted     String
+  type             String
+  quality          String?
+  width            Int?
+  height           Int?
+  bitrate          Int?
+  audioLanguage    String          @default("ja")
+  headersEncrypted String?
+  requiresProxy    Boolean         @default(false)
+  priority         Int             @default(0)
+  enabled          Boolean         @default(true)
+  expiresAt        DateTime?
+  lastCheckedAt    DateTime?
+  lastStatus       Int?
+  lastLatencyMs    Int?
+  failureCount     Int             @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  subtitles        SubtitleTrack[]
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([episodeId, enabled])
+  @@index([provider])
+}
+
+model SubtitleTrack {
+  id           String @id @default(cuid())
+  sourceId     String
+  language     String
+  label        String
+  format       String
+  urlEncrypted String
+
+  source EpisodeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+}
+
+model ProviderHealthLog {
+  id         String   @id @default(cuid())
+  provider   String
+  status     String
+  latencyMs  Int
+  error      String?
+  checkedAt  DateTime @default(now())
+
+  @@index([provider, checkedAt])
+}
+
+model AdminUser {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     AdminSession[]
+
+  @@map("admin_users")
+}
+
+model AdminSession {
+  id        String     @id @default(cuid())
+  token     String     @unique
+  userId    String
+  user      AdminUser? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime   @default(now())
+
+  @@index([token])
+  @@index([userId])
+}

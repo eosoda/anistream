@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Banco de Dados PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: anistream_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: anistream_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U user -d anistream_db']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Cache Redis (Opcional)
+  redis:
+    image: redis:7-alpine
+    container_name: anistream_redis
+    restart: always
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Aplicação Next.js 15
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: anistream_app
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: 'postgresql://user:password@postgres:5432/anistream_db?schema=public'
+      REDIS_URL: 'redis://redis:6379'
+      ADMIN_SESSION_SECRET: 'super-secret-admin-key-min-32-chars-long'
+      PLAYBACK_TOKEN_SECRET: 'super-secret-playback-jwt-key-min-32-chars'
+      SOURCE_ENCRYPTION_KEY: '32-bytes-encryption-key-for-aes-256-gcm!'
+      AUTHORIZED_MEDIA_HOSTS: 'media.mydomain.com,cdn.mydomain.com,storage.googleapis.com,s3.amazonaws.com'
+      AUTHORIZED_METADATA_API_URL: 'https://api.jikan.moe/v4'
+      NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
