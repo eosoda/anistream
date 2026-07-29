@@ -11,8 +11,27 @@
 - **Styling**: Vanilla CSS (`app/globals.css`), TailwindCSS utilities, Glassmorphism, Dark Palette (`#0B0B0F`, `#FF6B00`)
 - **Icons & Motion**: Lucide React icons, Motion (`motion/react`)
 - **Data Fetching**: `@tanstack/react-query` (v5)
-- **APIs & Services**: Jikan API v4 (`https://api.jikan.moe/v4`), AniList GraphQL (`https://graphql.anilist.co`)
+- **APIs & External Services**: Jikan API v4, AniList GraphQL, AniZone/Kenjitsu, Miruro, Anify, Consumet/Gogoanime, TVmaze, 2Embed, Xpass, ApiPlayer
 - **Offline Storage**: IndexedDB custom wrapper (`utils/offlineCacheDB.ts`)
+
+---
+
+## 📂 Layout Architecture & Route Groups (`app/`)
+The application uses Next.js 15 App Router route groups to isolate page layouts:
+
+```
+app/
+├── layout.tsx             # Root Shell (HTML, body, QueryProvider, SetupGuard, PwaRegister, OfflineStatusBanner)
+├── (main)/                # Public & Admin Route Group
+│   ├── layout.tsx         # Public Layout Chrome (Navbar, Footer, BroadcastBanner, FloatingRecommendationsWidget)
+│   ├── page.tsx           # Home Page (/)
+│   ├── admin/             # Painel Administrativo (/admin/...)
+│   ├── anime/             # Detalhes & Player (/anime/[id]/...)
+│   └── ...                # Demais páginas públicas (populares, pesquisa, filmes, favoritos, etc.)
+└── setup/                 # Setup Wizard Route
+    ├── layout.tsx         # Dedicated Setup Layout (Setup Header, Installation Shield, Ambient Glow, Minimal Footer)
+    └── page.tsx           # Assistente de Instalação (/setup)
+```
 
 ---
 
@@ -51,8 +70,8 @@ QueryClientProvider
 
 ## ⚡ Jikan API Throttling & Offline Fallback Rules
 - **Rate Limit**: Jikan API strictly rate-limits at ~3 requests/second.
-- **Throttling Queue**: All requests in [`services/jikan.ts`](file:///c:/Users/junin/Documents/projetos/anistream/services/jikan.ts) MUST go through `throttleRequest()` with a minimum 350ms interval.
-- **Offline Fallback**: If offline or on API failure, `searchAnime` falls back to IndexedDB catalog cache and local [`FALLBACK_ANIMES`](file:///c:/Users/junin/Documents/projetos/anistream/data/fallbackAnime.ts).
+- **Throttling Queue**: All requests in `services/jikan.ts` MUST go through `throttleRequest()` with a minimum 350ms interval.
+- **Offline Fallback**: If offline or on API failure, `searchAnime` falls back to IndexedDB catalog cache and local `FALLBACK_ANIMES`.
 
 ---
 
@@ -65,16 +84,20 @@ QueryClientProvider
 
 ## 🔌 Arquitetura de API, Circuit Breaker & Resiliência
 - **Padronização de Respostas (`src/lib/api/response.ts`)**: Todas as rotas usam `apiSuccess<T>` (`{ success: true, data: T, meta?: ... }`) e `apiError` (`{ success: false, error: { code, message, details }, timestamp }`).
-- **Circuit Breaker (`src/lib/api/circuit-breaker.ts`)**: Protege chamadas de APIs externas (Jikan / AniList). Após 5 falhas seguidas em 60s, o circuito abre por 30s e ativa automaticamente o fallback local do PostgreSQL/IndexedDB sem causar timeouts na interface.
+- **Circuit Breaker (`src/lib/api/circuit-breaker.ts`)**: Protege chamadas de APIs externas (Jikan / AniList / External Providers). Após 5 falhas seguidas em 60s, o circuito abre por 30s e ativa automaticamente o fallback local sem causar timeouts na interface.
 - **Edge Caching**: Rotas públicas de catálogo usam `Cache-Control: public, s-maxage=1800, stale-while-revalidate=86400`. Rotas de streaming e admin usam `no-store, private`.
 
 ---
 
-## 🎬 Sistema de Streaming & Redesign do VideoPlayer
-- **Resolução de Fontes (`/api/streams/resolve`)**: Conectado ao banco de dados e proxy de mídias (`/api/streams/proxy/[sourceId]`).
-- **Suporte HLS (`hls.js`)**: Reprodução adaptativa de playlists `.m3u8` com limite de 2 retentativas por CDN antes da troca para servidor reserva.
-- **Menu Único de Configurações ⚙️**: Abas multinível para Áudio/Legendas, Velocidade, Apagar Luzes, Teclas de Atalho e Reportar Problemas.
-- **UX do Player**: Carrossel horizontal deslizante de episódios abaixo do vídeo com miniaturas, indicador *"Assistindo"* e barras de progresso salvas.
+## 🎬 Sistema de Streaming, Provedores Externos & VideoPlayer
+- **Provedores Externos Integrados (`services/providers/externalProviders.ts`)**:
+  - `AniZone/Kenjitsu`, `Miruro`, `Anify`, `Consumet/Gogoanime`, `TVmaze` (episódios/temporadas), `2Embed`, `Xpass`, `ApiPlayer`.
+  - Todas as chamadas usam `encodeURIComponent`, `AbortController` (10s), `cache: "no-store"` e tratamento robusto de erros HTTP (404, 429, 5xx) e JSON parsing.
+- **Resolução Dinâmica por Banco (`ExternalApisProvider`)**:
+  - Consulta os registros da tabela `MediaProvider` com `enabled: true`, respeitando a ordem de prioridade definida no painel admin e setup.
+- **Suporte HLS (`hls.js`) & Embed iFrames**:
+  - Streams `.m3u8` e MP4 utilizam o proxy seguro `/api/streams/proxy/[sourceId]`.
+  - Embeds de terceiros (`2Embed`, `Xpass`, `ApiPlayer`) são renderizados nativamente em elementos `<iframe>` no `VideoPlayer`.
 
 ---
 

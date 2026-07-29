@@ -96,19 +96,15 @@ Cada subpasta contém um arquivo `index.ts` reexportando seus componentes. Além
 
 ## 🛡️ 5. Resiliência de Hooks de Contexto (SSG / Prerender)
 
-Para evitar erros de compilação durante o prerender estático de páginas estáticas e de erro (`_error.js` / `404`), os hooks de contexto implementam objetos de fallback seguros:
+---
 
-```typescript
-export function useToast() {
-  const context = useContext(ToastContext);
-  if (!context) {
-    return {
-      showToast: () => {},
-      copyToClipboard: async () => false,
-    };
-  }
-  return context;
-}
-```
+## 🎬 6. Resolvedor de Streams & Provedores Externos (`StreamResolver`)
 
-Isso garante que o Next.js possa prerenderizar qualquer componente que utilize contexto sem falhas de renderização.
+O AniStream possui um pipeline extensível de resolução de fontes de mídia ([`src/lib/streams/resolver.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/resolver.ts)):
+
+1. **`ExternalApisProvider`**: Consulta no PostgreSQL (`MediaProvider`) todos os provedores do tipo `EXTERNAL_API` (`AniZone`, `Miruro`, `Anify`, `Consumet`, `TVmaze`) e `EMBED` (`2Embed`, `Xpass`, `ApiPlayer`) marcados como `enabled: true`, respeitando a ordem de prioridade.
+2. **`LocalDatabaseProvider` & `ConfiguredJsonProvider`**: Recupera fontes cadastradas localmente no banco ou espelhos JSON configurados.
+3. **`AuthorizedM3uProvider`**: Varre playlists M3U/M3U8 autorizadas.
+4. **Resolução de Player**:
+   - Streams de vídeo direto (HLS `.m3u8` / MP4) são servidos através do proxy seguro `/api/streams/proxy/[sourceId]`.
+   - Streams do tipo `embed` entregam a URL do iFrame diretamente para ser renderizada pelo container `<iframe>` no `VideoPlayer`.

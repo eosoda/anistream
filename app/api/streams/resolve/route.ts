@@ -60,8 +60,11 @@ export async function POST(request: NextRequest) {
     // 3. Generate short-lived signed playback token (15 mins)
     const token = await generatePlaybackToken(selected.id, undefined, 15);
 
-    // 4. Construct safe playback URL (never exposing raw internal media URL)
-    const playbackUrl = `/api/streams/proxy/${selected.id}?token=${encodeURIComponent(token)}`;
+    // 4. Construct safe playback URL (embeds returned directly, direct streams proxied)
+    const playbackUrl =
+      selected.type === 'embed'
+        ? selected.url
+        : `/api/streams/proxy/${selected.id}?token=${encodeURIComponent(token)}`;
 
     // Map safe alternatives
     const safeAlternatives = await Promise.all(
@@ -72,7 +75,10 @@ export async function POST(request: NextRequest) {
           provider: alt.provider,
           quality: alt.quality || 'auto',
           audioLanguage: alt.audioLanguage || 'ja',
-          playbackUrl: `/api/streams/proxy/${alt.id}?token=${encodeURIComponent(altToken)}`,
+          playbackUrl:
+            alt.type === 'embed'
+              ? alt.url
+              : `/api/streams/proxy/${alt.id}?token=${encodeURIComponent(altToken)}`,
         };
       })
     );

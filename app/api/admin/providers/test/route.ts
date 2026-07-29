@@ -41,10 +41,17 @@ export async function POST(req: Request) {
       clearTimeout(timeoutId);
       status = res.status;
       ok = res.ok || res.status === 200 || res.status === 206 || res.status === 302 || res.status === 301;
+
+      if (!ok) {
+        if (status === 404) errorMsg = 'URL do provedor não encontrada (HTTP 404)';
+        else if (status === 429) errorMsg = 'Limite de requisições excedido na API (HTTP 429)';
+        else if (status >= 500) errorMsg = `Instabilidade no servidor do provedor (HTTP ${status})`;
+        else errorMsg = `Resposta HTTP de erro (${status})`;
+      }
     } catch (err: any) {
       ok = false;
-      status = 504;
-      errorMsg = err.message || 'Timeout de conexão excedido (6s)';
+      status = err.name === 'AbortError' ? 504 : 500;
+      errorMsg = err.name === 'AbortError' ? 'Timeout de conexão excedido (6s)' : err.message || 'Erro de rede ao conectar com provedor';
     }
 
     const latencyMs = Date.now() - startTime;

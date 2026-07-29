@@ -718,17 +718,26 @@ export function VideoPlayer({
           </div>
         )}
 
-        {/* Elemento de Vídeo */}
-        <video
-          ref={videoRef}
-          poster={animeImage}
-          onLoadedMetadata={handleLoadedMetadata}
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={handleEpisodeCompletion}
-          onError={() => handleVideoError()}
-          onClick={togglePlay}
-          className="w-full h-full object-contain cursor-pointer"
-        />
+        {/* Elemento de Vídeo ou iFrame Embed */}
+        {activeServer?.type === 'embed' ? (
+          <iframe
+            src={activeServer.src}
+            className="w-full h-full border-0"
+            allowFullScreen
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            poster={animeImage}
+            onLoadedMetadata={handleLoadedMetadata}
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={handleEpisodeCompletion}
+            onError={() => handleVideoError()}
+            onClick={togglePlay}
+            className="w-full h-full object-contain cursor-pointer"
+          />
+        )}
 
         {/* Pill Flutuante sobre o Vídeo: Pular Abertura (+85s) */}
         {(showControls || !isPlaying) && (

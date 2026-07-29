@@ -48,12 +48,27 @@ async function fetchWithTimeout<T>(
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      if (response.status === 404) {
+        throw new Error('Conteúdo não encontrado na API (HTTP 404)');
+      }
+      if (response.status === 429) {
+        throw new Error('Limite de requisições atingido na API (Rate Limit HTTP 429)');
+      }
+      if (response.status >= 500) {
+        throw new Error(`Servidor do provedor instável ou indisponível (HTTP ${response.status})`);
+      }
+      throw new Error(`Resposta de erro da API (HTTP ${response.status})`);
     }
 
-    const data: unknown = await response.json();
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      throw new Error('Formato de resposta inválido (esperado JSON válido)');
+    }
+
     if (data === null || data === undefined) {
-      throw new Error('Resposta vazia da API');
+      throw new Error('Resposta nula ou vazia da API');
     }
 
     const transformed = transform(data);
@@ -64,12 +79,17 @@ async function fetchWithTimeout<T>(
       data: transformed,
     };
   } catch (err: any) {
+    const errorMessage =
+      err.name === 'AbortError'
+        ? 'Timeout de conexão excedido (10s)'
+        : err.message || 'Falha desconhecida na requisição';
+
     return {
       provider: providerName,
       success: false,
       durationMs: Date.now() - startTime,
       data: null,
-      error: err.message || 'Falha na requisição',
+      error: errorMessage,
     };
   } finally {
     clearTimeout(timeout);

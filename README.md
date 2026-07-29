@@ -13,37 +13,21 @@
 ## 🌟 Funcionalidades Principais
 
 ### 🛡️ Primeiro Acesso & Assistente de Instalação (`/setup`)
-- **Redirecionamento Automático**: No primeiro boot do container/aplicação com banco virgem (`0` administradores), qualquer acesso à aplicação é direcionado automaticamente para o assistente em `/setup`.
-- **Proteção por Chave Randômica (Setup Key)**: A rota `/setup` é protegida contra acessos não autorizados ou robôs por uma chave randômica única (`Setup Key`) gerada e exibida nos logs do container Docker (`docker logs anistream_app`).
+- **Layout de Setup Isolado**: A página `/setup` possui um layout exclusivo de configuração, sem cabeçalho, rodapé ou elementos da navegação pública do site.
+- **Redirecionamento Automático**: No primeiro boot da aplicação com banco virgem (`0` administradores), qualquer acesso é direcionado automaticamente para `/setup`.
+- **Proteção por Chave Randômica (Setup Key)**: A rota `/setup` é protegida contra acessos não autorizados por uma chave única (`Setup Key`) exibida nos logs do container Docker (`docker logs anistream_app`).
 
-### 🔍 Busca & Navegação Inteligente
-- **Live Search Preview**: Busca instantânea no Navbar exibindo os top 5 resultados com suporte a navegação por teclado.
-- **Pesquisa por Voz**: Suporte a busca por áudio via Web Speech API.
-- **Filtros Avançados & Quick Multi-Filter**: Filtragem por gênero, status e ordenação.
-- **Alternador de Visualização (Grid vs. Lista Compacta)**: Alternância de layout com persistência em `localStorage`.
+### 📡 Provedores de Mídia, APIs Externas & Embeds (`/setup` e `/admin/sources`)
+- **Provedores de Mídia Integrados**: Suporte aplaylists M3U/M3U8, catálogos JSON e APIs externas (`AniZone/Kenjitsu`, `Miruro`, `Anify`, `Consumet/Gogoanime`, `TVmaze`, `2Embed`, `Xpass`, `ApiPlayer`).
+- **Ativação, Prioridade e Teste ao Vivo**: Chave liga/desliga (`enabled`), ajuste numérico de prioridade para a cadeia de fallback e teste sintético medindo latência (ms) e diagnósticos de status HTTP (404, 429, 5xx).
 
-### 🎥 Player de Vídeo Avançado & Binge-Watching
+### 🎥 Player de Vídeo Avançado, Streams HLS & Embeds
+- **Suporte HLS Adaptativo & iFrames**: Suporte a playlists HLS `.m3u8` via `hls.js` e renderização nativa em elementos `<iframe>` para provedores de embed.
 - **Pular Abertura (+85s)**: Botão no player + atalho de teclado `S`.
 - **Picture-in-Picture (PiP) Nativo**: Player flutuante desacoplado da janela.
 - **Autoplay & Contagem Regressiva**: Contagem regressiva ao término de episódios.
 - **Retomada de Precisão Automática**: Notificação toast e marcação do tempo de reprodução.
 - **Modo Apagar as Luzes e Modo Cinema**: Fundo escuro focado no vídeo.
-
-### 💖 Favoritos & Suporte Offline
-- **Verificação Automática de Novos Episódios**: Selo visual `NOVO EP`.
-- **Suporte Offline com PWA & Service Worker**: Página estática de contingência em `public/offline.html` e suporte a navegação sem rede.
-
----
-
-## 🛠️ Suíte Administrativa & Recursos Avançados
-
-### 🤖 Robô de Auto-Indexação (*Autopilot Indexer*)
-- **Modo Automático (ON)**: Varredura de provedores em segundo plano buscando metadados oficiais (Jikan/AniList) e auto-criação de animes/episódios no PostgreSQL.
-- **Modo Manual / Fila (OFF)**: Varredura com geração de uma fila de **"Animes Encontrados para Revisão"** no admin para aprovação com 1 clique.
-
-### 📡 Provedores de Mídia Configuráveis & Teste ao Vivo (`/setup` e `/admin/sources`)
-- Cadastro dinâmico de fontes M3U, JSON e APIs REST com prioridades, headers e flags de ativador.
-- **Testador de Conexão Ao Vivo**: Teste HTTP com diagnóstico de status e latência em milissegundos.
 
 ### 📢 Notificações em Lote (*Broadcast System*)
 - Envio de alertas globais, avisos informativos e comunicados exibidos no banner superior do site.

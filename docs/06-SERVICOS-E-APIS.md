@@ -4,15 +4,10 @@
 
 ---
 
-## 📡 APIs Utilizadas
-
-### 1. Jikan API v4 (MyAnimeList Unofficial REST API)
-- **URL Base**: `https://api.jikan.moe/v4`
-- **Responsabilidade**: Fornecer a maioria dos dados de animes, incluindo busca por texto, filtros por gênero/status, ranking dos populares, episódios, personagens e programação de lançamentos por temporada.
-
-### 2. AniList GraphQL API v2
-- **URL Base**: `https://graphql.anilist.co`
-- **Responsabilidade**: Fornecer banners em altíssima resolução, dados de tendências globais e recomendações personalizadas.
+### 3. Provedores de Streaming e Episódios Externos (`services/providers/externalProviders.ts`)
+- **Provedores Suportados**: `AniZone/Kenjitsu`, `Miruro`, `Anify`, `Consumet/Gogoanime`, `TVmaze` (episódios), `2Embed`, `Xpass`, `ApiPlayer`.
+- **Arquitetura de Requisição**: AbortController com timeout de 10s, `cache: "no-store"`, `encodeURIComponent` e tratamento de erros para HTTP 404, 429, 5xx e SyntaxError no parsing JSON.
+- **Pipeline de Fallback Dinâmico**: O `ExternalApisProvider` lê apenas registros ativados (`enabled: true`) no banco de dados, respeitando a ordem de prioridade definida no admin/setup.
 
 ---
 

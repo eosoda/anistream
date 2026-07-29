@@ -7,35 +7,15 @@ Este documento descreve a arquitetura, rotas e fluxos do **Painel Administrativo
 ## 🛠️ 1. Funcionalidades do Painel & Setup
 
 1. **Assistente de Instalação Inicial (`/setup`)**:
+   - **Layout de Setup Exclusivo**: O assistente `/setup` roda em um layout isolado sem cabeçalho/rodapé públicos do site, focado na experiência de inicialização.
    - **Redirecionamento Automático**: O componente `<SetupGuard />` no layout raiz força o redirecionamento para `/setup` no primeiro acesso enquanto não houver administradores cadastrados (`isInitialized === false`).
    - **Proteção por Chave Randômica (Setup Key)**: Protege a instalação contra acessos não autorizados por robôs. A chave é exibida no console/logs (`docker logs anistream_app`) ou configurada via `INITIAL_SETUP_KEY`.
-   - **Fluxo em 5 Passos**: Validação de banco PostgreSQL -> Cadastro da conta do Administrador Mestre -> Hosts de Mídia Autorizados -> Importação de Playlist M3U inicial -> Conclusão.
+   - **Fluxo em 5 Passos**: Validação de banco PostgreSQL -> Cadastro da conta do Administrador Mestre -> Provedores de Mídia, APIs Externas & Embeds -> Importação M3U opcional -> Conclusão.
 
-2. **Gestão de Animes (CRUD Completo)**:
-   - Visualização em grid paginado com busca por título e slug.
-   - Cadastro de novos animes com **Auto-Preenchimento via API Jikan (MyAnimeList)** em 1 clique.
-   - Edição de títulos, capas, banners, ano e sinopses.
-   - Exclusão com limpeza em cascata dos episódios associados.
-
-3. **Dashboard de Observabilidade & Métricas (`/admin/dashboard`)**:
-   - KPIs em tempo real (total de animes, episódios, fontes ativas, índice de saúde do sistema).
-   - Relatórios de latência média dos provedores (`local-database`, `configured-json`, `authorized-m3u`).
-
-4. **Testador Avançado de Fontes de Vídeo (`/admin/sources/tester`)**:
-   - Diagnóstico server-side de URLs de streaming HLS `.m3u8` e MP4.
-   - Verificação de segurança antifraude SSRF e IP de resolução.
-   - **Mini-player de pré-visualização** embutido para testar a reprodução do vídeo no painel.
-
-5. **Gerenciador de Episódios & Fontes de Mídia**:
-   - Organização de episódios por temporada (S01E01, S01E02, etc.).
-   - Cadastro de fontes de streaming vinculadas aos episódios (HLS / MP4).
-   - Suporte à importação em lote via playlists **M3U / M3U8**.
-
-6. **Provedores Configuráveis, Domínios Confiáveis & Teste Ao Vivo (`/admin/sources`)**:
-   - Tabela de provedores cadastrados (M3U, JSON, APIs REST) com controle de prioridades.
-   - Botões de alternar status (Ativo/Inativo) e Auto-Robô (ON/OFF).
-   - Botão **"Testar Conexão"** ao vivo medindo resposta HTTP e latência em ms.
-   - **Gestão de Domínios Confiáveis / Mídias Autorizadas (`/api/admin/media-hosts`)**: Aba dedicada para visualização e autorização de hosts em 3 camadas (`.env`, `MediaProvider` e registros `MANUAL`), com remoção de trava rígida estática para que o administrador decida e autorize quais fontes utilizar após o teste.
+2. **Provedores Configuráveis, APIs Externas, Embeds & Teste Ao Vivo (`/admin/sources` e `/setup`)**:
+   - Tabela de provedores cadastrados com suporte a M3U, JSON, `EXTERNAL_API` (`AniZone`, `Miruro`, `Anify`, `Consumet`, `TVmaze`) e `EMBED` (`2Embed`, `Xpass`, `ApiPlayer`).
+   - Botões de alternar status (Ativo/Inativo), teste sintético real com latência em ms e status HTTP (404, 429, 5xx) e ordenação por prioridade para fallback.
+   - **Gestão de Domínios Confiáveis / Mídias Autorizadas (`/api/admin/media-hosts`)**: Aba dedicada para visualização e autorização de hosts em 3 camadas (`.env`, `MediaProvider` e registros `MANUAL`).
 
 7. **Robô de Auto-Indexação (*Autopilot Indexer*)**:
    - **Modo Automático**: Varredura em segundo plano das fontes ativas buscando metadados oficiais (Jikan/AniList) e auto-criação de animes e episódios no PostgreSQL.

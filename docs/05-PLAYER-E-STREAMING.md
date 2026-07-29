@@ -17,8 +17,9 @@ O player de vídeo do AniStream ([`src/components/VideoPlayer.tsx`](file:///c:/U
 ### 2. Pular Abertura (+85s) em Floating Pill
 - **Pill Flutuante**: Posicionado estrategicamente no canto inferior direito sobre o canvas de vídeo ("Pular Abertura +85s").
 
-### 3. Inicialização HLS (`hls.js`) & Playlists `.m3u8`
-- **Suporte Adaptativo**: Transmissão nativa de playlists HLS (`.m3u8`) com controle automático de resolução e buffer.
+### 3. Inicialização HLS (`hls.js`), Playlists `.m3u8` & Embeds iFrame
+- **Suporte Adaptativo HLS**: Transmissão nativa de playlists HLS (`.m3u8`) via `hls.js` com controle automático de resolução e buffer.
+- **Renderização Nativa de Embeds**: Fontes do tipo `embed` (como `2Embed`, `Xpass` e `ApiPlayer`) são renderizadas nativamente em um container `<iframe>` responsivo sem tentar forçar proxy de mídia.
 - **Limite de Retentativas**: Máximo de 2 tentativas por servidor antes de realizar o fallback automático para a próxima fonte.
 - **Auditoria de Erros HTML5 (`MediaError`)**: Mapeamento detalhado dos códigos de erro nativos (Rede, Decodificação, Codec Não Suportado) exibidos no Toast.
 
