@@ -18,9 +18,16 @@ const jikanClient = axios.create({
   timeout: 10000,
 });
 
+import { globalCircuitBreaker } from '@/lib/api/circuit-breaker';
+
 // Helper request delay queue to stay safely under Jikan's 3 req/sec rate limit
 let lastRequestTime = 0;
 async function throttleRequest<T>(requestFn: () => Promise<T>): Promise<T> {
+  const currentState = globalCircuitBreaker.getState('jikan-api');
+  if (currentState === 'OPEN') {
+    throw new Error('CircuitBreaker OPEN: API Jikan temporariamente indisponível. Usando cache local.');
+  }
+
   const now = Date.now();
   const timeSinceLast = now - lastRequestTime;
   const minInterval = 350; // ~2.8 requests per sec max
@@ -29,12 +36,22 @@ async function throttleRequest<T>(requestFn: () => Promise<T>): Promise<T> {
   }
   lastRequestTime = Date.now();
   try {
-    return await requestFn();
+    const result = await requestFn();
+    globalCircuitBreaker.recordSuccess('jikan-api');
+    return result;
   } catch (error: any) {
+    globalCircuitBreaker.recordFailure('jikan-api');
     if (error?.response?.status === 429) {
       // Retry once after 1.5s backoff if rate limited
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      return await requestFn();
+      try {
+        const retryResult = await requestFn();
+        globalCircuitBreaker.recordSuccess('jikan-api');
+        return retryResult;
+      } catch (retryError) {
+        globalCircuitBreaker.recordFailure('jikan-api');
+        throw retryError;
+      }
     }
     throw error;
   }

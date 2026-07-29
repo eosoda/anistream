@@ -1,19 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { EpisodeLookupInputSchema } from '@/schemas/episode';
 import { defaultStreamResolver } from '@/lib/streams/resolver';
 import { generatePlaybackToken } from '@/lib/security/playback-token';
 import { checkRateLimit } from '@/lib/security/rate-limit';
+import { apiSuccess, apiError } from '@/lib/api/response';
 
 export async function POST(request: NextRequest) {
+  const reqPath = request.nextUrl.pathname;
+
   // 1. Protection against excessive requests
   const rateLimit = checkRateLimit(request, 'resolve-stream', {
     limit: 30,
     windowMs: 60000,
   });
   if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Limite de solicitações de stream atingido. Aguarde 1 minuto.' },
-      { status: 429 }
+    return apiError(
+      'RATE_LIMITED',
+      'Limite de solicitações de stream atingido. Aguarde 1 minuto.',
+      429,
+      undefined,
+      undefined,
+      reqPath
     );
   }
 
@@ -22,26 +29,29 @@ export async function POST(request: NextRequest) {
     const parseResult = EpisodeLookupInputSchema.safeParse(body);
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        { error: 'Entrada inválida', details: parseResult.error.flatten() },
-        { status: 400 }
+      return apiError(
+        'INVALID_INPUT',
+        'Entrada de busca de episódio inválida.',
+        400,
+        parseResult.error.flatten(),
+        undefined,
+        reqPath
       );
     }
 
     const input = parseResult.data;
 
     // 2. Resolve sources concurrently via StreamResolver
-    const resolveResult = await defaultStreamResolver.resolveEpisodeStream(
-      input
-    );
+    const resolveResult = await defaultStreamResolver.resolveEpisodeStream(input);
 
     if (!resolveResult.selected) {
-      return NextResponse.json(
-        {
-          error: 'Nenhuma fonte autorizada disponível para este episódio no momento.',
-          attempts: resolveResult.attempts,
-        },
-        { status: 444 }
+      return apiError(
+        'NO_SOURCES_AVAILABLE',
+        'Nenhuma fonte autorizada disponível para este episódio no momento.',
+        444,
+        { attempts: resolveResult.attempts },
+        undefined,
+        reqPath
       );
     }
 
@@ -51,9 +61,7 @@ export async function POST(request: NextRequest) {
     const token = await generatePlaybackToken(selected.id, undefined, 15);
 
     // 4. Construct safe playback URL (never exposing raw internal media URL)
-    const playbackUrl = `/api/streams/proxy/${selected.id}?token=${encodeURIComponent(
-      token
-    )}`;
+    const playbackUrl = `/api/streams/proxy/${selected.id}?token=${encodeURIComponent(token)}`;
 
     // Map safe alternatives
     const safeAlternatives = await Promise.all(
@@ -64,25 +72,33 @@ export async function POST(request: NextRequest) {
           provider: alt.provider,
           quality: alt.quality || 'auto',
           audioLanguage: alt.audioLanguage || 'ja',
-          playbackUrl: `/api/streams/proxy/${alt.id}?token=${encodeURIComponent(
-            altToken
-          )}`,
+          playbackUrl: `/api/streams/proxy/${alt.id}?token=${encodeURIComponent(altToken)}`,
         };
       })
     );
 
-    return NextResponse.json({
+    const streamData = {
       playbackUrl,
       type: selected.type,
       quality: selected.quality || 'auto',
       audioLanguage: selected.audioLanguage || 'ja',
       subtitles: selected.subtitles || [],
       alternatives: safeAlternatives,
+    };
+
+    return apiSuccess(streamData, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      },
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: 'Erro ao resolver fontes de streaming', message: err.message },
-      { status: 500 }
+    return apiError(
+      'INTERNAL_RESOLVE_ERROR',
+      'Erro ao resolver fontes de streaming.',
+      500,
+      { message: err.message },
+      undefined,
+      reqPath
     );
   }
 }

@@ -1,20 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { AnimeSearchInputSchema } from '@/schemas/anime';
 import { LocalDatabaseProvider } from '@/lib/providers/local-database.provider';
 import { checkRateLimit } from '@/lib/security/rate-limit';
+import { apiSuccess, apiError } from '@/lib/api/response';
+import { globalCircuitBreaker } from '@/lib/api/circuit-breaker';
 
 const localProvider = new LocalDatabaseProvider();
 
 export async function GET(request: NextRequest) {
+  const reqPath = request.nextUrl.pathname;
+
   // 1. Rate Limit Check
   const rateLimit = checkRateLimit(request, 'search', {
-    limit: 40,
+    limit: 60,
     windowMs: 60000,
   });
   if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Muitas requisições. Tente novamente mais tarde.' },
-      { status: 429 }
+    return apiError(
+      'RATE_LIMITED',
+      'Muitas requisições de pesquisa. Tente novamente mais tarde.',
+      429,
+      undefined,
+      undefined,
+      reqPath
     );
   }
 
@@ -29,21 +37,43 @@ export async function GET(request: NextRequest) {
   });
 
   if (!parseResult.success) {
-    return NextResponse.json(
-      { error: 'Parâmetros de busca inválidos', details: parseResult.error.flatten() },
-      { status: 400 }
+    return apiError(
+      'INVALID_SEARCH_PARAMS',
+      'Parâmetros de busca inválidos.',
+      400,
+      parseResult.error.flatten(),
+      undefined,
+      reqPath
     );
   }
 
   const { query, limit } = parseResult.data;
 
   try {
-    const results = await localProvider.searchAnime({ query, limit });
-    return NextResponse.json({ results });
+    // Busca protegida pelo Circuit Breaker com fallback para banco local
+    const { data: results, isFallback } = await globalCircuitBreaker.execute(
+      'local-database-search',
+      () => localProvider.searchAnime({ query, limit }),
+      async () => []
+    );
+
+    return apiSuccess(results, {
+      meta: {
+        total: results.length,
+        offline: isFallback,
+      },
+      headers: {
+        'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=86400',
+      },
+    });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: 'Erro ao processar busca', message: err.message },
-      { status: 500 }
+    return apiError(
+      'SEARCH_INTERNAL_ERROR',
+      'Erro ao processar busca de animes.',
+      500,
+      { message: err.message },
+      undefined,
+      reqPath
     );
   }
 }
