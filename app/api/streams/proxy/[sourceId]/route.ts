@@ -5,6 +5,52 @@ import { verifyPlaybackToken } from '@/lib/security/playback-token';
 import { validateUrlSsrf } from '@/lib/security/ssrf';
 import { checkRateLimit } from '@/lib/security/rate-limit';
 
+// Helper de requisição upstream com 2 retentativas e backoff exponencial (100ms, 300ms)
+async function fetchUpstreamWithRetry(
+  url: string,
+  headers: Record<string, string>,
+  maxRetries = 2
+): Promise<Response> {
+  let attempt = 0;
+  let lastError: any = null;
+
+  while (attempt <= maxRetries) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      // Se respondeu com sucesso ou erro de range (206) ou client error (4xx), não tenta novamente
+      if (response.ok || response.status === 206 || (response.status >= 400 && response.status < 500)) {
+        return response;
+      }
+
+      // Se for erro de servidor 502/503/504, tenta retentativa com backoff
+      attempt++;
+      if (attempt <= maxRetries) {
+        await new Promise((res) => setTimeout(res, attempt * 150));
+      } else {
+        return response;
+      }
+    } catch (err: any) {
+      lastError = err;
+      attempt++;
+      if (attempt <= maxRetries) {
+        await new Promise((res) => setTimeout(res, attempt * 150));
+      }
+    }
+  }
+
+  throw lastError || new Error('Falha de conexão com servidor de origem de mídia');
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sourceId: string }> }
@@ -41,7 +87,7 @@ export async function GET(
     );
   }
 
-  // 3. Load source directly from DB (Never trust arbitrary URLs from browser)
+  // 3. Load source directly from DB
   const source = await prisma.episodeSource.findUnique({
     where: { id: sourceId },
   });
@@ -53,7 +99,6 @@ export async function GET(
     );
   }
 
-  // Check expiration if set
   if (source.expiresAt && new Date(source.expiresAt) < new Date()) {
     return NextResponse.json(
       { error: 'Fonte de streaming expirada.' },
@@ -61,7 +106,6 @@ export async function GET(
     );
   }
 
-  // Decrypt real media URL and headers
   const realUrl = decryptData(source.urlEncrypted);
   let decryptedHeaders: Record<string, string> = {};
 
@@ -82,7 +126,7 @@ export async function GET(
     );
   }
 
-  // 5. Forward HTTP Range headers for seeking in media players
+  // 5. Forward HTTP Range headers
   const range = request.headers.get('range');
   const upstreamHeaders: Record<string, string> = {
     'User-Agent': 'AniStream-SecureProxy/1.0',
@@ -94,10 +138,7 @@ export async function GET(
   }
 
   try {
-    const mediaResponse = await fetch(realUrl, {
-      method: 'GET',
-      headers: upstreamHeaders,
-    });
+    const mediaResponse = await fetchUpstreamWithRetry(realUrl, upstreamHeaders);
 
     if (!mediaResponse.ok && mediaResponse.status !== 206) {
       return NextResponse.json(
@@ -106,39 +147,24 @@ export async function GET(
       );
     }
 
-    // 6. Build response headers forwarding Content-Type, Content-Length, Content-Range
     const responseHeaders = new Headers();
-
     const contentType =
       mediaResponse.headers.get('content-type') ||
-      (source.type === 'hls'
-        ? 'application/vnd.apple.mpegurl'
-        : 'video/mp4');
+      (source.type === 'hls' ? 'application/vnd.apple.mpegurl' : 'video/mp4');
     responseHeaders.set('Content-Type', contentType);
 
     const contentLength = mediaResponse.headers.get('content-length');
-    if (contentLength) {
-      responseHeaders.set('Content-Length', contentLength);
-    }
+    if (contentLength) responseHeaders.set('Content-Length', contentLength);
 
     const contentRange = mediaResponse.headers.get('content-range');
-    if (contentRange) {
-      responseHeaders.set('Content-Range', contentRange);
-    }
+    if (contentRange) responseHeaders.set('Content-Range', contentRange);
 
     const acceptRanges = mediaResponse.headers.get('accept-ranges');
-    if (acceptRanges) {
-      responseHeaders.set('Accept-Ranges', acceptRanges);
-    }
+    if (acceptRanges) responseHeaders.set('Accept-Ranges', acceptRanges);
 
-    // Header CORS controlado pelo nosso servidor
     responseHeaders.set('Access-Control-Allow-Origin', '*');
-    responseHeaders.set(
-      'Cache-Control',
-      'no-store, no-cache, must-revalidate, private'
-    );
+    responseHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
-    // 7. Stream Response body directly without buffering complete video
     return new NextResponse(mediaResponse.body, {
       status: mediaResponse.status,
       headers: responseHeaders,

@@ -539,6 +539,20 @@ export function VideoPlayer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isTheaterMode, showShortcutsModal, volume, isPlaying, duration, togglePlay, toggleFullscreen, toggleMute, skipTime]);
 
+  const handleVideoError = () => {
+    const currentIndex = SAMPLE_STREAMS.findIndex((s) => s.id === activeServer.id);
+    const nextIndex = (currentIndex + 1) % SAMPLE_STREAMS.length;
+    const nextServer = SAMPLE_STREAMS[nextIndex];
+    if (nextServer && nextServer.id !== activeServer.id) {
+      setActiveServer(nextServer);
+      showToast({
+        type: 'warning',
+        title: 'Servidor Instável',
+        message: `Alternando automaticamente para ${nextServer.name}...`,
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Server & Language Config Bar */}
@@ -618,6 +632,7 @@ export function VideoPlayer({
           onLoadedMetadata={handleLoadedMetadata}
           onTimeUpdate={handleTimeUpdate}
           onEnded={handleEpisodeCompletion}
+          onError={handleVideoError}
           onClick={togglePlay}
           className="w-full h-full object-contain cursor-pointer"
         />

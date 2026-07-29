@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { CreateWebhookSchema } from '@/schemas/admin';
 
 export async function GET() {
   try {
@@ -15,12 +16,11 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { platform, name, url, action = 'create' } = body;
+    const { action = 'create', url, platform = 'DISCORD' } = body;
 
     if (action === 'test') {
       if (!url) return NextResponse.json({ error: 'URL do Webhook necessária.' }, { status: 400 });
 
-      // Disparar Webhook de Teste (Discord Rich Embed ou Telegram Message)
       if (platform === 'DISCORD' || url.includes('discord.com')) {
         await fetch(url, {
           method: 'POST',
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
               {
                 title: '🎬 Teste de Webhook - AniStream',
                 description: 'As notificações automáticas de novos episódios estão funcionando perfeitamente!',
-                color: 16738560, // #FF6B00
+                color: 16738560,
                 timestamp: new Date().toISOString(),
               },
             ],
@@ -42,15 +42,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'Notificação de teste disparada com sucesso!' });
     }
 
-    if (!platform || !name || !url) {
-      return NextResponse.json({ error: 'Plataforma, nome e URL são obrigatórios.' }, { status: 400 });
+    const parseResult = CreateWebhookSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Dados inválidos para o webhook.', details: parseResult.error.flatten() },
+        { status: 400 }
+      );
     }
+
+    const input = parseResult.data;
 
     const webhook = await prisma.webhookConfig.create({
       data: {
-        platform: platform.toUpperCase(),
-        name,
-        url,
+        platform: input.platform,
+        name: input.name,
+        url: input.url,
         enabled: true,
       },
     });

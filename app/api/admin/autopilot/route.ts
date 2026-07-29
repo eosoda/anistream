@@ -81,11 +81,20 @@ export async function POST(req: Request) {
               totalDiscovered++;
 
               if (isAutoMode) {
-                // MODO AUTOMÁTICO: Buscar no Jikan API e criar direto no banco
+                // MODO AUTOMÁTICO: Respeitar pacing de 1000ms para Jikan API
+                await new Promise((res) => setTimeout(res, 1000));
+
                 try {
-                  const jikanRes = await fetch(
+                  let jikanRes = await fetch(
                     `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(cleanTitle)}&limit=1`
                   );
+
+                  if (jikanRes.status === 429) {
+                    await new Promise((res) => setTimeout(res, 2000));
+                    jikanRes = await fetch(
+                      `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(cleanTitle)}&limit=1`
+                    );
+                  }
                   if (jikanRes.ok) {
                     const jikanData = await jikanRes.json();
                     const animeInfo = jikanData?.data?.[0];

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { CreateAnnouncementSchema } from '@/schemas/admin';
 
 // GET: Listar todos os anúncios (Admin)
 export async function GET() {
@@ -13,22 +14,27 @@ export async function GET() {
   }
 }
 
-// POST: Criar novo anúncio em lote (Admin)
+// POST: Criar novo anúncio em lote (Admin) com Validação Zod
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, content, type = 'INFO', targetGroup = 'all' } = body;
+    const parseResult = CreateAnnouncementSchema.safeParse(body);
 
-    if (!title || !content) {
-      return NextResponse.json({ error: 'Título e conteúdo são obrigatórios' }, { status: 400 });
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Dados inválidos para o anúncio.', details: parseResult.error.flatten() },
+        { status: 400 }
+      );
     }
+
+    const input = parseResult.data;
 
     const announcement = await prisma.systemAnnouncement.create({
       data: {
-        title,
-        content,
-        type,
-        targetGroup,
+        title: input.title,
+        content: input.content,
+        type: input.type,
+        targetGroup: input.targetGroup,
         active: true,
       },
     });
@@ -39,7 +45,7 @@ export async function POST(req: Request) {
   }
 }
 
-// DELETE: Deletar ou desativar anúncio
+// DELETE: Deletar anúncio
 export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
