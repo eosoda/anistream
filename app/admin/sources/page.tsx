@@ -36,9 +36,20 @@ interface MediaProviderItem {
 }
 
 export default function AdminSourcesPage() {
-  const [activeTab, setActiveTab] = useState<'providers' | 'm3u' | 'json' | 'autopilot'>('providers');
+  const [activeTab, setActiveTab] = useState<'providers' | 'm3u' | 'json' | 'autopilot' | 'hosts'>('providers');
   const [providers, setProviders] = useState<MediaProviderItem[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
+
+  // Domínios Autorizados
+  const [mediaHostsData, setMediaHostsData] = useState<{
+    envHosts: string[];
+    providerHosts: string[];
+    manualHosts: string[];
+    allHosts: string[];
+  }>({ envHosts: [], providerHosts: [], manualHosts: [], allHosts: [] });
+  const [loadingHosts, setLoadingHosts] = useState(false);
+  const [newHostInput, setNewHostInput] = useState('');
+  const [hostMsg, setHostMsg] = useState<string | null>(null);
 
   // Form para Novo Provedor
   const [newPropName, setNewPropName] = useState('');
@@ -71,9 +82,62 @@ export default function AdminSourcesPage() {
     }
   };
 
+  const fetchMediaHosts = async () => {
+    setLoadingHosts(true);
+    try {
+      const res = await fetch('/api/admin/media-hosts');
+      const data = await res.json();
+      if (res.ok) {
+        setMediaHostsData(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingHosts(false);
+    }
+  };
+
   useEffect(() => {
     fetchProviders();
+    fetchMediaHosts();
   }, []);
+
+  const handleAddHost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHostInput.trim()) return;
+
+    try {
+      const res = await fetch('/api/admin/media-hosts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host: newHostInput }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setHostMsg('✅ Domínio autorizado com sucesso!');
+        setNewHostInput('');
+        fetchMediaHosts();
+      } else {
+        setHostMsg(`❌ Erro: ${data.error}`);
+      }
+    } catch (err: any) {
+      setHostMsg(`❌ Erro: ${err.message}`);
+    }
+  };
+
+  const handleDeleteHost = async (hostToRemove: string) => {
+    if (!confirm(`Deseja remover o domínio manual "${hostToRemove}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/media-hosts?host=${encodeURIComponent(hostToRemove)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        fetchMediaHosts();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleCreateProvider = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,6 +303,16 @@ export default function AdminSourcesPage() {
         >
           <ListPlus size={16} />
           <span>Importar M3U Texto</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('hosts')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'hosts' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:bg-white/5'
+          }`}
+        >
+          <ShieldCheck size={16} />
+          <span>Mídias Autorizadas ({mediaHostsData.allHosts.length})</span>
         </button>
       </div>
 
@@ -494,6 +568,106 @@ export default function AdminSourcesPage() {
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
             <span>Processar Importação</span>
           </button>
+        </div>
+      )}
+
+      {/* Conteúdo Aba 4: Mídias Autorizadas (Domínios Confiáveis) */}
+      {activeTab === 'hosts' && (
+        <div className="space-y-6">
+          {/* Formulário para Adicionar Domínio Manual */}
+          <form onSubmit={handleAddHost} className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-4">
+            <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-white/10 pb-3">
+              <ShieldCheck size={18} className="text-[#FF6B00]" />
+              <span>Autorizar Novo Domínio de Mídia</span>
+            </h2>
+
+            <p className="text-xs text-gray-400">
+              Adicione o hostname ou URL de um servidor de streaming para permitir a reprodução de mídias mantendo a proteção SSRF.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                placeholder="Ex: cdn.servidor-externo.com ou https://media.provedor.com/feed.m3u8"
+                value={newHostInput}
+                onChange={(e) => setNewHostInput(e.target.value)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+              />
+              <button
+                type="submit"
+                className="px-6 py-2.5 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all"
+              >
+                <Plus size={16} />
+                <span>Autorizar Domínio</span>
+              </button>
+            </div>
+
+            {hostMsg && (
+              <p className="text-xs font-bold p-2.5 rounded-xl bg-white/5 border border-white/10">{hostMsg}</p>
+            )}
+          </form>
+
+          {/* Lista Unificada de Hosts Autorizados */}
+          <div className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h2 className="text-base font-bold text-white">Lista Ativa de Hosts de Mídia Autorizados</h2>
+                <p className="text-xs text-gray-400">Domínios autorizados combinando .env, extração de Provedores e cadastros Manuais</p>
+              </div>
+              {loadingHosts && <Loader2 size={18} className="text-[#FF6B00] animate-spin" />}
+            </div>
+
+            {mediaHostsData.allHosts.length === 0 ? (
+              <p className="text-xs text-gray-400 py-4">Nenhum host de mídia cadastrado.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {mediaHostsData.allHosts.map((h) => {
+                  const isEnv = mediaHostsData.envHosts.includes(h);
+                  const isProvider = mediaHostsData.providerHosts.includes(h);
+                  const isManual = mediaHostsData.manualHosts.includes(h);
+
+                  return (
+                    <div
+                      key={h}
+                      className="p-3.5 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="space-y-1 truncate">
+                        <span className="font-mono text-xs font-bold text-white block truncate">{h}</span>
+
+                        <div className="flex flex-wrap gap-1">
+                          {isEnv && (
+                            <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] font-bold">
+                              ENV (.env)
+                            </span>
+                          )}
+                          {isProvider && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                              PROVEDOR
+                            </span>
+                          )}
+                          {isManual && (
+                            <span className="px-2 py-0.5 rounded-md bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30 text-[10px] font-bold">
+                              MANUAL
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {isManual && (
+                        <button
+                          onClick={() => handleDeleteHost(h)}
+                          className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors shrink-0"
+                          title="Remover host manual"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import { parseM3uContent } from '@/lib/streams/m3u-parser';
 import { validateUrlSsrf } from '@/lib/security/ssrf';
 import { encryptData } from '@/lib/security/crypto';
 import { validateSetupKey, clearSetupKey } from '@/lib/security/setup-key';
+import { autoAuthorizeHostnames } from '@/lib/security/allowed-hosts';
 
 export async function POST(request: NextRequest) {
   try {
@@ -77,6 +78,11 @@ export async function POST(request: NextRequest) {
     let m3uImportSummary = null;
     if (m3uContent && typeof m3uContent === 'string' && m3uContent.trim().length > 0) {
       const parsedItems = parseM3uContent(m3uContent);
+
+      // Extrai e pré-autoriza automaticamente os domínios das streams M3U
+      const streamUrls = parsedItems.map((item) => item.streamUrl);
+      await autoAuthorizeHostnames(streamUrls);
+
       let importedCount = 0;
 
       for (const item of parsedItems) {

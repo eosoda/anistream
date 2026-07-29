@@ -1,5 +1,5 @@
 import dns from 'node:dns/promises';
-import { isAuthorizedHost, isLegacyHostBlocked } from './allowed-hosts';
+import { isAuthorizedHost } from './allowed-hosts';
 
 const PRIVATE_IP_RANGES = [
   // Loopback & Local
@@ -73,15 +73,7 @@ export async function validateUrlSsrf(
 
     const hostname = parsedUrl.hostname;
 
-    // 4. Bloquear hosts legados explicitamente
-    if (isLegacyHostBlocked(hostname)) {
-      return {
-        valid: false,
-        reason: `Host legado não autorizado: ${hostname}`,
-      };
-    }
-
-    // 5. Verificar IP privado direto no hostname
+    // 4. Verificar IP privado direto no hostname
     if (isPrivateIp(hostname)) {
       return {
         valid: false,
@@ -103,7 +95,8 @@ export async function validateUrlSsrf(
       const firstIp = addresses[0]?.address;
 
       // 7. Verificar se o host está na allowlist de mídia autorizada
-      if (!isAuthorizedHost(hostname)) {
+      const authorized = await isAuthorizedHost(hostname);
+      if (!authorized) {
         return {
           valid: false,
           reason: `Host ${hostname} não está na lista de hosts autorizados`,

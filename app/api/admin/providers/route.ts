@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { autoAuthorizeHostnames, invalidateAuthorizedHostsCache } from '@/lib/security/allowed-hosts';
 
 // Provedores padrão pré-configurados inicializáveis
 const DEFAULT_PROVIDERS = [
@@ -64,6 +65,10 @@ export async function POST(req: Request) {
       },
     });
 
+    // Auto-autorizar o hostname da URL do provedor e invalidar o cache em memória
+    await autoAuthorizeHostnames([url]);
+    invalidateAuthorizedHostsCache();
+
     return NextResponse.json({ success: true, provider });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -90,6 +95,11 @@ export async function PATCH(req: Request) {
       data: updateData,
     });
 
+    if (url) {
+      await autoAuthorizeHostnames([url]);
+    }
+    invalidateAuthorizedHostsCache();
+
     return NextResponse.json({ success: true, provider: updated });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -105,6 +115,8 @@ export async function DELETE(req: Request) {
     if (!id) return NextResponse.json({ error: 'ID do provedor é obrigatório.' }, { status: 400 });
 
     await prisma.mediaProvider.delete({ where: { id } });
+    invalidateAuthorizedHostsCache();
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
