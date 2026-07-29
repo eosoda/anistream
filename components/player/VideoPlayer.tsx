@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import Hls from 'hls.js';
 import {
   Play,
   Pause,
@@ -33,6 +34,31 @@ import { SafeImage } from '@/components/ui/SafeImage';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ReportProblemModal } from '@/components/player/ReportProblemModal';
 
+interface ResolvedSubTrack {
+  id: string;
+  language: string;
+  label: string;
+  format?: string;
+  url?: string;
+}
+
+interface ResolvedAlternative {
+  sourceId: string;
+  provider: string;
+  quality?: string;
+  audioLanguage?: string;
+  playbackUrl: string;
+}
+
+interface ResolvedStream {
+  playbackUrl: string;
+  type?: string;
+  quality?: string;
+  audioLanguage?: string;
+  subtitles?: ResolvedSubTrack[];
+  alternatives?: ResolvedAlternative[];
+}
+
 interface VideoPlayerProps {
   animeId: number;
   animeTitle: string;
@@ -40,6 +66,8 @@ interface VideoPlayerProps {
   episodeNum: number;
   episodeTitle?: string;
   nextEpNum?: number | null;
+  resolvedStream?: ResolvedStream | null;
+  streamStatusMessage?: string | null;
   onNextEpisode?: () => void;
 }
 
@@ -47,19 +75,19 @@ const SAMPLE_STREAMS = [
   {
     id: 's1',
     name: 'Servidor 1 (HD Legendado)',
-    type: 'Principal',
+    type: 'mp4',
     src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
   },
   {
     id: 's2',
     name: 'Servidor 2 (Full HD Dublado)',
-    type: 'Alta Velocidade',
+    type: 'mp4',
     src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
   },
   {
     id: 's3',
     name: 'Servidor 3 (Backup HD)',
-    type: 'Reserva',
+    type: 'mp4',
     src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
   },
 ];
@@ -71,43 +99,6 @@ const AUDIO_LANGUAGES = [
   { id: 'es', name: 'Espanhol', label: 'Espanhol (Español)', code: 'ES', badge: 'DUB' },
 ];
 
-const SUBTITLE_LANGUAGES = [
-  { id: 'pt', name: 'Português', label: 'Português (Brasil)', code: 'PT-BR' },
-  { id: 'en', name: 'Inglês', label: 'Inglês (English)', code: 'EN' },
-  { id: 'es', name: 'Espanhol', label: 'Espanhol (Español)', code: 'ES' },
-  { id: 'off', name: 'Desativado', label: 'Sem Legendas', code: 'OFF' },
-];
-
-const getCurrentSubtitleCue = (seconds: number, langId: string) => {
-  if (langId === 'off') return null;
-
-  const loopSec = Math.floor(seconds) % 30;
-
-  if (loopSec >= 1 && loopSec < 6) {
-    if (langId === 'pt') return 'Naquele dia, a humanidade relembrou o medo de viver sob o controle deles...';
-    if (langId === 'en') return 'On that day, mankind received a grim reminder of the terror of being ruled by them...';
-    if (langId === 'es') return 'Ese día, la humanidad recordó el terror de vivir bajo su dominio...';
-  } else if (loopSec >= 6 && loopSec < 12) {
-    if (langId === 'pt') return 'Juntos, nós lutaremos para proteger tudo o que nos resta de esperança!';
-    if (langId === 'en') return 'Together, we will fight to protect everything we have left of hope!';
-    if (langId === 'es') return '¡Juntos lucharemos para proteger todo lo que nos queda de esperanza!';
-  } else if (loopSec >= 12 && loopSec < 18) {
-    if (langId === 'pt') return 'Se você não lutar, você não pode vencer. Eleve o seu cosmo!';
-    if (langId === 'en') return "If you don't fight, you can't win. Raise your cosmos!";
-    if (langId === 'es') return '¡Si no luchas, no puedes ganar. ¡Eleva tu cosmos!';
-  } else if (loopSec >= 18 && loopSec < 24) {
-    if (langId === 'pt') return 'A verdadeira força desperta no momento de maior escuridão.';
-    if (langId === 'en') return 'True strength awakens in the moment of greatest darkness.';
-    if (langId === 'es') return 'La verdadeira fuerza despierta en el momento de mayor oscuridad.';
-  } else if (loopSec >= 24 && loopSec < 29) {
-    if (langId === 'pt') return 'A jornada continua. Este é o destino dos escolhidos!';
-    if (langId === 'en') return 'The journey continues. This is the destiny of the chosen ones!';
-    if (langId === 'es') return 'El viaje continúa. ¡Este es el destino de los elegidos!';
-  }
-
-  return null;
-};
-
 export function VideoPlayer({
   animeId,
   animeTitle,
@@ -115,15 +106,49 @@ export function VideoPlayer({
   episodeNum,
   episodeTitle,
   nextEpNum,
+  resolvedStream,
+  streamStatusMessage,
   onNextEpisode,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const hlsRef = useRef<InstanceType<typeof Hls> | null>(null);
+  const retryCountRef = useRef<number>(0);
 
   const { saveProgress, getProgress } = useWatchProgress();
   const { showToast } = useToast();
 
-  const [activeServer, setActiveServer] = useState(SAMPLE_STREAMS[0]);
+  // Construir a lista de servidores combinando resolvedStream e alternativas
+  const serverList = React.useMemo(() => {
+    if (resolvedStream?.playbackUrl) {
+      const mainServer = {
+        id: 'main-stream',
+        name: `Servidor Principal (${resolvedStream.quality || 'Auto'})`,
+        type: resolvedStream.type || 'hls',
+        src: resolvedStream.playbackUrl,
+      };
+
+      const altServers = (resolvedStream.alternatives || []).map((alt, idx) => ({
+        id: alt.sourceId || `alt-${idx}`,
+        name: `${alt.provider || 'Servidor Reserva ' + (idx + 1)} (${alt.quality || 'Auto'})`,
+        type: resolvedStream.type || 'hls',
+        src: alt.playbackUrl,
+      }));
+
+      return [mainServer, ...altServers];
+    }
+
+    return SAMPLE_STREAMS;
+  }, [resolvedStream]);
+
+  const [activeServer, setActiveServer] = useState(serverList[0]);
+
+  useEffect(() => {
+    if (serverList.length > 0) {
+      setActiveServer(serverList[0]);
+    }
+  }, [serverList]);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -142,6 +167,125 @@ export function VideoPlayer({
 
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Subtitles extraídas da API ou vazias
+  const availableSubtitles = React.useMemo(() => {
+    return resolvedStream?.subtitles || [];
+  }, [resolvedStream]);
+
+  const [selectedSubTrack, setSelectedSubTrack] = useState<ResolvedSubTrack | null>(
+    availableSubtitles.length > 0 ? availableSubtitles[0] : null
+  );
+
+  useEffect(() => {
+    if (availableSubtitles.length > 0) {
+      setSelectedSubTrack(availableSubtitles[0]);
+    } else {
+      setSelectedSubTrack(null);
+    }
+  }, [availableSubtitles]);
+
+  // Fallback automático com auditoria de erros e prevenção de loops infinitos de retentativa
+  const handleVideoError = useCallback((customReason?: string) => {
+    const errCode = videoRef.current?.error?.code;
+    let errorDetail = customReason || 'Servidor instável ou inacessível';
+
+    if (errCode === 1) errorDetail = 'Download da mídia foi abortado';
+    if (errCode === 2) errorDetail = 'Erro de conexão de rede com o vídeo';
+    if (errCode === 3) errorDetail = 'Erro de decodificação do codec de vídeo';
+    if (errCode === 4) errorDetail = 'Formato de vídeo não suportado pelo navegador';
+
+    const currentIndex = serverList.findIndex((s) => s.id === activeServer.id);
+    const nextIndex = (currentIndex + 1) % serverList.length;
+    const nextServer = serverList[nextIndex];
+
+    if (nextServer && nextServer.id !== activeServer.id) {
+      setActiveServer(nextServer);
+      showToast({
+        type: 'warning',
+        title: 'Alternando Servidor (Fallback)',
+        message: `${errorDetail}. Carregando ${nextServer.name}...`,
+      });
+    } else {
+      showToast({
+        type: 'error',
+        title: 'Falha de Transmissão',
+        message: `${errorDetail}. Nenhuma outra fonte disponível no momento.`,
+      });
+    }
+  }, [activeServer, serverList, showToast]);
+
+  // Carregamento dinâmico do HLS.js para streams .m3u8 com fallback nativo MP4
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (!videoEl || !activeServer?.src) return;
+
+    retryCountRef.current = 0;
+
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    const srcUrl = activeServer.src;
+    const isHls = activeServer.type === 'hls' || srcUrl.includes('.m3u8');
+
+    if (isHls && Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 90,
+      });
+
+      hlsRef.current = hls;
+      hls.loadSource(srcUrl);
+      hls.attachMedia(videoEl);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (isPlaying) {
+          videoEl.play().catch(() => {});
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (_event: string, data: any) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              if (retryCountRef.current < 2) {
+                retryCountRef.current += 1;
+                hls.startLoad();
+              } else {
+                handleVideoError('Falha contínua de conexão com servidor CDN');
+              }
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              if (retryCountRef.current < 2) {
+                retryCountRef.current += 1;
+                hls.recoverMediaError();
+              } else {
+                handleVideoError('Formato de fluxo de vídeo corrompido');
+              }
+              break;
+            default:
+              handleVideoError('Erro fatal na transmissão HLS');
+              break;
+          }
+        }
+      });
+    } else {
+      videoEl.src = srcUrl;
+      if (isPlaying) {
+        videoEl.play().catch(() => {});
+      }
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [activeServer, handleVideoError, isPlaying]);
 
   // Picture-in-Picture event listeners
   useEffect(() => {
@@ -245,22 +389,11 @@ export function VideoPlayer({
   };
 
   const [audioLang, setAudioLang] = useState(AUDIO_LANGUAGES[0]);
-  const [subtitleLang, setSubtitleLang] = useState(SUBTITLE_LANGUAGES[0]);
   const [langToast, setLangToast] = useState<string | null>(null);
 
   const handleAudioChange = (lang: (typeof AUDIO_LANGUAGES)[0]) => {
     setAudioLang(lang);
     setLangToast(`Áudio: ${lang.label}`);
-    setTimeout(() => setLangToast(null), 2500);
-  };
-
-  const handleSubtitleChange = (sub: (typeof SUBTITLE_LANGUAGES)[0]) => {
-    setSubtitleLang(sub);
-    if (sub.id === 'off') {
-      setLangToast('Legendas Desativadas');
-    } else {
-      setLangToast(`Legenda: ${sub.label}`);
-    }
     setTimeout(() => setLangToast(null), 2500);
   };
 
@@ -342,7 +475,7 @@ export function VideoPlayer({
         duration: videoRef.current.duration || duration,
       });
     } else {
-      videoRef.current.play();
+      videoRef.current.play().catch(() => {});
       setIsPlaying(true);
       if (resumePrompt.show) {
         setResumePrompt((prev) => ({ ...prev, show: false }));
@@ -354,7 +487,7 @@ export function VideoPlayer({
     if (videoRef.current) {
       videoRef.current.currentTime = resumeTime;
       setCurrentTime(resumeTime);
-      videoRef.current.play();
+      videoRef.current.play().catch(() => {});
       setIsPlaying(true);
     }
     setResumePrompt({ show: false, time: 0 });
@@ -364,7 +497,7 @@ export function VideoPlayer({
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
       setCurrentTime(0);
-      videoRef.current.play();
+      videoRef.current.play().catch(() => {});
       setIsPlaying(true);
     }
     setResumePrompt({ show: false, time: 0 });
@@ -519,23 +652,9 @@ export function VideoPlayer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isTheaterMode, showSettingsMenu, showShortcutsModal, volume, isPlaying, duration, togglePlay, toggleFullscreen, toggleMute, skipTime, skipIntro]);
 
-  const handleVideoError = () => {
-    const currentIndex = SAMPLE_STREAMS.findIndex((s) => s.id === activeServer.id);
-    const nextIndex = (currentIndex + 1) % SAMPLE_STREAMS.length;
-    const nextServer = SAMPLE_STREAMS[nextIndex];
-    if (nextServer && nextServer.id !== activeServer.id) {
-      setActiveServer(nextServer);
-      showToast({
-        type: 'warning',
-        title: 'Servidor Instável',
-        message: `Alternando automaticamente para ${nextServer.name}...`,
-      });
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {/* Barra de Seleção de Servidores Limpa (sem badges duplicadas) */}
+      {/* Barra de Seleção de Servidores Dinâmica */}
       <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl glass-panel border border-white/10 text-xs">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 max-w-full">
           <div className="flex items-center gap-1.5 text-gray-300 font-bold whitespace-nowrap flex-shrink-0 mr-1">
@@ -544,7 +663,7 @@ export function VideoPlayer({
           </div>
 
           <div className="flex items-center gap-1.5 flex-nowrap">
-            {SAMPLE_STREAMS.map((server) => {
+            {serverList.map((server) => {
               const isActive = activeServer.id === server.id;
               return (
                 <button
@@ -591,15 +710,22 @@ export function VideoPlayer({
             : 'border-white/10 shadow-2xl'
         }`}
       >
+        {/* Banner Informativo de Status quando não houver fontes reais */}
+        {streamStatusMessage && (
+          <div className="absolute top-4 left-4 z-30 px-3.5 py-2 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold backdrop-blur-md flex items-center gap-2 shadow-2xl animate-fade-in">
+            <AlertTriangle size={15} className="shrink-0 text-amber-400" />
+            <span>{streamStatusMessage} (Exibindo reprodução de demonstração)</span>
+          </div>
+        )}
+
         {/* Elemento de Vídeo */}
         <video
           ref={videoRef}
-          src={activeServer.src}
           poster={animeImage}
           onLoadedMetadata={handleLoadedMetadata}
           onTimeUpdate={handleTimeUpdate}
           onEnded={handleEpisodeCompletion}
-          onError={handleVideoError}
+          onError={() => handleVideoError()}
           onClick={togglePlay}
           className="w-full h-full object-contain cursor-pointer"
         />
@@ -751,15 +877,6 @@ export function VideoPlayer({
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-2xl glass-panel bg-neutral-900/95 border border-[#FF6B00] text-white text-xs font-bold shadow-2xl backdrop-blur-xl animate-fade-in flex items-center gap-2">
             <Languages size={16} className="text-[#FF6B00]" />
             <span>{langToast}</span>
-          </div>
-        )}
-
-        {/* Overlay de Legenda Simulado */}
-        {getCurrentSubtitleCue(currentTime, subtitleLang.id) && (
-          <div className="absolute bottom-20 inset-x-4 z-20 flex justify-center pointer-events-none select-none">
-            <p className="px-4 py-1.5 rounded-lg bg-black/85 backdrop-blur-xs text-white font-black text-sm md:text-base tracking-wide border border-white/10 text-center max-w-2xl shadow-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-              {getCurrentSubtitleCue(currentTime, subtitleLang.id)}
-            </p>
           </div>
         )}
 
@@ -968,7 +1085,10 @@ export function VideoPlayer({
                             <span>Áudio & Legendas</span>
                           </div>
                           <div className="flex items-center gap-1 text-gray-400 font-mono text-[10px]">
-                            <span>{audioLang.code} {subtitleLang.id !== 'off' ? `| CC: ${subtitleLang.code}` : ''}</span>
+                            <span>
+                              {audioLang.code}{' '}
+                              {selectedSubTrack ? `| CC: ${selectedSubTrack.label}` : ' (Sem CC)'}
+                            </span>
                             <ChevronRight size={14} />
                           </div>
                         </button>
@@ -1083,26 +1203,53 @@ export function VideoPlayer({
 
                         <div className="border-t border-white/10 my-1" />
 
-                        {/* Seção Legendas */}
+                        {/* Seção Legendas (Dinâmica do Banco + Indicador de Ausência) */}
                         <div className="space-y-1">
                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Legendas</span>
-                          {SUBTITLE_LANGUAGES.map((sub) => {
-                            const isSelected = subtitleLang.id === sub.id;
-                            return (
+                          {availableSubtitles.length === 0 ? (
+                            <div className="p-2.5 rounded-xl bg-white/5 text-gray-400 text-[11px] font-bold flex items-center gap-2 border border-white/5">
+                              <Captions size={14} className="text-gray-500 shrink-0" />
+                              <span>Nenhuma legenda cadastrada para esta fonte</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
                               <button
-                                key={sub.id}
-                                onClick={() => handleSubtitleChange(sub)}
+                                onClick={() => {
+                                  setSelectedSubTrack(null);
+                                  setLangToast('Legendas Desativadas');
+                                }}
                                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl font-bold transition-all ${
-                                  isSelected
+                                  selectedSubTrack === null
                                     ? 'bg-[#FF6B00] text-white shadow-md'
                                     : 'hover:bg-white/10 text-gray-300'
                                 }`}
                               >
-                                <span>{sub.label}</span>
-                                {isSelected && <CheckCircle2 size={13} />}
+                                <span>Desativadas</span>
+                                {selectedSubTrack === null && <CheckCircle2 size={13} />}
                               </button>
-                            );
-                          })}
+
+                              {availableSubtitles.map((sub) => {
+                                const isSelected = selectedSubTrack?.id === sub.id;
+                                return (
+                                  <button
+                                    key={sub.id}
+                                    onClick={() => {
+                                      setSelectedSubTrack(sub);
+                                      setLangToast(`Legenda: ${sub.label}`);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl font-bold transition-all ${
+                                      isSelected
+                                        ? 'bg-[#FF6B00] text-white shadow-md'
+                                        : 'hover:bg-white/10 text-gray-300'
+                                    }`}
+                                  >
+                                    <span>{sub.label}</span>
+                                    {isSelected && <CheckCircle2 size={13} />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

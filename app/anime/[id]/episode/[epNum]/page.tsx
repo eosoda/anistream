@@ -43,6 +43,32 @@ export default function EpisodePlayerPage({
     enabled: !isNaN(animeId),
   });
 
+  // Fetch Streams via API /api/streams/resolve
+  const { data: streamResult } = useQuery({
+    queryKey: ['streamResolve', animeId, epNum],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/streams/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            animeId: String(animeId),
+            season: 1,
+            episodeNumber: epNum,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          return { data: null, status: res.status, error: data.error || 'Sem fontes disponíveis no momento' };
+        }
+        return { data, status: 200, error: null };
+      } catch (err: any) {
+        return { data: null, status: 500, error: err.message || 'Erro de conexão ao buscar fontes' };
+      }
+    },
+    enabled: !isNaN(animeId) && !isNaN(epNum),
+  });
+
   if (isLoadingAnime) {
     return <DetailSkeleton />;
   }
@@ -102,7 +128,7 @@ export default function EpisodePlayerPage({
         </div>
       </div>
 
-      {/* Video Player Component */}
+      {/* Video Player Component com fontes dinâmicas */}
       <VideoPlayer
         animeId={animeId}
         animeTitle={mainTitle}
@@ -110,6 +136,8 @@ export default function EpisodePlayerPage({
         episodeNum={epNum}
         episodeTitle={currentEp?.title}
         nextEpNum={nextEp}
+        resolvedStream={streamResult?.data}
+        streamStatusMessage={streamResult?.error}
         onNextEpisode={() => {
           if (nextEp) {
             router.push(`/anime/${animeId}/episode/${nextEp}`);

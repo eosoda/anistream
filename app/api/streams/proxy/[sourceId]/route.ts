@@ -130,6 +130,7 @@ export async function GET(
   const range = request.headers.get('range');
   const upstreamHeaders: Record<string, string> = {
     'User-Agent': 'AniStream-SecureProxy/1.0',
+    'Accept': '*/*',
     ...decryptedHeaders,
   };
 
