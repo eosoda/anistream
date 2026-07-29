@@ -50,7 +50,7 @@ Acesse as configurações do seu serviço Web no Railway (**Variables**) e adici
 | `PLAYBACK_TOKEN_SECRET` | `sua-chave-secreta-jwt-com-mais-de-32-caracteres` |
 | `SOURCE_ENCRYPTION_KEY` | `sua-chave-de-criptografia-aes256-com-32-bytes` |
 | `INITIAL_SETUP_KEY` | *(Opcional) Define a chave manual para liberar o /setup* |
-| `AUTHORIZED_MEDIA_HOSTS` | `media.seudominio.com,cdn.seudominio.com,s3.amazonaws.com` |
+| `AUTHORIZED_MEDIA_HOSTS` | `media.seudominio.com,cdn.seudominio.com,s3.amazonaws.com` *(Baseline estática; domínios adicionais podem ser autorizados dinamicamente pelo Painel Admin em `/admin/sources`)* |
 | `NEXT_PUBLIC_APP_URL` | `https://seu-app-anistream.up.railway.app` |
 
 ### 4️⃣ Deploy Automático e Primeiro Acesso

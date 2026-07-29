@@ -56,6 +56,13 @@ QueryClientProvider
 
 ---
 
+## 🔒 Segurança de Mídias e Hosts Autorizados (`AUTHORIZED_MEDIA_HOSTS`)
+- **Resolução Dinâmica em 3 Camadas**: A validação SSRF (`src/lib/security/ssrf.ts`) unifica domínios autorizados provenientes do `.env`, extração automática de `MediaProvider` (DB) e cadastros manuais em `SystemSetting`.
+- **Controle do Administrador**: Bloqueios estáticos legados foram removidos para que o administrador tenha autonomia total de testar e decidir quais fontes autorizar no Painel Admin (`/admin/sources`).
+- **Cache em Memória**: As verificações de segurança utilizam cache em memória com TTL (60s) e invalidação reativa em tempo real.
+
+---
+
 ## 🚀 Build & Verification Commands
 - **Local Production Build**: `node ./node_modules/next/dist/bin/next build`
 - **TypeScript Check**: Always verify clean compilation without type errors before finishing a task.

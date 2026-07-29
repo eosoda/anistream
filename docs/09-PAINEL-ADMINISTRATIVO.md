@@ -31,10 +31,11 @@ Este documento descreve a arquitetura, rotas e fluxos do **Painel Administrativo
    - Cadastro de fontes de streaming vinculadas aos episódios (HLS / MP4).
    - Suporte à importação em lote via playlists **M3U / M3U8**.
 
-6. **Provedores Configuráveis & Teste de Conexão Ao Vivo (`/admin/sources`)**:
+6. **Provedores Configuráveis, Domínios Confiáveis & Teste Ao Vivo (`/admin/sources`)**:
    - Tabela de provedores cadastrados (M3U, JSON, APIs REST) com controle de prioridades.
    - Botões de alternar status (Ativo/Inativo) e Auto-Robô (ON/OFF).
    - Botão **"Testar Conexão"** ao vivo medindo resposta HTTP e latência em ms.
+   - **Gestão de Domínios Confiáveis / Mídias Autorizadas (`/api/admin/media-hosts`)**: Aba dedicada para visualização e autorização de hosts em 3 camadas (`.env`, `MediaProvider` e registros `MANUAL`), com remoção de trava rígida estática para que o administrador decida e autorize quais fontes utilizar após o teste.
 
 7. **Robô de Auto-Indexação (*Autopilot Indexer*)**:
    - **Modo Automático**: Varredura em segundo plano das fontes ativas buscando metadados oficiais (Jikan/AniList) e auto-criação de animes e episódios no PostgreSQL.
@@ -60,7 +61,7 @@ Este documento descreve a arquitetura, rotas e fluxos do **Painel Administrativo
 | **`/admin/animes`** | Catálogo interativo de animes cadastrados. |
 | **`/admin/animes/novo`** | Formulário de criação com busca automática no MyAnimeList. |
 | **`/admin/animes/[id]/editar`** | Edição de metadados e adição de episódios. |
-| **`/admin/sources`** | Painel de gestão de provedores de mídia configuráveis, teste de conexão e Robô Autopilot. |
+| **`/admin/sources`** | Painel de gestão de provedores de mídia, Domínios Confiáveis (Mídias Autorizadas), teste de conexão e Robô Autopilot. |
 | **`/admin/sources/tester`** | Testador avançado de fontes de mídia com mini-player de preview. |
 | **`/manutencao`** | Tela pública do Modo Manutenção (redirecionada quando ativada no admin). |
 | **`/changelog`** | Linha do tempo pública de lançamentos e notas de versão. |
@@ -68,9 +69,10 @@ Este documento descreve a arquitetura, rotas e fluxos do **Painel Administrativo
 ### Endpoints da API Administrativa & Setup
 
 - `GET /api/setup/status` — Verifica se o sistema está inicializado e valida a chave de setup.
-- `POST /api/setup/initialize` — Cadastra o admin mestre e conclui a instalação (exige `setupKey`).
+- `POST /api/setup/initialize` — Cadastra o admin mestre, autoriza os domínios do M3U e conclui a instalação (exige `setupKey`).
 - `GET /api/admin/providers` — CRUD de provedores de mídia (`MediaProvider`).
 - `POST /api/admin/providers/test` — Teste de conexão e latência ao vivo de um provedor de mídia.
+- `GET /api/admin/media-hosts` / `POST` / `DELETE` — Listagem, autorização dinâmica e remoção manual de domínios de mídia autorizados em `SystemSetting`.
 - `GET /api/admin/autopilot` / `POST` / `PATCH` — Controle do Robô de Auto-Indexação e Fila de Revisão.
 - `GET /api/admin/broadcast` / `POST` — Gerenciador de anúncios globais e notificações em lote.
 - `GET /api/admin/backup` / `POST` — Dump e restauração do banco de dados em JSON.
