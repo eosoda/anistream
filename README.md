@@ -3,7 +3,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
-![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)
 ![Status](https://img.shields.io/badge/Status-Ativo-emerald?style=for-the-badge)
 
 **AniStream** é uma plataforma web moderna, rápida e responsiva para exploração, acompanhamento e reprodução de animes. Desenvolvida com Next.js 15 (App Router), React 19, TypeScript e dados consumidos em tempo real das APIs MyAnimeList (Jikan v4) e AniList GraphQL.
@@ -12,104 +12,73 @@
 
 ## 🌟 Funcionalidades Principais
 
+### 🛡️ Primeiro Acesso & Assistente de Instalação (`/setup`)
+- **Redirecionamento Automático**: No primeiro boot do container/aplicação com banco virgem (`0` administradores), qualquer acesso à aplicação é direcionado automaticamente para o assistente em `/setup`.
+- **Proteção por Chave Randômica (Setup Key)**: A rota `/setup` é protegida contra acessos não autorizados ou robôs por uma chave randômica única (`Setup Key`) gerada e exibida nos logs do container Docker (`docker logs anistream_app`).
+
 ### 🔍 Busca & Navegação Inteligente
-- **Live Search Preview**: Busca instantânea no Navbar exibindo os top 5 resultados (miniatura, nota, ano, formato e status) com navegação completa por teclado (`Seta Cima/Baixo`, `Enter`, `Esc`).
+- **Live Search Preview**: Busca instantânea no Navbar exibindo os top 5 resultados com suporte a navegação por teclado.
 - **Pesquisa por Voz**: Suporte a busca por áudio via Web Speech API.
-- **Filtros Avançados & Quick Multi-Filter**: Filtragem combinada por gênero, status (Em Exibição/Finalizado) e ordenação (Populares, Recentes, Melhor Avaliados).
-- **Alternador de Visualização (Grid vs. Lista Compacta)**: Escolha entre Grade de Capas e Lista Compacta em linhas finas com persistência em `localStorage`.
+- **Filtros Avançados & Quick Multi-Filter**: Filtragem por gênero, status e ordenação.
+- **Alternador de Visualização (Grid vs. Lista Compacta)**: Alternância de layout com persistência em `localStorage`.
 
 ### 🎥 Player de Vídeo Avançado & Binge-Watching
-- **Pular Abertura (+85s)**: Botão no player + atalho de teclado `S` para avançar aberturas rapidamente.
-- **Picture-in-Picture (PiP) Nativo**: Player flutuante desacoplado da janela com 1 clique.
-- **Autoplay & Contagem Regressiva**: Mini card flutuante com contagem de 5s ao término do vídeo ou ao clicar em "Concluir Episódio".
-- **Retomada de Precisão Automática**: Retoma vídeos salvos de onde você parou com notificação toast informando o tempo exato.
-- **Modo Apagar as Luzes (Light Dimmer)**: Camada de fundo escuro 90% com `backdrop-blur` focando apenas no vídeo.
-- **Modo Cinema e Tela Cheia**: Suporte a atalhos de teclado (`Espaço`, `F`, `M`, `C`, `S`, `?`).
+- **Pular Abertura (+85s)**: Botão no player + atalho de teclado `S`.
+- **Picture-in-Picture (PiP) Nativo**: Player flutuante desacoplado da janela.
+- **Autoplay & Contagem Regressiva**: Contagem regressiva ao término de episódios.
+- **Retomada de Precisão Automática**: Notificação toast e marcação do tempo de reprodução.
+- **Modo Apagar as Luzes e Modo Cinema**: Fundo escuro focado no vídeo.
 
-### 💖 Favoritos & Notificações
-- **Verificação Automática de Novos Episódios**: Checagem de datas de novos episódios via API Jikan com selo visual `NOVO EP`.
-- **Lembretes Semanal de Lançamento**: Painel interativo para configurar notificações de lançamentos.
-- **Sistema de Toast Notifications**: Notificações flutuantes com barra de tempo para feedbacks (favoritar, concluir episódios, copiar links).
-- **Suporte Offline com IndexedDB**: Cache automático de catálogos e suporte a navegação quando a conexão cair.
+### 💖 Favoritos & Suporte Offline
+- **Verificação Automática de Novos Episódios**: Selo visual `NOVO EP`.
+- **Suporte Offline com PWA & Service Worker**: Página estática de contingência em `public/offline.html` e suporte a navegação sem rede.
 
 ---
 
-## 📂 Arquitetura de Pastas
+## 🐳 Execução via Docker Compose (Recomendado)
 
-```text
-anistream/
-├── app/                        # Rotas e páginas do Next.js App Router
-│   ├── anime/[id]/             # Detalhes do anime (sinopse, episódios, personagens, recomendações)
-│   ├── anime/[id]/episode/[ep]/# Player de vídeo e reprodução de episódios
-│   ├── favoritos/              # Gerenciamento de animes salvos e novos episódios
-│   ├── filmes/                 # Catálogo exclusivo de filmes de anime
-│   ├── lista/                  # Catálogo geral alfabético com filtros
-│   ├── pesquisa/               # Página de resultados e filtros avançados
-│   ├── populares/              # Ranking dos animes mais populares
-│   ├── temporadas/             # Lançamentos da temporada atual e anteriores
-│   ├── error.tsx               # Tratamento nativo de erros do App Router
-│   ├── global-error.tsx        # Captura de erros globais da aplicação
-│   ├── not-found.tsx           # Página 404 nativa estilizada
-│   ├── layout.tsx              # Root Layout da aplicação com Navbar/Footer/Providers
-│   └── page.tsx                # Home Page com Hero Banner, Carrosséis e Continue Assistindo
-│
-├── components/                 # Componentes modulares agrupados por domínio
-│   ├── anime/                  # AnimeCard, CompactAnimeCard, QuickViewModal, SeasonSelector...
-│   ├── catalog/                # SearchBar, SearchFilters, QuickMultiFilter, ViewToggle...
-│   ├── home/                   # BannerHero, ContinueWatchingSection, EpisodeRemindersPanel...
-│   ├── layout/                 # Navbar, Footer, QueryProvider
-│   ├── player/                 # VideoPlayer, EpisodeList
-│   └── ui/                     # SafeImage, Tooltip, RatingBadge, GenreBadge, EmptyState, LoadingSkeleton...
-│
-├── context/                    # Contextos globais da aplicação
-│   ├── ToastContext.tsx        # Provedor global de notificações Toast
-│   ├── ConfirmationContext.tsx # Provedor global de modais de confirmação
-│   └── FavoritesContext.tsx    # Provedor de lista de favoritos e checagem de novos episódios
-│
-├── hooks/                      # Custom React Hooks
-│   ├── useFavorites.ts         # Hook de favoritos
-│   ├── useWatchProgress.ts     # Hook de progresso de episódios
-│   ├── useDraggableScroll.ts   # Hook de rolagem arrastável por mouse
-│   └── use-mobile.ts           # Hook de detecção de tela mobile
-│
-├── services/                   # Integrações com APIs externas
-│   ├── jikan.ts                # Cliente Jikan v4 com fila de rate limit e cache IndexedDB
-│   └── anilist.ts              # Cliente AniList GraphQL
-│
-├── data/                       # Dados estáticos e backups de fallback
-├── types/                      # Definições de tipos TypeScript (`anime.ts`)
-└── utils/                      # Utilitários de formatação e banco IndexedDB (`offlineCacheDB.ts`)
+Suba toda a infraestrutura (PostgreSQL 16, Redis 7 e AniStream Web) com um único comando:
+
+```bash
+docker-compose up -d --build
 ```
 
+### Configuração Inicial (Primeiro Acesso):
+1. Ao iniciar o container pela primeira vez, acesse `http://localhost:3000`.
+2. O sistema redirecionará automaticamente para `http://localhost:3000/setup`.
+3. Obtenha a **Chave de Instalação (Setup Key)** exibida nos logs do Docker:
+   ```bash
+   docker logs anistream_app
+   ```
+4. Insira a chave no assistente e cadastre a conta do Administrador Mestre.
+
 ---
 
-## ⚡ Como Rodar o Projeto
+## ⚡ Execução Local Sem Docker
 
 ### Pré-requisitos
-- Node.js 18+ ou Bun
-- npm / yarn / pnpm / bun
+- Node.js 20+ ou Bun
+- PostgreSQL ativo
 
-### 1. Clonar o repositório e instalar dependências:
+### 1. Instalar dependências:
 ```bash
 npm install
 ```
 
-### 2. Rodar o servidor de desenvolvimento:
+### 2. Rodar migrações do banco e servidor de desenvolvimento:
 ```bash
+npx prisma db push
 npm run dev
 ```
 Acesse [http://localhost:3000](http://localhost:3000) no seu navegador.
-
-### 3. Gerar o Build de Produção:
-```bash
-node ./node_modules/next/dist/bin/next build
-```
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-- **Core**: Next.js 15, React 19, TypeScript
+- **Core**: Next.js 15 (Standalone Mode), React 19, TypeScript
+- **Banco de Dados & ORM**: PostgreSQL, Prisma ORM
+- **Conteinerização**: Docker Multi-stage (`Alpine Linux`), Docker Compose
 - **Estilização**: TailwindCSS, Vanilla CSS, Glassmorphic UI Design
 - **Ícones & Animações**: Lucide React, Motion (`motion/react`)
 - **Data Fetching**: `@tanstack/react-query` v5
