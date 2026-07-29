@@ -6,32 +6,24 @@ O player de vídeo do AniStream ([`src/components/VideoPlayer.tsx`](file:///c:/U
 
 ## 🚀 Recursos Avançados do Player
 
-### 1. Pular Abertura (+85s)
-- **Botão dedicado**: Localizado na barra de controles do player ("Pular Intro +85s").
-- **Avanço instantâneo**: Salta 85 segundos na linha do tempo.
+### 1. Menu Único de Configurações ⚙️ (Popover Multinível)
+- **Design Limpo Estilo Netflix/YouTube**: Todos os controles avançados foram consolidados em um popover intuitivo com navegação multinível (Voltar `◄`):
+  - 🎧 **Áudio & Legendas**: Seleção dinâmica de idiomas e faixas.
+  - ⚡ **Velocidade de Reprodução**: `0.5x`, `0.75x`, `1.0x (Normal)`, `1.25x`, `1.5x`, `2.0x`.
+  - 💡 **Apagar Luzes (Full-Page Blackout)**: Escurecimento de 95% de todo o layout da página web.
+  - ⌨️ **Atalhos de Teclado**: Guia rápido de teclado integrado.
+  - ⚠️ **Reportar Problema**: Formulário direto de feedback para o admin.
 
-### 2. Seletor de Velocidade de Reprodução (`SpeedSelector.tsx`)
-- Opções disponíveis: `0.5x`, `0.75x`, `1.0x (Normal)`, `1.25x`, `1.5x`, `2.0x`.
-- Atualização em tempo real via `video.playbackRate`.
+### 2. Pular Abertura (+85s) em Floating Pill
+- **Pill Flutuante**: Posicionado estrategicamente no canto inferior direito sobre o canvas de vídeo ("Pular Abertura +85s").
 
-### 3. Links com Timestamp Compartilhável (`?t=124`)
-- Botão de compartilhamento no player gera a URL com o segundo exato (ex: `https://anistream.com/anime/123/episode/1?t=142`).
-- Ao abrir o link, o player inicia automaticamente no timestamp definido.
+### 3. Inicialização HLS (`hls.js`) & Playlists `.m3u8`
+- **Suporte Adaptativo**: Transmissão nativa de playlists HLS (`.m3u8`) com controle automático de resolução e buffer.
+- **Limite de Retentativas**: Máximo de 2 tentativas por servidor antes de realizar o fallback automático para a próxima fonte.
+- **Auditoria de Erros HTML5 (`MediaError`)**: Mapeamento detalhado dos códigos de erro nativos (Rede, Decodificação, Codec Não Suportado) exibidos no Toast.
 
-### 4. Retomada de Precisão Automática (`usePlaybackProgress.ts`)
-- Salva o progresso no `localStorage` a cada 5 segundos.
-- Exibe barra de progresso visual nos cards dos episódios.
-
-### 5. Modo Cinema (Dim Lights) (`CinemaOverlay.tsx`)
-- Escurece a página com transição suave (`backdrop-blur-md`), focando a atenção no player.
-- Atalho rápido via tecla **`D`**.
-
-### 6. Autoplay e Contagem Regressiva para Próximo Episódio
-- Exibe modal com contagem de 5 segundos no final do vídeo com opção de cancelar ou avançar imediatamente.
-
-### 7. Resiliência no Proxy SSRF & Troca Automática de Servidor
-- **Proxy SSRF (`/api/streams/proxy/[sourceId]`)**: Função `fetchUpstreamWithRetry()` com 2 retentativas automáticas e backoff exponencial (100ms, 300ms) quando o servidor de vídeo de origem responder com status 502/503/504 ou timeout.
-- **Alternância Automática no Player**: Ao detectar falha no carregamento do stream (`onError`), o player alterna automaticamente para o servidor espelho seguinte e exibe um aviso toast: *"Servidor Instável. Alternando automaticamente para o servidor espelho..."*.
+### 4. Carrossel de Binge-Watching de Episódios
+- **Sliding Carousel abaixo do Player**: Carrossel horizontal deslizante com miniaturas, indicador *"Assistindo"* no episódio ativo e barra de progresso individual.
 
 
 ---

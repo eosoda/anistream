@@ -63,6 +63,22 @@ QueryClientProvider
 
 ---
 
+## 🔌 Arquitetura de API, Circuit Breaker & Resiliência
+- **Padronização de Respostas (`src/lib/api/response.ts`)**: Todas as rotas usam `apiSuccess<T>` (`{ success: true, data: T, meta?: ... }`) e `apiError` (`{ success: false, error: { code, message, details }, timestamp }`).
+- **Circuit Breaker (`src/lib/api/circuit-breaker.ts`)**: Protege chamadas de APIs externas (Jikan / AniList). Após 5 falhas seguidas em 60s, o circuito abre por 30s e ativa automaticamente o fallback local do PostgreSQL/IndexedDB sem causar timeouts na interface.
+- **Edge Caching**: Rotas públicas de catálogo usam `Cache-Control: public, s-maxage=1800, stale-while-revalidate=86400`. Rotas de streaming e admin usam `no-store, private`.
+
+---
+
+## 🎬 Sistema de Streaming & Redesign do VideoPlayer
+- **Resolução de Fontes (`/api/streams/resolve`)**: Conectado ao banco de dados e proxy de mídias (`/api/streams/proxy/[sourceId]`).
+- **Suporte HLS (`hls.js`)**: Reprodução adaptativa de playlists `.m3u8` com limite de 2 retentativas por CDN antes da troca para servidor reserva.
+- **Menu Único de Configurações ⚙️**: Abas multinível para Áudio/Legendas, Velocidade, Apagar Luzes, Teclas de Atalho e Reportar Problemas.
+- **UX do Player**: Carrossel horizontal deslizante de episódios abaixo do vídeo com miniaturas, indicador *"Assistindo"* e barras de progresso salvas.
+
+---
+
 ## 🚀 Build & Verification Commands
 - **Local Production Build**: `node ./node_modules/next/dist/bin/next build`
+- **Vitest Suite**: `npm run test`
 - **TypeScript Check**: Always verify clean compilation without type errors before finishing a task.

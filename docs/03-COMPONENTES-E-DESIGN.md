@@ -28,17 +28,18 @@ components/
 - [`CharacterCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/CharacterCard.tsx) & [`RecommendationCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/RecommendationCard.tsx): Cards de personagens/dubladores e animes sugeridos.
 
 ### 🎬 Domínio Player (`components/player/`)
-- [`VideoPlayer.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/player/VideoPlayer.tsx): Player de vídeo completo com controles personalizados, Pular Abertura (+85s), PiP Nativo, Light Dimmer e Autoplay countdown.
-- [`EpisodeList.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/player/EpisodeList.tsx): Lista interativa de episódios com barras de progresso salvas e indicação de episódios concluídos.
+- [`VideoPlayer.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/player/VideoPlayer.tsx): Player de vídeo com popover multinível de configurações ⚙️ (Áudio/Legendas, Velocidade, Apagar Luzes, Atalhos e Reportar), HLS adaptativo (`hls.js`), auditoria de erros nativos HTML5 (`MediaError`) e pill flutuante *"Pular Abertura (+85s)"*.
+- [`EpisodeList.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/player/EpisodeList.tsx): Lista de episódios organizada em abas dinâmicas por blocos de 25 episódios (`EP 1-25`, `EP 26-50`...), com barra de progresso visual individual em cada card.
 
 ### 🔍 Domínio Catálogo (`components/catalog/`)
 - [`SearchBar.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/catalog/SearchBar.tsx): Barra de pesquisa com **Live Search Preview** (dropdown instantâneo dos 5 primeiros resultados) e suporte a pesquisa por voz.
-- [`QuickMultiFilter.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/catalog/QuickMultiFilter.tsx): Barra de chips interativos para filtragem múltipla rápida.
+- [`QuickMultiFilter.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/catalog/QuickMultiFilter.tsx): Barra de chips e pills de filtragem rápida por tipo de áudio e engajamento.
 - [`SearchFilters.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/catalog/SearchFilters.tsx): Painel retrátil de filtros avançados.
 - [`ViewToggle.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/catalog/ViewToggle.tsx): Alternador visual entre os modos Grid e Lista Compacta.
 
 ### 🏠 Domínio Home (`components/home/`)
 - [`BannerHero.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/home/BannerHero.tsx): Banner principal da Home com background em blur e trocas automáticas de destaques.
+- **Barra de Quick Multi-Filter Pills**: Filtros em tempo real na Home (`[ ✨ Todos ]`, `[ 🎙️ Dublados ]`, `[ 🇯🇵 Legendados ]`, `[ 🔥 Em Alta ]`).
 - [`ContinueWatchingSection.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/home/ContinueWatchingSection.tsx): Carrossel de animes que o usuário começou a assistir com porcentagem concluída.
 - [`EpisodeRemindersPanel.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/home/EpisodeRemindersPanel.tsx): Painel de gerenciamento de lembretes e lançamentos semanais.
 - [`FloatingRecommendationsWidget.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/home/FloatingRecommendationsWidget.tsx): Widget flutuante no canto inferior para recomendações em tempo real.

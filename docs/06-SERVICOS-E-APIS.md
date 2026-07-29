@@ -46,10 +46,45 @@ async function throttleRequest<T>(requestFn: () => Promise<T>): Promise<T> {
 
 ---
 
-## 🛡️ Tratamento de Erros e Cache Estruturado
+## ⚡ Circuit Breaker & Resiliência Externa (`src/lib/api/circuit-breaker.ts`)
 
-1. **React Query Caching**: As requisições são mantidas em cache na memória do navegador pelo `@tanstack/react-query` com `staleTime` de 5 a 15 minutos, evitando chamadas repetidas ao navegar entre páginas.
-2. **IndexedDB Fallback**: Se uma requisição à API falhar ou a internet do usuário cair, o serviço consulta o catálogo local no IndexedDB antes de retornar erro.
-3. **Pacing no Robô Autopilot**: A API de auto-indexação ([`app/api/admin/autopilot/route.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/app/api/admin/autopilot/route.ts)) insere um intervalo mínimo de `1000ms` entre requisições em lote à API Jikan v4 e executa retentativa com backoff de `2000ms` em respostas HTTP 429.
-4. **Validação Estrita Zod (`schemas/admin.ts`)**: Validação e sanitização estrita de dados nas APIs administrativas de Broadcast (`CreateAnnouncementSchema`), Webhooks (`CreateWebhookSchema`), Manutenção (`MaintenanceSettingSchema`) e Releases (`CreateReleaseSchema`).
+Para proteger a aplicação de falhas ou degradações de rede no Jikan API e AniList, o AniStream implementa o padrão **Circuit Breaker**:
+
+1. **Monitoramento**: Registra falhas consecutivas em uma janela de 60 segundos.
+2. **Abertura de Circuito (OPEN)**: Se ocorrerem 5 falhas no período, o circuito é aberto por 30 segundos.
+3. **Fallback Automático**: Durante a abertura, requisições servem dados direto do banco local (PostgreSQL) / IndexedDB sem tentar conectar à API indisponível, retornando a flag `meta: { cached: true, offline: true }`.
+
+---
+
+## 📐 Padronização de Respostas HTTP (`src/lib/api/response.ts`)
+
+Todas as rotas da API pública e administrativa utilizam o módulo centralizado de respostas:
+
+- **Sucesso (`apiSuccess<T>`)**:
+  ```json
+  {
+    "success": true,
+    "data": { ... },
+    "meta": { "total": 24, "offline": false }
+  }
+  ```
+- **Erro (`apiError`)**:
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "RATE_LIMITED" | "INVALID_INPUT" | "NO_SOURCES_AVAILABLE",
+      "message": "Mensagem detalhada",
+      "details": { ... }
+    },
+    "timestamp": "2026-07-29T16:00:00Z"
+  }
+  ```
+
+---
+
+## ⚡ Edge Caching (CDN Headers)
+
+- **Rotas de Catálogo Público (`/api/anime/*`)**: `Cache-Control: public, s-maxage=1800, stale-while-revalidate=86400`.
+- **Rotas de Streaming & Admin (`/api/streams/*`, `/api/admin/*`)**: `Cache-Control: no-store, private`.
 
