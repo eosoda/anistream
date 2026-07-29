@@ -18,7 +18,12 @@ import {
   Mail,
   RefreshCcw,
   KeyRound,
+  Eye,
+  EyeOff,
+  Download,
+  Film,
 } from 'lucide-react';
+import { parseM3uContent } from '@/lib/streams/m3u-parser';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,12 +79,19 @@ function SetupWizardForm() {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [mediaHosts, setMediaHosts] = useState(
     'media.mydomain.com, cdn.mydomain.com, s3.amazonaws.com'
   );
   const [m3uContent, setM3uContent] = useState('');
+  const [m3uStats, setM3uStats] = useState<{ totalEntries: number; uniqueAnimes: number } | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [providerName, setProviderName] = useState('authorized-m3u-main');
+
+  const [isSeedingPopular, setIsSeedingPopular] = useState(false);
+  const [seedSuccess, setSeedSuccess] = useState<string | null>(null);
 
   // Inicializar a chave de segurança a partir da URL (?key=...) se disponível
   useEffect(() => {
@@ -120,6 +132,70 @@ function SetupWizardForm() {
   useEffect(() => {
     checkStatus();
   }, [router, setupKey]);
+
+  // Validação prévia de M3U
+  const handleValidateM3u = () => {
+    if (!m3uContent || !m3uContent.trim()) {
+      setM3uStats(null);
+      return;
+    }
+    const items = parseM3uContent(m3uContent);
+    const uniqueTitles = new Set(items.map((i) => i.normalizedTitle));
+    setM3uStats({
+      totalEntries: items.length,
+      uniqueAnimes: uniqueTitles.size,
+    });
+  };
+
+  // Baixar Resumo do Setup (.txt)
+  const handleDownloadSummary = () => {
+    const summaryText = `===================================================================
+AniStream - Resumo da Instalação do Sistema
+Data de Instalação: ${new Date().toLocaleString('pt-BR')}
+===================================================================
+
+[CONFIGURAÇÕES DO ADMINISTRADOR MESTRE]
+Nome               : ${adminName || 'Administrador Principal'}
+E-mail             : ${adminEmail}
+Status da Conta    : Ativa (Super Admin)
+
+[CONFIGURAÇÕES DO SISTEMA]
+URL da Aplicação   : ${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
+Painel Admin       : ${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/admin/login
+Hosts de Mídia     : ${mediaHosts}
+
+[IMPORTANTE]
+- Guarde este arquivo em local seguro.
+- Para gerenciar animes, playlists e servidores de streaming, acesse o painel administrativo.
+===================================================================
+`;
+
+    const blob = new Blob([summaryText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `anistream-resumo-instalacao-${Date.now()}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Seed de Animes Populares
+  const handleSeedPopularAnimes = async () => {
+    setIsSeedingPopular(true);
+    setSeedSuccess(null);
+    try {
+      const res = await fetch('/api/setup/seed-popular', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao popular catálogo');
+      setSeedSuccess(`Sucesso! ${data.seededCount || 25} animes populares foram adicionados ao seu catálogo.`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSeedingPopular(false);
+    }
+  };
 
   // Upload M3U File Handler
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -339,12 +415,20 @@ function SetupWizardForm() {
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Digite sua senha de acesso"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-white transition-all"
+                  title={showPassword ? 'Ocultar senha' : 'Exibir senha'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
               {adminPassword && (
                 <div className="mt-2 space-y-1">
@@ -369,11 +453,11 @@ function SetupWizardForm() {
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Digite a mesma senha novamente"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border text-xs text-white placeholder-gray-500 focus:outline-none ${
+                  className={`w-full pl-10 pr-10 py-2.5 rounded-xl bg-black/50 border text-xs text-white placeholder-gray-500 focus:outline-none ${
                     confirmPassword && confirmPassword !== adminPassword
                       ? 'border-red-500/60 focus:border-red-500'
                       : confirmPassword && confirmPassword === adminPassword
@@ -381,6 +465,14 @@ function SetupWizardForm() {
                       : 'border-white/10 focus:border-[#FF6B00]'
                   }`}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-white transition-all"
+                  title={showConfirmPassword ? 'Ocultar senha' : 'Exibir senha'}
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
               {confirmPassword && (
                 <div className="mt-1 flex items-center gap-1.5 text-[11px]">
@@ -488,16 +580,37 @@ function SetupWizardForm() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">
-                Ou Cole o Conteúdo da Playlist M3U Autorizada
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-gray-300">
+                  Ou Cole o Conteúdo da Playlist M3U Autorizada
+                </label>
+                <button
+                  type="button"
+                  onClick={handleValidateM3u}
+                  disabled={!m3uContent.trim()}
+                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] flex items-center gap-1.5 transition-all disabled:opacity-40"
+                >
+                  <Sparkles size={12} className="text-[#FF6B00]" />
+                  <span>Validar M3U</span>
+                </button>
+              </div>
               <textarea
                 rows={5}
                 value={m3uContent}
-                onChange={(e) => setM3uContent(e.target.value)}
+                onChange={(e) => {
+                  setM3uContent(e.target.value);
+                  if (m3uStats) setM3uStats(null);
+                }}
                 placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-logo=&quot;https://cdn.exemplo.com/poster.jpg&quot;,Anime Exemplo S01E01&#10;https://media.exemplo.com/s01e01/master.m3u8"
                 className="w-full p-4 rounded-2xl bg-black/60 border border-white/10 text-xs font-mono text-gray-200"
               />
+
+              {m3uStats && (
+                <div className="mt-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center justify-between">
+                  <span>Prévia M3U Analisada:</span>
+                  <span>{m3uStats.uniqueAnimes} animes / {m3uStats.totalEntries} episódios encontrados</span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-4">
@@ -529,12 +642,68 @@ function SetupWizardForm() {
 
         {/* Passo 5: Sucesso & Conclusão */}
         {currentStep === 5 && (
-          <div className="text-center space-y-4 py-8">
+          <div className="text-center space-y-6 py-6">
             <CheckCircle2 size={64} className="text-emerald-400 mx-auto animate-bounce" />
-            <h2 className="text-2xl font-black text-white">Instalação Concluída com Sucesso!</h2>
-            <p className="text-xs text-gray-300 max-w-md mx-auto">
-              A aplicação foi configurada e seu administrador mestre foi cadastrado. Redirecionando para o painel...
-            </p>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-white">Instalação Concluída com Sucesso!</h2>
+              <p className="text-xs text-gray-300 max-w-md mx-auto">
+                A aplicação foi configurada e seu administrador mestre foi cadastrado.
+              </p>
+            </div>
+
+            {/* Ações de Conclusão */}
+            <div className="p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4 max-w-lg mx-auto text-left">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 border-b border-white/10 pb-2">
+                Ações Recomendadas de Conclusão
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={handleDownloadSummary}
+                  className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs flex items-center gap-2.5 transition-all group"
+                >
+                  <div className="p-2 rounded-lg bg-[#FF6B00]/20 text-[#FF6B00] group-hover:scale-110 transition-transform">
+                    <Download size={16} />
+                  </div>
+                  <div className="text-left">
+                    <span className="block text-white font-bold">Baixar Resumo</span>
+                    <span className="block text-[10px] text-gray-400">Salvar credenciais (.txt)</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSeedPopularAnimes}
+                  disabled={isSeedingPopular}
+                  className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs flex items-center gap-2.5 transition-all group disabled:opacity-50"
+                >
+                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
+                    {isSeedingPopular ? <Loader2 size={16} className="animate-spin" /> : <Film size={16} />}
+                  </div>
+                  <div className="text-left">
+                    <span className="block text-white font-bold">Populares Top 25</span>
+                    <span className="block text-[10px] text-gray-400">Importar via Jikan API</span>
+                  </div>
+                </button>
+              </div>
+
+              {seedSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold text-center">
+                  {seedSuccess}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={() => router.push('/admin/dashboard')}
+                className="px-8 py-3.5 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs inline-flex items-center gap-2 shadow-lg shadow-[#FF6B00]/30 transition-all"
+              >
+                <span>Ir para o Painel Administrativo</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
         )}
       </div>

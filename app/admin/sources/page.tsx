@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import {
   ShieldCheck,
   Upload,
@@ -11,6 +12,7 @@ import {
   Loader2,
   FileCode,
   ListPlus,
+  Zap,
 } from 'lucide-react';
 import { ProviderStatus } from '@/components/ProviderStatus';
 import { ProviderHealth } from '@/lib/streams/types';
@@ -103,14 +105,24 @@ export default function AdminSourcesPage() {
           </div>
         </div>
 
-        <button
-          onClick={handleRunHealthCheck}
-          disabled={loading}
-          className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all border border-white/10 disabled:opacity-50"
-        >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Activity size={16} className="text-[#FF6B00]" />}
-          <span>Verificar Saúde dos Provedores</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/sources/tester"
+            className="px-4 py-2.5 rounded-xl bg-[#FF6B00]/20 hover:bg-[#FF6B00]/30 text-[#FF6B00] border border-[#FF6B00]/40 font-bold text-xs flex items-center gap-2 transition-all"
+          >
+            <Zap size={16} />
+            <span>Testar Fonte de Vídeo</span>
+          </Link>
+
+          <button
+            onClick={handleRunHealthCheck}
+            disabled={loading}
+            className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all border border-white/10 disabled:opacity-50"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Activity size={16} className="text-[#FF6B00]" />}
+            <span>Verificar Saúde dos Provedores</span>
+          </button>
+        </div>
       </div>
 
       {/* Exibição de Health Check */}
