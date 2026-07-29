@@ -13,19 +13,14 @@ import {
   Settings,
   CheckCircle2,
   Server,
-  Sparkles,
   ChevronRight,
-  AlertCircle,
+  ChevronLeft,
   Clock,
   Film,
-  Tv,
   Languages,
-  MessageSquare,
-  Globe,
   Captions,
   Keyboard,
   X,
-  SkipForward,
   PictureInPicture2,
   FastForward,
   Moon,
@@ -83,7 +78,6 @@ const SUBTITLE_LANGUAGES = [
   { id: 'off', name: 'Desativado', label: 'Sem Legendas', code: 'OFF' },
 ];
 
-// Dynamic timed subtitle cues for simulation
 const getCurrentSubtitleCue = (seconds: number, langId: string) => {
   if (langId === 'off') return null;
 
@@ -141,8 +135,11 @@ export function VideoPlayer({
   const [isLightDimmed, setIsLightDimmed] = useState(false);
   const [isPipActive, setIsPipActive] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
-  const [showLangMenu, setShowLangMenu] = useState(false);
+
+  // Settings Popover State
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'main' | 'audio-sub' | 'speed'>('main');
+
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
@@ -163,7 +160,6 @@ export function VideoPlayer({
     };
   }, []);
 
-  // Toggle Native Picture-in-Picture
   const togglePip = async () => {
     if (!videoRef.current) return;
     try {
@@ -183,7 +179,6 @@ export function VideoPlayer({
     }
   };
 
-  // Skip Intro (+85s)
   const skipIntro = useCallback(() => {
     if (!videoRef.current) return;
     const dur = duration || videoRef.current.duration || 1000;
@@ -197,10 +192,8 @@ export function VideoPlayer({
     });
   }, [duration, showToast]);
 
-  // Autoplay & Next Episode Countdown Card state
   const [autoplayCountdown, setAutoplayCountdown] = useState<number | null>(null);
 
-  // Handle countdown interval
   useEffect(() => {
     if (autoplayCountdown === null) return;
 
@@ -244,12 +237,13 @@ export function VideoPlayer({
       animeId,
     });
 
+    setShowSettingsMenu(false);
+
     if (nextEpNum && onNextEpisode) {
       setAutoplayCountdown(5);
     }
   };
 
-  // Audio and Subtitle language states
   const [audioLang, setAudioLang] = useState(AUDIO_LANGUAGES[0]);
   const [subtitleLang, setSubtitleLang] = useState(SUBTITLE_LANGUAGES[0]);
   const [langToast, setLangToast] = useState<string | null>(null);
@@ -270,7 +264,6 @@ export function VideoPlayer({
     setTimeout(() => setLangToast(null), 2500);
   };
 
-  // Resume prompt state
   const [resumePrompt, setResumePrompt] = useState<{
     show: boolean;
     time: number;
@@ -278,7 +271,6 @@ export function VideoPlayer({
 
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Format seconds to MM:SS
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || seconds < 0) return '00:00';
     const mins = Math.floor(seconds / 60);
@@ -292,7 +284,6 @@ export function VideoPlayer({
     return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // Handle Video Metadata Loaded
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       const dur = videoRef.current.duration;
@@ -317,7 +308,6 @@ export function VideoPlayer({
     }
   };
 
-  // Time update handler & Progress saver
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
     const curr = videoRef.current.currentTime;
@@ -337,13 +327,11 @@ export function VideoPlayer({
     }
   };
 
-  // Play / Pause toggle
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
     if (isPlaying) {
       videoRef.current.pause();
       setIsPlaying(false);
-      // Save exact stop time
       saveProgress({
         animeId,
         animeTitle,
@@ -356,14 +344,12 @@ export function VideoPlayer({
     } else {
       videoRef.current.play();
       setIsPlaying(true);
-      // If prompt was showing, hide it
       if (resumePrompt.show) {
         setResumePrompt((prev) => ({ ...prev, show: false }));
       }
     }
   }, [isPlaying, saveProgress, animeId, animeTitle, animeImage, episodeNum, episodeTitle, duration, resumePrompt.show]);
 
-  // Resume from saved timestamp
   const handleResume = (resumeTime: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = resumeTime;
@@ -374,7 +360,6 @@ export function VideoPlayer({
     setResumePrompt({ show: false, time: 0 });
   };
 
-  // Restart from 0
   const handleStartOver = () => {
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
@@ -385,7 +370,6 @@ export function VideoPlayer({
     setResumePrompt({ show: false, time: 0 });
   };
 
-  // Seek handler
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const targetTime = parseFloat(e.target.value);
     setCurrentTime(targetTime);
@@ -403,7 +387,6 @@ export function VideoPlayer({
     }
   };
 
-  // Skip -10s or +10s
   const skipTime = useCallback((seconds: number) => {
     if (!videoRef.current) return;
     const newTime = Math.min(Math.max(0, videoRef.current.currentTime + seconds), duration);
@@ -411,7 +394,6 @@ export function VideoPlayer({
     setCurrentTime(newTime);
   }, [duration]);
 
-  // Volume change
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
     setVolume(val);
@@ -421,7 +403,6 @@ export function VideoPlayer({
     }
   };
 
-  // Toggle Mute
   const toggleMute = useCallback(() => {
     if (!videoRef.current) return;
     if (isMuted) {
@@ -433,16 +414,15 @@ export function VideoPlayer({
     }
   }, [isMuted]);
 
-  // Change Playback Speed
   const handleSpeedChange = (rate: number) => {
     setPlaybackRate(rate);
     if (videoRef.current) {
       videoRef.current.playbackRate = rate;
     }
-    setShowSpeedMenu(false);
+    setSettingsTab('main');
+    setShowSettingsMenu(false);
   };
 
-  // Fullscreen toggle
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
@@ -454,29 +434,29 @@ export function VideoPlayer({
     }
   }, []);
 
-  // Auto-hide controls on inactivity
   const handleMouseMove = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     if (isPlaying) {
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
-        setShowSpeedMenu(false);
-      }, 3000);
+        setShowSettingsMenu(false);
+      }, 3500);
     }
   };
 
-  // Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore keypresses when typing in form inputs
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
         return;
       }
 
       if (e.key === 'Escape') {
-        if (showShortcutsModal) {
+        if (showSettingsMenu) {
+          setShowSettingsMenu(false);
+          e.preventDefault();
+        } else if (showShortcutsModal) {
           setShowShortcutsModal(false);
           e.preventDefault();
         } else if (isTheaterMode) {
@@ -537,7 +517,7 @@ export function VideoPlayer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isTheaterMode, showShortcutsModal, volume, isPlaying, duration, togglePlay, toggleFullscreen, toggleMute, skipTime]);
+  }, [isTheaterMode, showSettingsMenu, showShortcutsModal, volume, isPlaying, duration, togglePlay, toggleFullscreen, toggleMute, skipTime, skipIntro]);
 
   const handleVideoError = () => {
     const currentIndex = SAMPLE_STREAMS.findIndex((s) => s.id === activeServer.id);
@@ -555,8 +535,8 @@ export function VideoPlayer({
 
   return (
     <div className="space-y-4">
-      {/* Server & Language Config Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2.5 sm:p-3 rounded-2xl glass-panel border border-white/10 text-xs">
+      {/* Barra de Seleção de Servidores Limpa (sem badges duplicadas) */}
+      <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl glass-panel border border-white/10 text-xs">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 max-w-full">
           <div className="flex items-center gap-1.5 text-gray-300 font-bold whitespace-nowrap flex-shrink-0 mr-1">
             <Server size={15} className="text-[#FF6B00]" />
@@ -573,7 +553,7 @@ export function VideoPlayer({
                     setActiveServer(server);
                     setIsPlaying(false);
                   }}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border whitespace-nowrap text-[11px] sm:text-xs ${
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border whitespace-nowrap text-xs ${
                     isActive
                       ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-md shadow-[#FF6B00]/30'
                       : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10'
@@ -586,22 +566,9 @@ export function VideoPlayer({
             })}
           </div>
         </div>
-
-        {/* Audio & Subtitle Active Badges */}
-        <div className="flex items-center gap-2 justify-between sm:justify-end border-t sm:border-t-0 border-white/10 pt-2 sm:pt-0">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-[11px] sm:text-xs">
-            <Volume2 size={13} className="text-[#FF6B00]" />
-            <span>Áudio: <strong className="text-white">{audioLang.name}</strong></span>
-          </div>
-
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-[11px] sm:text-xs">
-            <Captions size={13} className="text-[#FF6B00]" />
-            <span>Legenda: <strong className="text-white">{subtitleLang.name}</strong></span>
-          </div>
-        </div>
       </div>
 
-      {/* Dark Backdrop for Cinema Mode or Light Dimmer */}
+      {/* Dark Backdrop para Modo Cinema / Apagar Luzes */}
       {(isTheaterMode || isLightDimmed) && (
         <div
           onClick={() => {
@@ -612,7 +579,7 @@ export function VideoPlayer({
         />
       )}
 
-      {/* Main Video Container */}
+      {/* Container Principal do Player */}
       <div
         ref={containerRef}
         onMouseMove={handleMouseMove}
@@ -624,7 +591,7 @@ export function VideoPlayer({
             : 'border-white/10 shadow-2xl'
         }`}
       >
-        {/* Video Element */}
+        {/* Elemento de Vídeo */}
         <video
           ref={videoRef}
           src={activeServer.src}
@@ -637,7 +604,19 @@ export function VideoPlayer({
           className="w-full h-full object-contain cursor-pointer"
         />
 
-        {/* Floating Binge-Watching Autoplay Mini Card Overlay */}
+        {/* Pill Flutuante sobre o Vídeo: Pular Abertura (+85s) */}
+        {(showControls || !isPlaying) && (
+          <button
+            onClick={skipIntro}
+            className="absolute bottom-16 right-4 sm:bottom-20 sm:right-6 z-30 px-3.5 py-2 rounded-2xl bg-black/75 hover:bg-[#FF6B00] border border-[#FF6B00]/40 text-white font-bold text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 transition-all transform hover:scale-105 active:scale-95"
+            title="Pular Abertura (+85s) - Tecla S"
+          >
+            <FastForward size={14} className="text-[#FF6B00] group-hover:text-white" />
+            <span>Pular Abertura (+85s)</span>
+          </button>
+        )}
+
+        {/* Card Flutuante de Autoplay / Próximo Episódio */}
         {autoplayCountdown !== null && (
           <div className="absolute bottom-16 right-4 sm:bottom-20 sm:right-6 z-40 max-w-xs w-full p-4 rounded-2xl glass-panel bg-neutral-900/95 border-2 border-[#FF6B00] shadow-2xl backdrop-blur-xl animate-fade-in text-white select-none">
             <div className="flex items-center gap-3">
@@ -662,7 +641,6 @@ export function VideoPlayer({
               </div>
             </div>
 
-            {/* Countdown progress bar */}
             <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden my-2.5">
               <div
                 className="h-full bg-[#FF6B00] transition-all duration-1000 ease-linear shadow-sm"
@@ -691,8 +669,7 @@ export function VideoPlayer({
           </div>
         )}
 
-
-        {/* Keyboard Shortcuts Modal */}
+        {/* Modal de Atalhos de Teclado */}
         {showShortcutsModal && (
           <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-md p-4 sm:p-6 flex flex-col items-center justify-center text-white animate-fade-in select-none">
             <div className="relative w-full max-w-md p-5 rounded-2xl glass-panel bg-neutral-900/95 border border-[#FF6B00]/40 shadow-2xl space-y-4">
@@ -769,7 +746,7 @@ export function VideoPlayer({
           </div>
         )}
 
-        {/* Language Toast Notification */}
+        {/* Notificação Toast de Idioma */}
         {langToast && (
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-2xl glass-panel bg-neutral-900/95 border border-[#FF6B00] text-white text-xs font-bold shadow-2xl backdrop-blur-xl animate-fade-in flex items-center gap-2">
             <Languages size={16} className="text-[#FF6B00]" />
@@ -777,7 +754,7 @@ export function VideoPlayer({
           </div>
         )}
 
-        {/* Subtitle Cue Overlay */}
+        {/* Overlay de Legenda Simulado */}
         {getCurrentSubtitleCue(currentTime, subtitleLang.id) && (
           <div className="absolute bottom-20 inset-x-4 z-20 flex justify-center pointer-events-none select-none">
             <p className="px-4 py-1.5 rounded-lg bg-black/85 backdrop-blur-xs text-white font-black text-sm md:text-base tracking-wide border border-white/10 text-center max-w-2xl shadow-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
@@ -786,7 +763,7 @@ export function VideoPlayer({
           </div>
         )}
 
-        {/* Floating Resume Prompt Banner */}
+        {/* Banner Flutuante para Retomar Vídeo */}
         {resumePrompt.show && (
           <div className="absolute top-4 left-4 right-4 z-30 max-w-xl mx-auto p-4 rounded-2xl glass-panel bg-neutral-900/90 border border-[#FF6B00]/50 shadow-2xl backdrop-blur-xl animate-fade-in flex flex-col sm:flex-row items-center justify-between gap-3 text-white">
             <div className="flex items-center gap-3 text-left">
@@ -820,7 +797,7 @@ export function VideoPlayer({
           </div>
         )}
 
-        {/* Big Center Play Button Overlay when paused */}
+        {/* Botão Play Central quando Pausado */}
         {!isPlaying && !resumePrompt.show && (
           <div
             onClick={togglePlay}
@@ -832,13 +809,13 @@ export function VideoPlayer({
           </div>
         )}
 
-        {/* Video Overlay Controls Bar */}
+        {/* Barra de Controles Inferior Redesenhada e Limpa */}
         <div
           className={`absolute inset-x-0 bottom-0 z-20 p-2.5 sm:p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity duration-300 space-y-2.5 sm:space-y-3 ${
             showControls || !isPlaying ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
         >
-          {/* Progress Scrubber Bar */}
+          {/* Barra de Progresso / Scrubber */}
           <div className="relative group/scrubber flex items-center py-1">
             <input
               type="range"
@@ -851,9 +828,9 @@ export function VideoPlayer({
             />
           </div>
 
-          {/* Bottom Control Buttons */}
+          {/* Botões da Barra Inferior */}
           <div className="flex items-center justify-between text-white text-xs font-semibold gap-1 sm:gap-2">
-            {/* Left Controls: Play, Skip, Time */}
+            {/* Lado Esquerdo: Play, Voltar 10s, Avançar 10s, Volume, Tempo */}
             <div className="flex items-center gap-1 sm:gap-2.5 min-w-0">
               <Tooltip content={isPlaying ? 'Pausar (Espaço)' : 'Reproduzir (Espaço)'} position="top">
                 <button
@@ -901,7 +878,7 @@ export function VideoPlayer({
                 />
               </div>
 
-              {/* Time Display */}
+              {/* Tempo Decorrido / Duração */}
               <div className="text-[10px] sm:text-xs font-mono font-bold text-gray-300 ml-0.5 sm:ml-2 whitespace-nowrap">
                 <span className="text-white">{formatTime(currentTime)}</span>
                 <span className="text-gray-500"> / </span>
@@ -909,171 +886,14 @@ export function VideoPlayer({
               </div>
             </div>
 
-            {/* Right Controls: Audio/Sub, Speed, Next Ep, Cinema, Fullscreen */}
+            {/* Lado Direito: Próximo Episódio, PiP, Cinema, Engrenagem ⚙️, Tela Cheia */}
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              {/* Audio & Subtitle Language Selector */}
-              <div className="relative">
-                <Tooltip content="Idiomas e Legendas (DUB/LEG)" position="top">
-                  <button
-                    onClick={() => {
-                      setShowLangMenu(!showLangMenu);
-                      setShowSpeedMenu(false);
-                    }}
-                    className={`px-2 sm:px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 text-[11px] sm:text-xs font-bold ${
-                      showLangMenu || subtitleLang.id !== 'off'
-                        ? 'bg-[#FF6B00]/20 text-[#FF6B00] border-[#FF6B00]/40'
-                        : 'bg-white/10 hover:bg-white/20 text-gray-200 border-white/10'
-                    }`}
-                  >
-                    <Languages size={14} />
-                    <span className="hidden sm:inline font-mono uppercase">
-                      {audioLang.code} {subtitleLang.id !== 'off' ? `| CC: ${subtitleLang.code}` : ''}
-                    </span>
-                  </button>
-                </Tooltip>
-
-                {showLangMenu && (
-                  <div className="absolute bottom-10 right-0 p-3 rounded-2xl glass-panel bg-neutral-900 border border-white/10 shadow-2xl space-y-3 z-30 min-w-[200px] sm:min-w-[230px] max-w-[calc(100vw-2rem)]">
-                    {/* Audio Language Section */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#FF6B00] uppercase tracking-wider px-1">
-                        <Volume2 size={13} />
-                        <span>Idioma do Áudio</span>
-                      </div>
-
-                      <div className="space-y-1">
-                        {AUDIO_LANGUAGES.map((lang) => {
-                          const isSelected = audioLang.id === lang.id;
-                          return (
-                            <button
-                              key={lang.id}
-                              onClick={() => {
-                                handleAudioChange(lang);
-                                setShowLangMenu(false);
-                              }}
-                              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                                isSelected
-                                  ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/30'
-                                  : 'hover:bg-white/10 text-gray-300'
-                              }`}
-                            >
-                              <span>{lang.label}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 font-mono">
-                                {lang.badge}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-white/10 my-1" />
-
-                    {/* Subtitles Language Section */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#FF6B00] uppercase tracking-wider px-1">
-                        <Captions size={13} />
-                        <span>Legendas</span>
-                      </div>
-
-                      <div className="space-y-1">
-                        {SUBTITLE_LANGUAGES.map((sub) => {
-                          const isSelected = subtitleLang.id === sub.id;
-                          return (
-                            <button
-                              key={sub.id}
-                              onClick={() => {
-                                handleSubtitleChange(sub);
-                                setShowLangMenu(false);
-                              }}
-                              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                                isSelected
-                                  ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/30'
-                                  : 'hover:bg-white/10 text-gray-300'
-                              }`}
-                            >
-                              <span>{sub.label}</span>
-                              {isSelected && <CheckCircle2 size={13} />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Playback Speed Switcher */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                  className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] sm:text-xs font-bold text-gray-200 border border-white/10 transition-all flex items-center gap-1"
-                >
-                  <span>{playbackRate}x</span>
-                  <Settings size={12} />
-                </button>
-
-                {showSpeedMenu && (
-                  <div className="absolute bottom-10 right-0 p-2 rounded-xl glass-panel bg-neutral-900 border border-white/10 shadow-2xl space-y-1 z-30 min-w-[100px]">
-                    <p className="text-[10px] font-bold text-gray-400 px-2 py-1 uppercase border-b border-white/10">
-                      Velocidade
-                    </p>
-                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
-                      <button
-                        key={rate}
-                        onClick={() => handleSpeedChange(rate)}
-                        className={`w-full text-left px-2 py-1 rounded-lg text-xs font-bold transition-all ${
-                          playbackRate === rate
-                            ? 'bg-[#FF6B00] text-white'
-                            : 'hover:bg-white/10 text-gray-300'
-                        }`}
-                      >
-                        {rate}x {rate === 1 && '(Padrão)'}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Report Problem Button */}
-              <Tooltip content="Reportar problema neste vídeo" position="top">
-                <button
-                  onClick={() => setIsReportModalOpen(true)}
-                  className="p-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 transition-all flex items-center gap-1"
-                  title="Reportar problema"
-                >
-                  <AlertTriangle size={13} />
-                </button>
-              </Tooltip>
-
-              {/* Skip Intro Button */}
-              <Tooltip content="Pular Abertura (+85s) (Teclas S)" position="top">
-                <button
-                  onClick={skipIntro}
-                  className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-[#FF6B00] text-gray-200 hover:text-white font-bold text-xs border border-white/10 transition-all"
-                >
-                  <FastForward size={13} />
-                  <span>Pular +85s</span>
-                </button>
-              </Tooltip>
-
-              {/* Concluir Episódio Button */}
-              <Tooltip content="Marcar episódio como concluído e iniciar contagem regressiva" position="top">
-                <button
-                  onClick={handleEpisodeCompletion}
-                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-black font-bold text-xs border border-emerald-500/30 transition-all"
-                >
-                  <CheckCircle2 size={13} />
-                  <span>Concluir</span>
-                </button>
-              </Tooltip>
-
-              {/* Next Episode Button */}
+              {/* Botão Próximo Episódio */}
               {nextEpNum && onNextEpisode && (
                 <Tooltip content={`Avançar para episódio ${nextEpNum}`} position="top">
                   <button
                     onClick={onNextEpisode}
-                    className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FF6B00]/20 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white font-bold text-xs border border-[#FF6B00]/30 transition-all"
+                    className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#FF6B00]/20 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white font-bold text-xs border border-[#FF6B00]/40 transition-all shadow-md"
                   >
                     <span>Próximo</span>
                     <ChevronRight size={14} />
@@ -1081,24 +901,7 @@ export function VideoPlayer({
                 </Tooltip>
               )}
 
-              {/* Light Dimmer Button */}
-              <Tooltip content={isLightDimmed ? 'Acender as Luzes (Esc)' : 'Apagar as Luzes'} position="top">
-                <button
-                  onClick={() => setIsLightDimmed(!isLightDimmed)}
-                  className={`p-1.5 sm:p-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-                    isLightDimmed
-                      ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/40'
-                      : 'hover:bg-white/10 text-gray-300 hover:text-white'
-                  }`}
-                >
-                  {isLightDimmed ? <Sun size={16} className="sm:w-4 sm:h-4" /> : <Moon size={16} className="sm:w-4 sm:h-4" />}
-                  <span className="hidden lg:inline text-xs font-bold">
-                    {isLightDimmed ? 'Luzes On' : 'Luzes Off'}
-                  </span>
-                </button>
-              </Tooltip>
-
-              {/* Picture-in-Picture Button */}
+              {/* Picture-in-Picture */}
               <Tooltip content={isPipActive ? 'Sair do Picture-in-Picture' : 'Modo Picture-in-Picture'} position="top">
                 <button
                   onClick={togglePip}
@@ -1112,21 +915,7 @@ export function VideoPlayer({
                 </button>
               </Tooltip>
 
-              {/* Keyboard Shortcuts Button (desktop only) */}
-              <Tooltip content="Atalhos de teclado (?)" position="top">
-                <button
-                  onClick={() => setShowShortcutsModal(!showShortcutsModal)}
-                  className={`hidden sm:flex p-1.5 sm:p-2 rounded-lg transition-colors items-center gap-1.5 ${
-                    showShortcutsModal
-                      ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/40'
-                      : 'hover:bg-white/10 text-gray-300 hover:text-white'
-                  }`}
-                >
-                  <Keyboard size={16} className="sm:w-4 sm:h-4" />
-                </button>
-              </Tooltip>
-
-              {/* Cinema Mode Button */}
+              {/* Modo Cinema */}
               <Tooltip content={isTheaterMode ? 'Sair do Modo Cinema (Esc)' : 'Modo Cinema (C)'} position="top">
                 <button
                   onClick={() => setIsTheaterMode(!isTheaterMode)}
@@ -1137,13 +926,221 @@ export function VideoPlayer({
                   }`}
                 >
                   <Film size={16} className="sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline text-xs font-bold">
-                    {isTheaterMode ? 'Sair do Cinema' : 'Cinema'}
-                  </span>
                 </button>
               </Tooltip>
 
-              {/* Fullscreen Button */}
+              {/* Menu Unificado de Configurações ⚙️ */}
+              <div className="relative">
+                <Tooltip content="Configurações do Player" position="top">
+                  <button
+                    onClick={() => {
+                      setShowSettingsMenu(!showSettingsMenu);
+                      setSettingsTab('main');
+                    }}
+                    className={`p-1.5 sm:p-2 rounded-lg transition-all flex items-center gap-1.5 ${
+                      showSettingsMenu
+                        ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/40 rotate-45'
+                        : 'hover:bg-white/10 text-gray-300 hover:text-white'
+                    }`}
+                  >
+                    <Settings size={16} className="sm:w-4 sm:h-4 transition-transform duration-300" />
+                  </button>
+                </Tooltip>
+
+                {/* Popover Multinível de Configurações */}
+                {showSettingsMenu && (
+                  <div className="absolute bottom-12 right-0 p-3 rounded-2xl glass-panel bg-neutral-900/95 border border-white/10 shadow-2xl z-40 min-w-[220px] sm:min-w-[250px] animate-fade-in backdrop-blur-xl">
+                    {/* Nível 1: Menu Principal */}
+                    {settingsTab === 'main' && (
+                      <div className="space-y-1 text-xs">
+                        <div className="px-2 py-1 border-b border-white/10 mb-1 flex items-center justify-between">
+                          <span className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Configurações</span>
+                          <span className="text-[10px] text-[#FF6B00] font-mono font-bold">AniStream</span>
+                        </div>
+
+                        {/* Áudio & Legenda Submenu Opção */}
+                        <button
+                          onClick={() => setSettingsTab('audio-sub')}
+                          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/10 text-gray-200 font-bold transition-all text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Languages size={15} className="text-[#FF6B00]" />
+                            <span>Áudio & Legendas</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-gray-400 font-mono text-[10px]">
+                            <span>{audioLang.code} {subtitleLang.id !== 'off' ? `| CC: ${subtitleLang.code}` : ''}</span>
+                            <ChevronRight size={14} />
+                          </div>
+                        </button>
+
+                        {/* Velocidade Submenu Opção */}
+                        <button
+                          onClick={() => setSettingsTab('speed')}
+                          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/10 text-gray-200 font-bold transition-all text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Settings size={15} className="text-[#FF6B00]" />
+                            <span>Velocidade</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-gray-400 font-mono text-[10px]">
+                            <span>{playbackRate}x</span>
+                            <ChevronRight size={14} />
+                          </div>
+                        </button>
+
+                        {/* Apagar Luzes Toggle */}
+                        <button
+                          onClick={() => setIsLightDimmed(!isLightDimmed)}
+                          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/10 text-gray-200 font-bold transition-all text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            {isLightDimmed ? <Sun size={15} className="text-[#FF6B00]" /> : <Moon size={15} className="text-[#FF6B00]" />}
+                            <span>Apagar Luzes</span>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${isLightDimmed ? 'bg-[#FF6B00] text-white' : 'bg-white/10 text-gray-400'}`}>
+                            {isLightDimmed ? 'ON' : 'OFF'}
+                          </span>
+                        </button>
+
+                        {/* Marcar Concluído */}
+                        <button
+                          onClick={handleEpisodeCompletion}
+                          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-emerald-500/20 text-emerald-400 font-bold transition-all text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={15} />
+                            <span>Marcar Concluído</span>
+                          </div>
+                        </button>
+
+                        <div className="border-t border-white/10 my-1" />
+
+                        {/* Atalhos de Teclado */}
+                        <button
+                          onClick={() => {
+                            setShowShortcutsModal(true);
+                            setShowSettingsMenu(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/10 text-gray-300 font-bold transition-all text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Keyboard size={15} className="text-gray-400" />
+                            <span>Atalhos do Teclado</span>
+                          </div>
+                          <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-gray-400">?</kbd>
+                        </button>
+
+                        {/* Reportar Problema */}
+                        <button
+                          onClick={() => {
+                            setIsReportModalOpen(true);
+                            setShowSettingsMenu(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-amber-500/20 text-amber-400 font-bold transition-all text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle size={15} />
+                            <span>Reportar Problema</span>
+                          </div>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Nível 2: Submenu Áudio & Legendas */}
+                    {settingsTab === 'audio-sub' && (
+                      <div className="space-y-2.5 text-xs">
+                        <button
+                          onClick={() => setSettingsTab('main')}
+                          className="flex items-center gap-1 text-[#FF6B00] font-bold pb-1 border-b border-white/10 w-full text-left"
+                        >
+                          <ChevronLeft size={16} />
+                          <span>Voltar às Configurações</span>
+                        </button>
+
+                        {/* Seção Idioma do Áudio */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Idioma do Áudio</span>
+                          {AUDIO_LANGUAGES.map((lang) => {
+                            const isSelected = audioLang.id === lang.id;
+                            return (
+                              <button
+                                key={lang.id}
+                                onClick={() => handleAudioChange(lang)}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl font-bold transition-all ${
+                                  isSelected
+                                    ? 'bg-[#FF6B00] text-white shadow-md'
+                                    : 'hover:bg-white/10 text-gray-300'
+                                }`}
+                              >
+                                <span>{lang.label}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 font-mono">
+                                  {lang.badge}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="border-t border-white/10 my-1" />
+
+                        {/* Seção Legendas */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Legendas</span>
+                          {SUBTITLE_LANGUAGES.map((sub) => {
+                            const isSelected = subtitleLang.id === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => handleSubtitleChange(sub)}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl font-bold transition-all ${
+                                  isSelected
+                                    ? 'bg-[#FF6B00] text-white shadow-md'
+                                    : 'hover:bg-white/10 text-gray-300'
+                                }`}
+                              >
+                                <span>{sub.label}</span>
+                                {isSelected && <CheckCircle2 size={13} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Nível 3: Submenu Velocidade */}
+                    {settingsTab === 'speed' && (
+                      <div className="space-y-2 text-xs">
+                        <button
+                          onClick={() => setSettingsTab('main')}
+                          className="flex items-center gap-1 text-[#FF6B00] font-bold pb-1 border-b border-white/10 w-full text-left"
+                        >
+                          <ChevronLeft size={16} />
+                          <span>Voltar às Configurações</span>
+                        </button>
+
+                        <div className="space-y-1">
+                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                            <button
+                              key={rate}
+                              onClick={() => handleSpeedChange(rate)}
+                              className={`w-full text-left px-2.5 py-1.5 rounded-xl font-bold transition-all flex items-center justify-between ${
+                                playbackRate === rate
+                                  ? 'bg-[#FF6B00] text-white shadow-md'
+                                  : 'hover:bg-white/10 text-gray-300'
+                              }`}
+                            >
+                              <span>{rate}x {rate === 1 && '(Padrão)'}</span>
+                              {playbackRate === rate && <CheckCircle2 size={13} />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tela Cheia */}
               <Tooltip content={isFullscreen ? 'Sair da tela cheia (F)' : 'Tela cheia (F)'} position="top">
                 <button
                   onClick={toggleFullscreen}
@@ -1156,6 +1153,7 @@ export function VideoPlayer({
           </div>
         </div>
       </div>
+
       {/* Modal de Report de Erros */}
       <ReportProblemModal
         episodeId={String(animeId)}
