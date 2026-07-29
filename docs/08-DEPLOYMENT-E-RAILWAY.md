@@ -56,3 +56,28 @@ Acesse as configurações do seu serviço Web no Railway (**Variables**) e adici
 ### 4️⃣ Deploy Automático e Primeiro Acesso
 O Railway detectará o `Dockerfile` automaticamente, executará a compilação multi-stage de alta velocidade e aplicará o schema no PostgreSQL durante a subida da instância.
 Após a inicialização, o primeiro acesso redirecionará para `/setup`. Consulte os logs do Railway para copiar a `Setup Key` randômica gerada e liberar a configuração.
+
+---
+
+## 💻 4. Scripts de Automação de Deploy Local e VPS
+
+Para testes no seu próprio computador ou implantação rápida em um servidor próprio (VPS Ubuntu/Linux), utilize os scripts automatizados criados na pasta [`scripts/`](file:///c:/Users/sodinha/Documents/projetos/anistream/scripts/):
+
+- **Atalho Node.js**:
+  ```bash
+  npm run deploy:local
+  ```
+  *(Executa a verificação pré-flight do Docker e instrui a inicialização dos containers)*
+
+- **Windows PowerShell (`scripts/deploy.ps1`)**:
+  ```powershell
+  ./scripts/deploy.ps1
+  ```
+  *(Valida o ambiente e compila/suba automaticamente o Docker Compose no Windows)*
+
+- **Linux / VPS / macOS (`scripts/deploy.sh`)**:
+  ```bash
+  ./scripts/deploy.sh
+  ```
+  *(Valida o ambiente e compila/suba automaticamente os containers no Linux)*
+

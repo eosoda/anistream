@@ -13,6 +13,7 @@
     "test:coverage": "npx vitest run --coverage",
     "test:docker": "node scripts/verify-docker.js",
     "pre-deploy": "npm run test && npm run test:docker && npm run build",
+    "deploy:local": "node scripts/deploy-local.js",
     "lint": "eslint .",
     "clean": "next clean"
   },

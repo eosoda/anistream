@@ -49,6 +49,15 @@ npm run test:coverage
 # Executar diagnóstico pré-deploy da infraestrutura Docker
 npm run test:docker
 
+# Executar automação de deploy local/VPS
+npm run deploy:local
+
+# Executar script PowerShell direto (Windows)
+./scripts/deploy.ps1
+
+# Executar script Bash direto (Linux / VPS)
+./scripts/deploy.sh
+
 # Comando único Pré-Deploy (Roda os testes + diagnóstico Docker + Build de Produção)
 npm run pre-deploy
 ```
