@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Activity,
+  Compass,
   Film,
   Tv,
   ListPlus,
@@ -314,6 +315,14 @@ export default function AdminDashboardPage() {
             <RefreshCw size={14} />
             <span>Atualizar</span>
           </button>
+
+          <Link
+            href="/admin/navigation"
+            className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all border border-white/10"
+          >
+            <Compass size={14} className="text-[#FF6B00]" />
+            <span>Personalizar Menus & Páginas</span>
+          </Link>
 
           <Link
             href="/admin/sources/tester"

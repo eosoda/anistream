@@ -7,18 +7,56 @@ import { Play, Flame, Calendar, Film, ListFilter, Heart, Menu, X, Search } from 
 import { SearchBar } from '@/components/catalog/SearchBar';
 import { useFavorites } from '@/hooks/useFavorites';
 
+import { useQuery } from '@tanstack/react-query';
+import { NavItemConfig } from '@/app/api/settings/public/route';
+
 export function Navbar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const { favorites, newEpisodesCount } = useFavorites();
 
-  const navLinks = [
+  const { data: publicSettings } = useQuery({
+    queryKey: ['publicSettings'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/settings/public');
+        const json = await res.json();
+        return json?.data;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const defaultNavLinks = [
     { name: 'Home', href: '/', icon: <Play size={18} /> },
     { name: 'Populares', href: '/populares', icon: <Flame size={18} /> },
     { name: 'Temporadas', href: '/temporadas', icon: <Calendar size={18} /> },
     { name: 'Filmes', href: '/filmes', icon: <Film size={18} /> },
     { name: 'Lista de Animes', href: '/lista', icon: <ListFilter size={18} /> },
+  ];
+
+  const dynamicNavList = publicSettings?.navigation
+    ? (publicSettings.navigation as NavItemConfig[])
+        .filter((item) => item.enabled)
+        .map((item) => ({
+          name: item.label,
+          href: item.href,
+          icon: item.href.includes('filmes') ? (
+            <Film size={18} />
+          ) : item.href.includes('temporadas') ? (
+            <Calendar size={18} />
+          ) : item.href.includes('populares') ? (
+            <Flame size={18} />
+          ) : (
+            <Play size={18} />
+          ),
+        }))
+    : defaultNavLinks;
+
+  const navLinks = [
+    ...dynamicNavList,
     {
       name: 'Favoritos',
       href: '/favoritos',
@@ -49,7 +87,7 @@ export function Navbar() {
 
           {/* Desktop Navigation Links */}
           <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 flex-nowrap shrink-0">
-            {navLinks.map((link) => {
+            {navLinks.map((link: any) => {
               const isActive = pathname === link.href;
               const hasNew = link.newBadgeCount ? link.newBadgeCount > 0 : false;
               return (
@@ -133,7 +171,7 @@ export function Navbar() {
         {/* Mobile Menu Drawer */}
         {isMobileMenuOpen && (
           <div className="lg:hidden px-4 py-5 border-t border-white/10 bg-[#0B0B0F]/95 space-y-1.5 animate-fade-in shadow-2xl">
-            {navLinks.map((link) => {
+            {navLinks.map((link: any) => {
               const isActive = pathname === link.href;
               const hasNew = link.newBadgeCount ? link.newBadgeCount > 0 : false;
               return (
@@ -171,7 +209,7 @@ export function Navbar() {
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#0B0B0F]/90 backdrop-blur-xl border-t border-white/10 px-2 py-2 flex items-center justify-around shadow-2xl safe-area-bottom">
-        {navLinks.map((link) => {
+        {navLinks.map((link: any) => {
           const isActive = pathname === link.href;
           const hasNew = link.newBadgeCount ? link.newBadgeCount > 0 : false;
           return (
