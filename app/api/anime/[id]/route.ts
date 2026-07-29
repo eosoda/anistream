@@ -3,14 +3,14 @@ import { prisma } from '@/lib/db/prisma';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ animeId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { animeId } = await params;
+  const { id } = await params;
 
   try {
     const anime = await prisma.anime.findFirst({
       where: {
-        OR: [{ id: animeId }, { slug: animeId }],
+        OR: [{ id: id }, { slug: id }],
       },
       include: {
         aliases: true,

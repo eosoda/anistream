@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "db:generate": "prisma generate",
+    "generate-tokens": "node scripts/generate-tokens.js",
     "lint": "eslint .",
     "clean": "next clean"
   },
@@ -19,6 +20,7 @@
     "axios": "^1.18.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "hls.js": "^1.5.17",
     "lucide-react": "^0.553.0",
     "motion": "^12.23.24",
     "next": "^15.4.9",

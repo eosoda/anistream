@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
       animeCount = await prisma.anime.count();
       episodeCount = await prisma.episode.count();
       sourceCount = await prisma.episodeSource.count();
-    } catch {
+    } catch (err: any) {
+      console.error('[Setup Status DB Error]', err);
       dbConnected = false;
     }
 

@@ -4,46 +4,58 @@ import path from 'node:path';
 
 const SETUP_KEY_FILE = path.join(process.cwd(), '.setup-key');
 
+let cachedSetupKey: string | null = null;
+let hasLoggedSetupKey = false;
+
 /**
  * Obtém a chave de instalação definida no ambiente ou lê/gera um token randômico temporário.
+ * Mantém a chave em memória para evitar releituras e exibe os logs apenas uma vez.
  */
 export function getOrCreateSetupKey(): string {
+  if (cachedSetupKey) {
+    return cachedSetupKey;
+  }
+
   // 1. Se foi definida no ambiente (INITIAL_SETUP_KEY ou SETUP_KEY)
   const envKey = process.env.INITIAL_SETUP_KEY || process.env.SETUP_KEY;
   if (envKey && envKey.trim().length > 0) {
-    return envKey.trim();
-  }
+    cachedSetupKey = envKey.trim();
+  } else {
+    // 2. Se já existe uma chave temporária salva no arquivo .setup-key
+    try {
+      if (fs.existsSync(SETUP_KEY_FILE)) {
+        const storedKey = fs.readFileSync(SETUP_KEY_FILE, 'utf-8').trim();
+        if (storedKey) {
+          cachedSetupKey = storedKey;
+        }
+      }
+    } catch {
+      // Ignorar erros de leitura de arquivo
+    }
 
-  // 2. Se já existe uma chave temporária salva no arquivo .setup-key
-  try {
-    if (fs.existsSync(SETUP_KEY_FILE)) {
-      const storedKey = fs.readFileSync(SETUP_KEY_FILE, 'utf-8').trim();
-      if (storedKey) {
-        return storedKey;
+    // 3. Gerar nova chave randômica única se não existir
+    if (!cachedSetupKey) {
+      cachedSetupKey = `setup_${crypto.randomBytes(12).toString('hex')}`;
+      try {
+        fs.writeFileSync(SETUP_KEY_FILE, cachedSetupKey, { encoding: 'utf-8', mode: 0o600 });
+      } catch {
+        // Ignorar falha de gravação de arquivo se o sistema for read-only
       }
     }
-  } catch (err) {
-    // Ignorar erros de leitura de arquivo
   }
 
-  // 3. Gerar nova chave randômica única
-  const newKey = `setup_${crypto.randomBytes(12).toString('hex')}`;
-
-  try {
-    fs.writeFileSync(SETUP_KEY_FILE, newKey, { encoding: 'utf-8', mode: 0o600 });
-  } catch (err) {
-    // Ignorar falha de gravação de arquivo se o sistema for read-only
+  // Exibir a chave com destaque nos logs do container / terminal APENAS UMA VEZ
+  if (!hasLoggedSetupKey) {
+    hasLoggedSetupKey = true;
+    console.log('\n===================================================================');
+    console.log('  [AniStream Security] 🔑 CHAVE DE INSTALAÇÃO DO SETUP INICIAL:');
+    console.log(`  --> ${cachedSetupKey} <--`);
+    console.log('  Insira esta chave no assistente /setup para configurar a aplicação.');
+    console.log(`  URL Direta: http://localhost:3000/setup?key=${cachedSetupKey}`);
+    console.log('===================================================================\n');
   }
 
-  // Exibir a chave com destaque nos logs do container / terminal
-  console.log('\n===================================================================');
-  console.log('  [AniStream Security] 🔑 CHAVE DE INSTALAÇÃO DO SETUP INICIAL:');
-  console.log(`  --> ${newKey} <--`);
-  console.log('  Insira esta chave no assistente /setup para configurar a aplicação.');
-  console.log(`  URL Direta: http://localhost:3000/setup?key=${newKey}`);
-  console.log('===================================================================\n');
-
-  return newKey;
+  return cachedSetupKey;
 }
 
 /**
@@ -67,15 +79,17 @@ export function validateSetupKey(providedKey?: string | null): boolean {
 }
 
 /**
- * Remove o arquivo de chave temporária após a conclusão bem-sucedida do setup.
+ * Remove o arquivo de chave temporária e reseta os caches de memória após o setup.
  */
 export function clearSetupKey(): void {
+  cachedSetupKey = null;
+  hasLoggedSetupKey = false;
   try {
     if (fs.existsSync(SETUP_KEY_FILE)) {
       fs.unlinkSync(SETUP_KEY_FILE);
       console.log('[AniStream Security] 🔒 Chave de instalação temporária destruída com sucesso.');
     }
-  } catch (err) {
+  } catch {
     // Ignorar erros na deleção
   }
 }

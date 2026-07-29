@@ -3,9 +3,9 @@ import { prisma } from '@/lib/db/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ animeId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { animeId } = await params;
+  const { id } = await params;
   const { searchParams } = new URL(request.url);
   const seasonParam = searchParams.get('season') || '1';
   const season = parseInt(seasonParam, 10);
@@ -13,7 +13,7 @@ export async function GET(
   try {
     const episodes = await prisma.episode.findMany({
       where: {
-        animeId,
+        animeId: id,
         season,
       },
       orderBy: { number: 'asc' },

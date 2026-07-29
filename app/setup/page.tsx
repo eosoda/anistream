@@ -20,7 +20,35 @@ import {
   KeyRound,
 } from 'lucide-react';
 
-export default function SetupWizardPage() {
+export const dynamic = 'force-dynamic';
+
+function getPasswordStrength(password: string) {
+  if (!password) {
+    return { label: '', color: 'bg-gray-700', text: 'text-gray-400', percentage: 0 };
+  }
+  let score = 0;
+  if (password.length >= 6) score += 1;
+  if (password.length >= 10) score += 1;
+  if (/[A-Z]/.test(password)) score += 1;
+  if (/[0-9]/.test(password)) score += 1;
+  if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+  if (score <= 1) {
+    return { label: 'Fraca (mín. 6 caracteres)', color: 'bg-red-500', text: 'text-red-400', percentage: 20 };
+  }
+  if (score === 2) {
+    return { label: 'Razoável', color: 'bg-amber-500', text: 'text-amber-400', percentage: 40 };
+  }
+  if (score === 3) {
+    return { label: 'Boa', color: 'bg-yellow-400', text: 'text-yellow-400', percentage: 65 };
+  }
+  if (score === 4) {
+    return { label: 'Forte', color: 'bg-[#FF6B00]', text: 'text-[#FF6B00]', percentage: 85 };
+  }
+  return { label: 'Excelente', color: 'bg-emerald-500', text: 'text-emerald-400', percentage: 100 };
+}
+
+function SetupWizardForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -42,9 +70,10 @@ export default function SetupWizardPage() {
   const [setupKey, setSetupKey] = useState('');
   const [keyValid, setKeyValid] = useState<boolean | null>(null);
 
-  const [adminName, setAdminName] = useState('Administrador Principal');
+  const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [mediaHosts, setMediaHosts] = useState(
     'media.mydomain.com, cdn.mydomain.com, s3.amazonaws.com'
   );
@@ -283,9 +312,10 @@ export default function SetupWizardPage() {
                 <User size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input
                   type="text"
+                  placeholder="Ex: Administrador Principal"
                   value={adminName}
                   onChange={(e) => setAdminName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
                 />
               </div>
             </div>
@@ -299,7 +329,7 @@ export default function SetupWizardPage() {
                   placeholder="admin@anistream.com"
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
                 />
               </div>
             </div>
@@ -310,11 +340,63 @@ export default function SetupWizardPage() {
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input
                   type="password"
+                  placeholder="Digite sua senha de acesso"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
                 />
               </div>
+              {adminPassword && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-gray-400">Força da Senha:</span>
+                    <span className={`font-bold ${getPasswordStrength(adminPassword).text}`}>
+                      {getPasswordStrength(adminPassword).label}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${getPasswordStrength(adminPassword).color}`}
+                      style={{ width: `${getPasswordStrength(adminPassword).percentage}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Repetir Senha</label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
+                <input
+                  type="password"
+                  placeholder="Digite a mesma senha novamente"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border text-xs text-white placeholder-gray-500 focus:outline-none ${
+                    confirmPassword && confirmPassword !== adminPassword
+                      ? 'border-red-500/60 focus:border-red-500'
+                      : confirmPassword && confirmPassword === adminPassword
+                      ? 'border-emerald-500/60 focus:border-emerald-500'
+                      : 'border-white/10 focus:border-[#FF6B00]'
+                  }`}
+                />
+              </div>
+              {confirmPassword && (
+                <div className="mt-1 flex items-center gap-1.5 text-[11px]">
+                  {confirmPassword === adminPassword ? (
+                    <>
+                      <CheckCircle2 size={13} className="text-emerald-400" />
+                      <span className="text-emerald-400 font-semibold">As senhas coincidem</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle size={13} className="text-red-400" />
+                      <span className="text-red-400 font-semibold">As senhas não coincidem</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-4">
@@ -327,7 +409,12 @@ export default function SetupWizardPage() {
               </button>
 
               <button
-                disabled={!adminEmail || adminPassword.length < 6}
+                disabled={
+                  !adminName.trim() ||
+                  !adminEmail.trim() ||
+                  adminPassword.length < 6 ||
+                  confirmPassword !== adminPassword
+                }
                 onClick={() => setCurrentStep(3)}
                 className="px-6 py-2.5 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-bold text-xs flex items-center gap-2 disabled:opacity-50"
               >
@@ -452,5 +539,20 @@ export default function SetupWizardPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SetupWizardPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0B0B0F] text-white flex flex-col items-center justify-center gap-3">
+          <Loader2 size={36} className="text-[#FF6B00] animate-spin" />
+          <p className="text-xs font-bold text-gray-400">Carregando assistente de instalação...</p>
+        </div>
+      }
+    >
+      <SetupWizardForm />
+    </React.Suspense>
   );
 }
