@@ -3,14 +3,14 @@ export function normalizeAnimeTitle(title: string): string {
 
   return (
     title
-      // 1. Normalização Unicode NFKD para separar acentos
-      .normalize('NFKD')
-      // 2. Remover marcas diacríticas / acentos
-      .replace(/[\u0300-\u036f]/g, '')
-      // 3. Converter para minúsculas
-      .toLowerCase()
-      // 4. Tratar numerais ordinais ou de temporada (ex: "2ª temporada" -> "2 temporada", "2nd season" -> "2 season")
+      // 1. Tratar numerais ordinais ou de temporada ANTES de desmembrar acentos (ex: "2ª temporada" -> "2 temporada", "2nd season" -> "2 season")
       .replace(/(\d+)(ª|º|st|nd|rd|th)/gi, '$1')
+      // 2. Normalização Unicode NFKD para separar acentos
+      .normalize('NFKD')
+      // 3. Remover marcas diacríticas / acentos
+      .replace(/[\u0300-\u036f]/g, '')
+      // 4. Converter para minúsculas
+      .toLowerCase()
       // 5. Normalizar palavras chave de dublagem / legenda mantendo temporadas
       .replace(/\b(dublado|legendado|dub|sub|pt-br|eng|uncensored|bd|bluray)\b/gi, '')
       // 6. Converter numerais romanos básicos (ii -> 2, iii -> 3, iv -> 4, v -> 5, vi -> 6) se forem palavra única
