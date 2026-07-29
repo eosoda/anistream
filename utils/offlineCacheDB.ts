@@ -60,7 +60,43 @@ function getDB(): Promise<IDBDatabase> {
       }
     };
 
-    request.onsuccess = () => resolve(request.result);
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+function purgeExpiredCatalog(db: IDBDatabase) {
+  try {
+    const cutoff = Date.now() - SEVEN_DAYS_MS;
+    const tx = db.transaction(['catalog', 'anime_details'], 'readwrite');
+    const catalogStore = tx.objectStore('catalog');
+    const catalogIndex = catalogStore.index('updatedAt');
+    const catalogReq = catalogIndex.openCursor(IDBKeyRange.upperBound(cutoff));
+    catalogReq.onsuccess = () => {
+      const cursor = catalogReq.result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      }
+    };
+
+    const detailsStore = tx.objectStore('anime_details');
+    const detailsIndex = detailsStore.index('updatedAt');
+    const detailsReq = detailsIndex.openCursor(IDBKeyRange.upperBound(cutoff));
+    detailsReq.onsuccess = () => {
+      const cursor = detailsReq.result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      }
+    };
+  } catch (e) {
+    // Silently ignore non-fatal IndexedDB cleanup errors
+  }
+}
+
+    request.onsuccess = () => {
+      const db = request.result;
+      purgeExpiredCatalog(db);
+      resolve(db);
+    };
     request.onerror = () => {
       dbPromise = null;
       reject(request.error);

@@ -92,9 +92,41 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const [circuitStatuses, setCircuitStatuses] = useState<any[]>([]);
+  const [resettingCircuit, setResettingCircuit] = useState(false);
+
+  const fetchCircuitStatuses = async () => {
+    try {
+      const res = await fetch('/api/admin/circuit-breaker');
+      const json = await res.json();
+      if (json?.data?.providers) {
+        setCircuitStatuses(json.data.providers);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleResetCircuit = async (providerName: string) => {
+    setResettingCircuit(true);
+    try {
+      await fetch('/api/admin/circuit-breaker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerName }),
+      });
+      await fetchCircuitStatuses();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setResettingCircuit(false);
+    }
+  };
+
   useEffect(() => {
     fetchMetrics();
     fetchReports();
+    fetchCircuitStatuses();
   }, []);
 
   // Handlers
@@ -290,6 +322,51 @@ export default function AdminDashboardPage() {
             <Zap size={14} />
             <span>Testar Fonte de Vídeo</span>
           </Link>
+        </div>
+      </div>
+
+      {/* Circuit Breaker Health Status Widget */}
+      <div className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Radio size={20} className="text-[#FF6B00]" />
+            <h2 className="text-base font-bold text-white">Saúde das APIs & Circuit Breaker</h2>
+          </div>
+          <span className="text-xs text-gray-400 font-semibold">Monitoramento em Tempo Real</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {circuitStatuses.map((item) => {
+            const isOpen = item.state === 'OPEN';
+            return (
+              <div
+                key={item.provider}
+                className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                  isOpen
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                }`}
+              >
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider">{item.provider}</p>
+                  <p className="text-sm font-bold text-white mt-0.5">
+                    {isOpen ? '🔴 Circuito Aberto (Fallback Local)' : '🟢 Operacional (Conectado)'}
+                  </p>
+                </div>
+
+                {isOpen && (
+                  <button
+                    onClick={() => handleResetCircuit(item.provider)}
+                    disabled={resettingCircuit}
+                    className="px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1"
+                  >
+                    <RefreshCw size={12} className={resettingCircuit ? 'animate-spin' : ''} />
+                    <span>Resetar</span>
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
