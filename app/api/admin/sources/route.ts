@@ -20,7 +20,12 @@ export async function GET(request: NextRequest) {
       include: { episode: { select: { title: true, number: true, season: true } } },
     });
 
-    return NextResponse.json({ sources });
+    const safeSources = sources.map((s: any) => ({
+      ...s,
+      trafficBytes: Number(s.trafficBytes || 0),
+    }));
+
+    return NextResponse.json({ sources: safeSources });
   } catch (err: any) {
     return NextResponse.json(
       { error: 'Erro ao buscar fontes', message: err.message },
@@ -81,7 +86,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ source: newSource }, { status: 201 });
+    const safeSource = {
+      ...newSource,
+      trafficBytes: Number(newSource.trafficBytes || 0),
+    };
+
+    return NextResponse.json({ source: safeSource }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json(
       { error: 'Erro ao criar fonte de vídeo', message: err.message },

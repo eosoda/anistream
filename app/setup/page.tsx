@@ -22,6 +22,7 @@ import {
   EyeOff,
   Download,
   Film,
+  Play,
 } from 'lucide-react';
 import { parseM3uContent } from '@/lib/streams/m3u-parser';
 
@@ -93,6 +94,18 @@ function SetupWizardForm() {
   const [isSeedingPopular, setIsSeedingPopular] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState<string | null>(null);
 
+  const [setupProviders, setSetupProviders] = useState<any[]>([]);
+  const [testingSetupProviderId, setTestingSetupProviderId] = useState<string | null>(null);
+  const [setupProviderTestResults, setSetupProviderTestResults] = useState<Record<string, any>>({});
+
+  const fetchSetupProviders = async () => {
+    try {
+      const res = await fetch('/api/admin/providers');
+      const data = await res.json();
+      if (data.providers) setSetupProviders(data.providers);
+    } catch (e) {}
+  };
+
   // Inicializar a chave de segurança a partir da URL (?key=...) se disponível
   useEffect(() => {
     const urlKey = searchParams.get('key');
@@ -120,6 +133,7 @@ function SetupWizardForm() {
       if (setupKey) {
         setKeyValid(data.keyValid);
       }
+      fetchSetupProviders();
     } catch {
       setDbConnected(false);
       setPostgresPingMs(null);
@@ -132,6 +146,36 @@ function SetupWizardForm() {
   useEffect(() => {
     checkStatus();
   }, [router, setupKey]);
+
+  // Testar Provedor no Setup
+  const handleTestSetupProvider = async (p: any) => {
+    setTestingSetupProviderId(p.id);
+    try {
+      const res = await fetch('/api/admin/providers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: p.id, url: p.url }),
+      });
+      const data = await res.json();
+      setSetupProviderTestResults((prev) => ({ ...prev, [p.id]: data }));
+    } catch (err: any) {
+      setSetupProviderTestResults((prev) => ({ ...prev, [p.id]: { ok: false, error: err.message } }));
+    } finally {
+      setTestingSetupProviderId(null);
+    }
+  };
+
+  // Alternar Provedor no Setup
+  const handleToggleSetupProvider = async (id: string, enabled: boolean) => {
+    try {
+      await fetch('/api/admin/providers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, enabled }),
+      });
+      fetchSetupProviders();
+    } catch (e) {}
+  };
 
   // Validação prévia de M3U
   const handleValidateM3u = () => {
@@ -558,9 +602,81 @@ Hosts de Mídia     : ${mediaHosts}
           </div>
         )}
 
-        {/* Passo 4: Importação M3U Inicial com Upload de Arquivo */}
+        {/* Passo 4: Importação e Fontes de Mídia Configuráveis */}
         {currentStep === 4 && (
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {/* Seção de Provedores Configuráveis */}
+            <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center justify-between border-b border-white/10 pb-2">
+                <span>Provedores de Mídia Pré-Configurados ({setupProviders.length})</span>
+                <span className="text-[10px] text-[#FF6B00]">Configuráveis & Testáveis</span>
+              </h3>
+
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {setupProviders.map((p) => {
+                  const testRes = setupProviderTestResults[p.id];
+                  const isTesting = testingSetupProviderId === p.id;
+
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-0.5 max-w-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-white text-xs">{p.name}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[9px] font-mono text-gray-300">
+                            {p.type}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-mono truncate">{p.url}</p>
+
+                        {testRes && (
+                          <div className="text-[10px] font-bold">
+                            {testRes.ok ? (
+                              <span className="text-emerald-400">
+                                HTTP {testRes.status} ({testRes.latencyMs}ms OK)
+                              </span>
+                            ) : (
+                              <span className="text-red-400">Falha na conexão</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleTestSetupProvider(p)}
+                          disabled={isTesting}
+                          className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] flex items-center gap-1"
+                        >
+                          {isTesting ? (
+                            <Loader2 size={12} className="animate-spin text-[#FF6B00]" />
+                          ) : (
+                            <Play size={12} className="text-[#FF6B00]" />
+                          )}
+                          <span>Testar</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSetupProvider(p.id, !p.enabled)}
+                          className={`px-2 py-1 rounded-lg font-bold text-[10px] uppercase border ${
+                            p.enabled
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              : 'bg-red-500/20 text-red-400 border-red-500/30'
+                          }`}
+                        >
+                          {p.enabled ? 'Ativo' : 'Off'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">
                 Upload de Arquivo .m3u / .m3u8 do Computador

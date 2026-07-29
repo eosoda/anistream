@@ -31,6 +31,23 @@ Este documento descreve a arquitetura, rotas e fluxos do **Painel Administrativo
    - Cadastro de fontes de streaming vinculadas aos episódios (HLS / MP4).
    - Suporte à importação em lote via playlists **M3U / M3U8**.
 
+6. **Provedores Configuráveis & Teste de Conexão Ao Vivo (`/admin/sources`)**:
+   - Tabela de provedores cadastrados (M3U, JSON, APIs REST) com controle de prioridades.
+   - Botões de alternar status (Ativo/Inativo) e Auto-Robô (ON/OFF).
+   - Botão **"Testar Conexão"** ao vivo medindo resposta HTTP e latência em ms.
+
+7. **Robô de Auto-Indexação (*Autopilot Indexer*)**:
+   - **Modo Automático**: Varredura em segundo plano das fontes ativas buscando metadados oficiais (Jikan/AniList) e auto-criação de animes e episódios no PostgreSQL.
+   - **Modo Fila de Revisão**: Varredura com adição a uma fila de candidatos no admin para aprovação manual em 1 clique.
+
+8. **Recursos de Gestão Avançada no Dashboard**:
+   - **Gerenciador de Broadcast System**: Envio de notificações e alertas superiores em lote para todos os usuários.
+   - **Detector de Links Quebrados (Dead Link Finder)**: Varredura em segundo plano com auto-desativação após 3 falhas consecutivas.
+   - **Backup e Restauração em Dump JSON**: Download de backup completo do banco de dados em JSON e restauração com lógica de *upsert*.
+   - **Controle de Banda & Proxy Meter**: Medição do volume de dados (MB/GB) trafegados no proxy SSRF por domínio com botão de pausa de servidor.
+   - **Modo Manutenção Agendado**: Bloqueio de acessos públicos durante atualizações com mensagem e previsão de término em `/manutencao`.
+   - **Publicador de Release Notes**: Gestão e linha do tempo de notas de versão em `/changelog`.
+
 ---
 
 ## 🗺️ 2. Mapeamento de Rotas Administrativas
@@ -38,19 +55,27 @@ Este documento descreve a arquitetura, rotas e fluxos do **Painel Administrativo
 | Rota UI | Descrição |
 | :--- | :--- |
 | **`/admin/login`** | Página de login para administradores. |
-| **`/setup`** | Assistente de instalação inicial protegido por `Setup Key` (desativado após criação do primeiro admin). |
-| **`/admin/dashboard`** | Dashboard de observabilidade, KPIs e métricas dos provedores. |
+| **`/setup`** | Assistente de instalação inicial com fontes configuráveis e testáveis ao vivo (desativado após criação do primeiro admin). |
+| **`/admin/dashboard`** | Dashboard de observabilidade, KPIs, Broadcast, Backup, Dead Links, Reports, Manutenção e Releases. |
 | **`/admin/animes`** | Catálogo interativo de animes cadastrados. |
 | **`/admin/animes/novo`** | Formulário de criação com busca automática no MyAnimeList. |
 | **`/admin/animes/[id]/editar`** | Edição de metadados e adição de episódios. |
-| **`/admin/sources`** | Painel de gestão de fontes de mídia e importação M3U. |
+| **`/admin/sources`** | Painel de gestão de provedores de mídia configuráveis, teste de conexão e Robô Autopilot. |
 | **`/admin/sources/tester`** | Testador avançado de fontes de mídia com mini-player de preview. |
+| **`/manutencao`** | Tela pública do Modo Manutenção (redirecionada quando ativada no admin). |
+| **`/changelog`** | Linha do tempo pública de lançamentos e notas de versão. |
 
 ### Endpoints da API Administrativa & Setup
 
 - `GET /api/setup/status` — Verifica se o sistema está inicializado e valida a chave de setup.
 - `POST /api/setup/initialize` — Cadastra o admin mestre e conclui a instalação (exige `setupKey`).
-- `GET /api/health` — Endpoint de Deep Health Check (PostgreSQL & Redis).
-- `GET /api/admin/metrics` — Retorna métricas de observabilidade e saúde dos provedores.
-- `POST /api/admin/sources/test-url` — Executa diagnóstico de URL de vídeo sob demanda.
-- `GET /api/admin/animes/autofill?title={termo}` — Busca metadados automáticos na API Jikan/MAL.
+- `GET /api/admin/providers` — CRUD de provedores de mídia (`MediaProvider`).
+- `POST /api/admin/providers/test` — Teste de conexão e latência ao vivo de um provedor de mídia.
+- `GET /api/admin/autopilot` / `POST` / `PATCH` — Controle do Robô de Auto-Indexação e Fila de Revisão.
+- `GET /api/admin/broadcast` / `POST` — Gerenciador de anúncios globais e notificações em lote.
+- `GET /api/admin/backup` / `POST` — Dump e restauração do banco de dados em JSON.
+- `POST /api/admin/dead-links` — Executa varredura de links quebrados e desativa fontes falhas.
+- `GET /api/reports` / `POST` / `PATCH` — Fila de suporte para chamados e relatos de erros no player.
+- `GET /api/maintenance` / `POST` — Status e controle do Modo Manutenção global.
+- `GET /api/changelog` / `POST` — Leitura e publicação de release notes.
+

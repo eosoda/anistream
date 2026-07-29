@@ -1,32 +1,152 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   ShieldCheck,
   Upload,
   Plus,
   Activity,
-  CheckCircle2,
-  AlertTriangle,
   Loader2,
   FileCode,
   ListPlus,
   Zap,
+  Radio,
+  Trash2,
+  Play,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Bot,
 } from 'lucide-react';
 import { ProviderStatus } from '@/components/ProviderStatus';
-import { ProviderHealth } from '@/lib/streams/types';
+import { AutopilotPanel } from '@/components/admin/AutopilotPanel';
+
+interface MediaProviderItem {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  priority: number;
+  enabled: boolean;
+  autoIndex: boolean;
+  lastTestedAt?: string;
+  lastStatus?: number;
+  lastLatencyMs?: number;
+}
 
 export default function AdminSourcesPage() {
-  const [activeTab, setActiveTab] = useState<'m3u' | 'json' | 'health'>('m3u');
+  const [activeTab, setActiveTab] = useState<'providers' | 'm3u' | 'json' | 'autopilot'>('providers');
+  const [providers, setProviders] = useState<MediaProviderItem[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(true);
+
+  // Form para Novo Provedor
+  const [newPropName, setNewPropName] = useState('');
+  const [newPropType, setNewPropType] = useState('M3U');
+  const [newPropUrl, setNewPropUrl] = useState('');
+  const [newPropPriority, setNewPropPriority] = useState(100);
+  const [createMsg, setCreateMsg] = useState<string | null>(null);
+
+  // Importar M3U Text Form
   const [m3uText, setM3uText] = useState('');
   const [providerName, setProviderName] = useState('authorized-m3u-main');
   const [audioLang, setAudioLang] = useState('ja');
   const [loading, setLoading] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
-  const [healthReports, setHealthReports] = useState<ProviderHealth[]>([]);
 
-  // Importar Playlist M3U Autorizada
+  // Testes de Provedores
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, any>>({});
+
+  const fetchProviders = async () => {
+    setLoadingProviders(true);
+    try {
+      const res = await fetch('/api/admin/providers');
+      const data = await res.json();
+      if (data.providers) setProviders(data.providers);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingProviders(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProviders();
+  }, []);
+
+  const handleCreateProvider = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPropName.trim() || !newPropUrl.trim()) return;
+
+    try {
+      const res = await fetch('/api/admin/providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newPropName,
+          type: newPropType,
+          url: newPropUrl,
+          priority: newPropPriority,
+          enabled: true,
+          autoIndex: true,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCreateMsg('✅ Provedor cadastrado com sucesso!');
+        setNewPropName('');
+        setNewPropUrl('');
+        fetchProviders();
+      } else {
+        setCreateMsg(`❌ Erro: ${data.error}`);
+      }
+    } catch (err: any) {
+      setCreateMsg(`❌ Erro: ${err.message}`);
+    }
+  };
+
+  const handleToggleState = async (id: string, key: 'enabled' | 'autoIndex', value: boolean) => {
+    try {
+      await fetch('/api/admin/providers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, [key]: value }),
+      });
+      fetchProviders();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteProvider = async (id: string) => {
+    if (!confirm('Deseja realmente remover este provedor?')) return;
+    try {
+      await fetch(`/api/admin/providers?id=${id}`, { method: 'DELETE' });
+      fetchProviders();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleTestProvider = async (p: MediaProviderItem) => {
+    setTestingId(p.id);
+    try {
+      const res = await fetch('/api/admin/providers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: p.id, url: p.url }),
+      });
+      const data = await res.json();
+      setTestResults((prev) => ({ ...prev, [p.id]: data }));
+      fetchProviders();
+    } catch (err: any) {
+      setTestResults((prev) => ({ ...prev, [p.id]: { ok: false, error: err.message } }));
+    } finally {
+      setTestingId(null);
+    }
+  };
+
   const handleImportM3u = async () => {
     if (!m3uText.trim()) return;
 
@@ -51,37 +171,12 @@ export default function AdminSourcesPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Falha ao importar M3U');
-      }
+      if (!res.ok) throw new Error(data.error || 'Falha ao importar M3U');
 
-      setImportMessage(
-        `✅ Sucesso! Importados ${data.summary.importedCount} de ${data.summary.totalParsed} episódios.`
-      );
+      setImportMessage(`✅ Sucesso! Importados ${data.summary.importedCount} de ${data.summary.totalParsed} episódios.`);
       setM3uText('');
     } catch (err: any) {
       setImportMessage(`❌ Erro: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Executar Health Check dos Provedores
-  const handleRunHealthCheck = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/streams/health', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer super-secret-admin-key-min-32-chars-long',
-        },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setHealthReports(data.reports || []);
-      }
-    } catch (err) {
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -96,11 +191,9 @@ export default function AdminSourcesPage() {
             <ShieldCheck size={28} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-white">
-              Painel de Gestão de Fontes Autorizadas
-            </h1>
+            <h1 className="text-2xl font-black text-white">Gestão de Provedores e Fontes de Mídia</h1>
             <p className="text-xs text-gray-400">
-              Cadastre, importe e monitore fontes de streaming de mídia autorizadas
+              Cadastre, edite, ative/desative e teste a conexão em tempo real de provedores M3U, JSON e APIs
             </p>
           </div>
         </div>
@@ -113,49 +206,239 @@ export default function AdminSourcesPage() {
             <Zap size={16} />
             <span>Testar Fonte de Vídeo</span>
           </Link>
-
-          <button
-            onClick={handleRunHealthCheck}
-            disabled={loading}
-            className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all border border-white/10 disabled:opacity-50"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Activity size={16} className="text-[#FF6B00]" />}
-            <span>Verificar Saúde dos Provedores</span>
-          </button>
         </div>
       </div>
-
-      {/* Exibição de Health Check */}
-      {healthReports.length > 0 && <ProviderStatus reports={healthReports} />}
 
       {/* Navegação por Abas */}
       <div className="flex items-center gap-2 border-b border-white/10 pb-2">
         <button
-          onClick={() => setActiveTab('m3u')}
+          onClick={() => setActiveTab('providers')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'm3u'
-              ? 'bg-[#FF6B00] text-white'
-              : 'text-gray-400 hover:bg-white/5'
+            activeTab === 'providers' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:bg-white/5'
           }`}
         >
-          <ListPlus size={16} />
-          <span>Importar M3U</span>
+          <Radio size={16} />
+          <span>Provedores Configuráveis ({providers.length})</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('json')}
+          onClick={() => setActiveTab('autopilot')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'json'
-              ? 'bg-[#FF6B00] text-white'
-              : 'text-gray-400 hover:bg-white/5'
+            activeTab === 'autopilot' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:bg-white/5'
           }`}
         >
-          <FileCode size={16} />
-          <span>Configuração JSON</span>
+          <Bot size={16} />
+          <span>Modo Automático (Autopilot)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('m3u')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'm3u' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:bg-white/5'
+          }`}
+        >
+          <ListPlus size={16} />
+          <span>Importar M3U Texto</span>
         </button>
       </div>
 
-      {/* Conteúdo Aba M3U */}
+      {/* Conteúdo Aba 1: Provedores Configuráveis */}
+      {activeTab === 'providers' && (
+        <div className="space-y-6">
+          {/* Formulário de Cadastro de Novo Provedor */}
+          <form onSubmit={handleCreateProvider} className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-4">
+            <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-white/10 pb-3">
+              <Plus size={18} className="text-[#FF6B00]" />
+              <span>Cadastrar Novo Provedor de Mídia</span>
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-300 mb-1">Nome do Provedor</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Servidor HLS Principal BR"
+                  value={newPropName}
+                  onChange={(e) => setNewPropName(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1">Tipo de Provedor</label>
+                <select
+                  value={newPropType}
+                  onChange={(e) => setNewPropType(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                >
+                  <option value="M3U">Playlist M3U / M3U8</option>
+                  <option value="JSON">Catálogo JSON</option>
+                  <option value="API">API REST Externa</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1">Prioridade (0 - 100)</label>
+                <input
+                  type="number"
+                  value={newPropPriority}
+                  onChange={(e) => setNewPropPriority(Number(e.target.value))}
+                  className="w-full px-3 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1">URL do Provedor / Playlist</label>
+              <input
+                type="url"
+                placeholder="https://media.mydomain.com/playlists/main.m3u"
+                value={newPropUrl}
+                onChange={(e) => setNewPropUrl(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+              />
+            </div>
+
+            {createMsg && (
+              <p className="text-xs font-bold p-2.5 rounded-xl bg-white/5 border border-white/10">{createMsg}</p>
+            )}
+
+            <button
+              type="submit"
+              className="px-6 py-2.5 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-bold text-xs flex items-center gap-2"
+            >
+              <Plus size={16} />
+              <span>Salvar Provedor</span>
+            </button>
+          </form>
+
+          {/* Tabela de Provedores Cadastrados */}
+          <div className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-4">
+            <h2 className="text-base font-bold text-white border-b border-white/10 pb-3">
+              Provedores Cadastrados e Status de Teste
+            </h2>
+
+            {loadingProviders ? (
+              <div className="py-8 text-center">
+                <Loader2 size={24} className="text-[#FF6B00] animate-spin mx-auto" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {providers.map((p) => {
+                  const testRes = testResults[p.id];
+
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-4 rounded-2xl bg-black/50 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs"
+                    >
+                      <div className="space-y-1 max-w-xl">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-white text-sm">{p.name}</span>
+                          <span className="px-2 py-0.5 rounded-md bg-white/10 font-mono text-[10px] text-gray-300">
+                            {p.type}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-[#FF6B00]/20 text-[#FF6B00] font-bold text-[10px]">
+                            Prioridade: {p.priority}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-400 font-mono truncate">{p.url}</p>
+
+                        {/* Estatísticas do último teste */}
+                        {(p.lastTestedAt || testRes) && (
+                          <div className="flex items-center gap-3 text-[10px] text-gray-400 pt-1">
+                            <span className="flex items-center gap-1">
+                              <Clock size={12} className="text-gray-500" />
+                              <span>
+                                Testado:{' '}
+                                {p.lastTestedAt
+                                  ? new Date(p.lastTestedAt).toLocaleTimeString('pt-BR')
+                                  : 'Agora'}
+                              </span>
+                            </span>
+
+                            {testRes?.ok || (p.lastStatus && p.lastStatus < 400) ? (
+                              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                                <CheckCircle2 size={12} />
+                                <span>
+                                  HTTP {testRes?.status || p.lastStatus} ({testRes?.latencyMs || p.lastLatencyMs}ms)
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-red-400 font-bold flex items-center gap-1">
+                                <XCircle size={12} />
+                                <span>
+                                  Falha (HTTP {testRes?.status || p.lastStatus || 504})
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Controles de Ação */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Botão Testar Conexão Ao Vivo */}
+                        <button
+                          onClick={() => handleTestProvider(p)}
+                          disabled={testingId === p.id}
+                          className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
+                        >
+                          {testingId === p.id ? (
+                            <Loader2 size={13} className="animate-spin text-[#FF6B00]" />
+                          ) : (
+                            <Play size={13} className="text-[#FF6B00]" />
+                          )}
+                          <span>Testar Conexão</span>
+                        </button>
+
+                        {/* Toggle Enabled */}
+                        <button
+                          onClick={() => handleToggleState(p.id, 'enabled', !p.enabled)}
+                          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all border ${
+                            p.enabled
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              : 'bg-red-500/20 text-red-400 border-red-500/30'
+                          }`}
+                        >
+                          {p.enabled ? 'Ativo' : 'Inativo'}
+                        </button>
+
+                        {/* Toggle AutoIndex */}
+                        <button
+                          onClick={() => handleToggleState(p.id, 'autoIndex', !p.autoIndex)}
+                          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all border ${
+                            p.autoIndex
+                              ? 'bg-sky-500/20 text-sky-400 border-sky-500/30'
+                              : 'bg-white/5 text-gray-400 border-white/10'
+                          }`}
+                          title="Auto-indexação pelo robô"
+                        >
+                          AutoRobô: {p.autoIndex ? 'ON' : 'OFF'}
+                        </button>
+
+                        {/* Deletar */}
+                        <button
+                          onClick={() => handleDeleteProvider(p.id)}
+                          className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
+                          title="Remover Provedor"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Conteúdo Aba 2: Autopilot */}
+      {activeTab === 'autopilot' && <AutopilotPanel />}
+
+      {/* Conteúdo Aba 3: Importar M3U Texto */}
       {activeTab === 'm3u' && (
         <div className="space-y-4 p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
@@ -165,9 +448,7 @@ export default function AdminSourcesPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">
-                Nome do Provedor
-              </label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Nome do Provedor</label>
               <input
                 type="text"
                 value={providerName}
@@ -177,9 +458,7 @@ export default function AdminSourcesPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">
-                Idioma Padrão do Áudio
-              </label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Idioma Padrão do Áudio</label>
               <select
                 value={audioLang}
                 onChange={(e) => setAudioLang(e.target.value)}
@@ -193,9 +472,7 @@ export default function AdminSourcesPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">
-              Conteúdo do Arquivo M3U Autorizado
-            </label>
+            <label className="block text-xs font-bold text-gray-300 mb-1">Conteúdo do Arquivo M3U Autorizado</label>
             <textarea
               rows={8}
               value={m3uText}
@@ -206,9 +483,7 @@ export default function AdminSourcesPage() {
           </div>
 
           {importMessage && (
-            <p className="text-xs font-bold p-3 rounded-xl bg-white/5 border border-white/10">
-              {importMessage}
-            </p>
+            <p className="text-xs font-bold p-3 rounded-xl bg-white/5 border border-white/10">{importMessage}</p>
           )}
 
           <button

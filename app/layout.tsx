@@ -8,6 +8,8 @@ import { OfflineStatusBanner } from '@/components/ui/OfflineStatusBanner';
 import { PwaRegister } from '@/components/layout/PwaRegister';
 import { SetupGuard } from '@/components/layout/SetupGuard';
 
+import { BroadcastBanner } from '@/components/layout/BroadcastBanner';
+
 export const metadata: Metadata = {
   title: 'AniStream - Catálogo & Streaming de Animes',
   description: 'Acompanhe os melhores animes, lançamentos de temporadas, top populares e catálogo completo com dados Jikan e AniList.',
@@ -19,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-[#0B0B0F] text-white min-h-screen flex flex-col antialiased selection:bg-[#FF6B00] selection:text-white" suppressHydrationWarning>
         <QueryProvider>
           <SetupGuard />
+          <BroadcastBanner />
           <Navbar />
           <OfflineStatusBanner />
           <PwaRegister />

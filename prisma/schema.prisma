@@ -17,10 +17,14 @@ model Anime {
   originalTitle   String?
   slug            String   @unique
   description     String?
+  synopsis        String?
   posterUrl       String?
-  bannerUrl       String?
+  backdropUrl     String?
+  rating          Float?   @default(8.0)
+  year            Int?
   releaseYear     Int?
   status          String?
+  genres          String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -63,15 +67,19 @@ model Episode {
   number          Float
   title           String?
   description     String?
+  overview        String?
   thumbnailUrl    String?
   durationSeconds Int?
   airedAt         DateTime?
+  publishedAt     DateTime?
 
   anime   Anime           @relation(fields: [animeId], references: [id], onDelete: Cascade)
   sources EpisodeSource[]
+  reports EpisodeReport[]
 
   @@unique([animeId, season, number])
   @@index([animeId, season])
+  @@index([publishedAt])
 }
 
 model EpisodeSource {
@@ -94,6 +102,7 @@ model EpisodeSource {
   lastStatus       Int?
   lastLatencyMs    Int?
   failureCount     Int             @default(0)
+  trafficBytes     BigInt          @default(0)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   subtitles        SubtitleTrack[]
@@ -150,4 +159,90 @@ model AdminSession {
 
   @@index([token])
   @@index([userId])
+}
+
+model SystemAnnouncement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  type        String   @default("INFO") // INFO, WARNING, SUCCESS
+  active      Boolean  @default(true)
+  targetGroup String?  @default("all")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EpisodeReport {
+  id          String   @id @default(cuid())
+  episodeId   String
+  type        String   // NO_AUDIO, BROKEN_LINK, DESYNC_SUBTITLE, OTHER
+  description String?
+  status      String   @default("PENDING") // PENDING, IN_PROGRESS, RESOLVED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([episodeId])
+  @@index([status])
+}
+
+model ChangelogRelease {
+  id          String   @id @default(cuid())
+  version     String
+  title       String
+  content     String
+  type        String   @default("FEATURE") // FEATURE, FIX, IMPROVEMENT
+  releasedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WebhookConfig {
+  id        String   @id @default(cuid())
+  platform  String   // DISCORD, TELEGRAM
+  name      String
+  url       String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model MediaProvider {
+  id               String    @id @default(cuid())
+  name             String
+  type             String    @default("M3U") // M3U, JSON, API
+  url              String
+  priority         Int       @default(100)
+  enabled          Boolean   @default(true)
+  autoIndex        Boolean   @default(true)
+  headersEncrypted String?
+  lastTestedAt     DateTime?
+  lastStatus       Int?
+  lastLatencyMs    Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([enabled])
+  @@index([priority])
+}
+
+model AutoIndexerQueue {
+  id              String   @id @default(cuid())
+  providerId      String
+  animeTitle      String
+  detectedEpisode Float    @default(1)
+  metadataJson    String?
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
 }

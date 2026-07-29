@@ -10,6 +10,13 @@ declare module '@prisma/client' {
     providerHealthLog: any;
     adminSession: any;
     adminUser: any;
+    systemAnnouncement: any;
+    episodeReport: any;
+    changelogRelease: any;
+    webhookConfig: any;
+    systemSetting: any;
+    mediaProvider: any;
+    autoIndexerQueue: any;
     $queryRaw: any;
     $connect(): Promise<void>;
     $disconnect(): Promise<void>;

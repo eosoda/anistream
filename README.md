@@ -35,6 +35,35 @@
 
 ---
 
+## 🛠️ Suíte Administrativa & Recursos Avançados
+
+### 🤖 Robô de Auto-Indexação (*Autopilot Indexer*)
+- **Modo Automático (ON)**: Varredura de provedores em segundo plano buscando metadados oficiais (Jikan/AniList) e auto-criação de animes/episódios no PostgreSQL.
+- **Modo Manual / Fila (OFF)**: Varredura com geração de uma fila de **"Animes Encontrados para Revisão"** no admin para aprovação com 1 clique.
+
+### 📡 Provedores de Mídia Configuráveis & Teste ao Vivo (`/setup` e `/admin/sources`)
+- Cadastro dinâmico de fontes M3U, JSON e APIs REST com prioridades, headers e flags de ativador.
+- **Testador de Conexão Ao Vivo**: Teste HTTP com diagnóstico de status e latência em milissegundos.
+
+### 📢 Notificações em Lote (*Broadcast System*)
+- Envio de alertas globais, avisos informativos e comunicados exibidos no banner superior do site.
+
+### ✂️ Editor Visual de Capas e Posters (*Crop Editor*)
+- Ferramenta de ajuste e recorte visual interativo para proporções 3:4 (Pôster) e 16:9 (Banner).
+
+### 🔗 Detector de Links Quebrados (*Dead Link Finder*)
+- Robô de varredura que desativa automaticamente fontes com 3 falhas consecutivas e alerta no painel.
+
+### 💾 Backup e Restauração (Dump JSON)
+- Exportação completa do banco de dados em JSON em 1 clique e restauração com suporte a *upsert*.
+
+### 🚨 Reports de Erro pelo Usuário & Suporte
+- Botão "Reportar Erro" no player de vídeo e fila de suporte no painel admin para resolução rápida.
+
+### 🛠️ Modo Manutenção Agendado & Página de Changelog (`/changelog`)
+- Bloqueio de acessos públicos durante atualizações (`/manutencao`) e linha do tempo de notas de versão em `/changelog`.
+
+
 ## 🐳 Execução via Docker Compose (Recomendado)
 
 Suba toda a infraestrutura (PostgreSQL 16, Redis 7 e AniStream Web) com um único comando:

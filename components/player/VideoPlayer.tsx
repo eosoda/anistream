@@ -30,11 +30,13 @@ import {
   FastForward,
   Moon,
   Sun,
+  AlertTriangle,
 } from 'lucide-react';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { useToast } from '@/context/ToastContext';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { ReportProblemModal } from '@/components/player/ReportProblemModal';
 
 interface VideoPlayerProps {
   animeId: number;
@@ -142,6 +144,7 @@ export function VideoPlayer({
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Picture-in-Picture event listeners
   useEffect(() => {
@@ -1017,6 +1020,17 @@ export function VideoPlayer({
                 )}
               </div>
 
+              {/* Report Problem Button */}
+              <Tooltip content="Reportar problema neste vídeo" position="top">
+                <button
+                  onClick={() => setIsReportModalOpen(true)}
+                  className="p-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 transition-all flex items-center gap-1"
+                  title="Reportar problema"
+                >
+                  <AlertTriangle size={13} />
+                </button>
+              </Tooltip>
+
               {/* Skip Intro Button */}
               <Tooltip content="Pular Abertura (+85s) (Teclas S)" position="top">
                 <button
@@ -1127,6 +1141,12 @@ export function VideoPlayer({
           </div>
         </div>
       </div>
+      {/* Modal de Report de Erros */}
+      <ReportProblemModal
+        episodeId={String(animeId)}
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+      />
     </div>
   );
 }

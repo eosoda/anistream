@@ -34,6 +34,11 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const safeRecentSources = recentSources.map((src: any) => ({
+      ...src,
+      trafficBytes: Number(src.trafficBytes || 0),
+    }));
+
     // Calcular estatísticas dos provedores
     const providerStats = [
       {
@@ -70,7 +75,7 @@ export async function GET(request: NextRequest) {
       },
       providerStats,
       healthLogs,
-      recentSources,
+      recentSources: safeRecentSources,
     });
   } catch (err: any) {
     return NextResponse.json(
