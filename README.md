@@ -63,6 +63,32 @@
 ### 🛠️ Modo Manutenção Agendado & Página de Changelog (`/changelog`)
 - Bloqueio de acessos públicos durante atualizações (`/manutencao`) e linha do tempo de notas de versão em `/changelog`.
 
+---
+
+## 🧪 Testes Automatizados & Scripts de Validação
+
+O AniStream conta com uma suíte completa de testes unitários integrados ao **Vitest** e um script de diagnóstico pré-deploy da infraestrutura Docker:
+
+```bash
+# Executar suíte de testes unitários (Crypto, Zod Schemas, SSRF, M3U, Title Normalizer)
+npm run test
+
+# Executar testes em modo interativo (Watch Mode)
+npm run test:watch
+
+# Gerar relatório de cobertura de código
+npm run test:coverage
+
+# Executar diagnóstico pré-deploy da infraestrutura Docker (Dockerfile, Compose, Prisma, Standalone)
+npm run test:docker
+
+# Comando Único Pré-Deploy (Testes Unitários + Diagnóstico Docker + Build Next.js)
+npm run pre-deploy
+```
+
+Mais detalhes na documentação dedicada: [10-TESTES-E-SCRIPTS.md](file:///c:/Users/sodinha/Documents/projetos/anistream/docs/10-TESTES-E-SCRIPTS.md).
+
+
 
 ## 🐳 Execução via Docker Compose (Recomendado)
 
