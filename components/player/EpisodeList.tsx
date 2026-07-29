@@ -39,7 +39,7 @@ export function EpisodeList({
   const [activeRange, setActiveRange] = useState(0); // index of range chunk (50 episodes per range)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
-  const CHUNK_SIZE = 50;
+  const CHUNK_SIZE = 25;
   const numChunks = Math.ceil(effectiveEpisodes.length / CHUNK_SIZE);
 
   const rangeFilteredEpisodes =

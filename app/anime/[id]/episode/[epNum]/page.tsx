@@ -145,14 +145,20 @@ export default function EpisodePlayerPage({
         }}
       />
 
-      {/* Episode selector list with watch progress badges */}
-      <div className="space-y-4 pt-4">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <List size={20} className="text-[#FF6B00]" />
-          Outros episódios desta temporada
-        </h3>
+      {/* Episode Carousel below player for binge-watching */}
+      <div className="space-y-4 pt-4 border-t border-white/10">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <List size={20} className="text-[#FF6B00]" />
+            <span>Episódios desta temporada</span>
+          </h3>
+          <span className="text-xs text-gray-400 font-semibold">
+            {episodes?.length || 0} episódios disponíveis
+          </span>
+        </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+        {/* Sliding Episode Row */}
+        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 select-none">
           {episodes?.map((ep, index) => {
             const isCurrent = ep.mal_id === epNum;
             const progress = progressMap[`${animeId}_ep_${ep.mal_id}`];
@@ -161,24 +167,62 @@ export default function EpisodePlayerPage({
               <Link
                 key={`${ep.mal_id}-${index}`}
                 href={`/anime/${animeId}/episode/${ep.mal_id}`}
-                className={`relative p-3 rounded-xl text-center font-bold text-xs border transition-all overflow-hidden ${
+                className={`relative flex-shrink-0 w-44 sm:w-52 p-3 rounded-2xl border transition-all overflow-hidden space-y-2 ${
                   isCurrent
-                    ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-lg shadow-[#FF6B00]/40'
+                    ? 'bg-[#FF6B00]/20 border-[#FF6B00] ring-2 ring-[#FF6B00]/40 shadow-xl shadow-[#FF6B00]/20'
                     : 'glass-panel hover:bg-white/10 text-gray-300 border-white/10'
                 }`}
               >
-                <div className="flex items-center justify-center gap-1">
-                  <span>EP {ep.mal_id}</span>
+                {/* Poster Preview / Thumbnail Header */}
+                <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-neutral-900 border border-white/10">
+                  {posterUrl ? (
+                    <img
+                      src={posterUrl}
+                      alt={ep.title || `Episódio ${ep.mal_id}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-neutral-800 text-gray-500 font-bold text-xs">
+                      EP {ep.mal_id}
+                    </div>
+                  )}
+
+                  {isCurrent && (
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-[#FF6B00] text-white font-black text-[10px] shadow-md flex items-center gap-1 uppercase tracking-wider">
+                      <Clock size={10} />
+                      <span>Assistindo</span>
+                    </div>
+                  )}
+
                   {progress?.completed && (
-                    <CheckCircle2 size={12} className={isCurrent ? 'text-white' : 'text-[#FF6B00]'} />
+                    <div className="absolute top-2 right-2 p-1 rounded-full bg-emerald-500 text-black shadow-md">
+                      <CheckCircle2 size={12} />
+                    </div>
                   )}
                 </div>
 
-                {/* Progress bar at bottom of tile if in progress */}
+                {/* Title & Info */}
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-black ${isCurrent ? 'text-[#FF6B00]' : 'text-white'}`}>
+                      EP {ep.mal_id}
+                    </span>
+                    {progress && !progress.completed && progress.percentage > 0 && (
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        {progress.percentage}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-300 truncate font-semibold mt-0.5">
+                    {ep.title || `Episódio ${ep.mal_id}`}
+                  </p>
+                </div>
+
+                {/* Bottom Watch Progress Line */}
                 {progress && !progress.completed && progress.percentage > 0 && (
-                  <div className="absolute inset-x-0 bottom-0 h-1 bg-white/20">
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className={`h-full ${isCurrent ? 'bg-white' : 'bg-[#FF6B00]'}`}
+                      className={`h-full ${isCurrent ? 'bg-[#FF6B00]' : 'bg-white/80'}`}
                       style={{ width: `${progress.percentage}%` }}
                     />
                   </div>

@@ -9,6 +9,7 @@ import { BannerHero } from '@/components/home/BannerHero';
 import { AnimeCarousel } from '@/components/anime/AnimeCarousel';
 import { ContinueWatchingSection } from '@/components/home/ContinueWatchingSection';
 import { JikanAnime } from '@/types/anime';
+import { filterAnimeByAudio } from '@/utils/audioFilter';
 
 export default function HomePage() {
   // 1. Temporada Atual (Season Now)
@@ -61,6 +62,23 @@ export default function HomePage() {
     enabled: !!seasonNowData?.data,
   });
 
+  const [activeFilter, setActiveFilter] = React.useState<'all' | 'dubbed' | 'subbed' | 'trending'>('all');
+
+  const filterAnimes = (animes: JikanAnime[]) => {
+    if (!animes) return [];
+    if (activeFilter === 'all') return animes;
+    if (activeFilter === 'dubbed') {
+      return filterAnimeByAudio(animes, 'dubbed_pt');
+    }
+    if (activeFilter === 'subbed') {
+      return filterAnimeByAudio(animes, 'subbed_pt');
+    }
+    if (activeFilter === 'trending') {
+      return animes.filter((a) => (a.score || 0) >= 7.8 || (a.popularity || 9999) < 500);
+    }
+    return animes;
+  };
+
   return (
     <div className="w-full space-y-4 pb-12">
       {/* Hero Banner Section */}
@@ -71,6 +89,31 @@ export default function HomePage() {
 
       {/* Main Content Sections */}
       <div id="main-content" className="max-w-7xl mx-auto px-2 space-y-8 scroll-mt-20 md:scroll-mt-24">
+        {/* Quick Multi-Filter Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 border-b border-white/10 pb-4">
+          {[
+            { id: 'all', label: '✨ Todos os Animes' },
+            { id: 'dubbed', label: '🎙️ Dublados' },
+            { id: 'subbed', label: '🇯🇵 Legendados' },
+            { id: 'trending', label: '🔥 Em Alta (Nota 8+)' },
+          ].map((filter) => {
+            const isActive = activeFilter === filter.id;
+            return (
+              <button
+                key={filter.id}
+                onClick={() => setActiveFilter(filter.id as any)}
+                className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-1.5 whitespace-nowrap border ${
+                  isActive
+                    ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-lg shadow-[#FF6B00]/40 scale-105'
+                    : 'glass-panel hover:bg-white/10 text-gray-300 border-white/10'
+                }`}
+              >
+                <span>{filter.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Continue Watching Section */}
         <ContinueWatchingSection />
 
@@ -79,7 +122,7 @@ export default function HomePage() {
           title="Em Alta"
           subtitle="Os animes mais comentados e assistidos do momento"
           icon={<Flame size={22} className="text-[#FF6B00]" />}
-          animes={trendingData?.data || []}
+          animes={filterAnimes(trendingData?.data || [])}
           isLoading={isLoadingTrending}
           viewAllHref="/populares"
         />
@@ -89,7 +132,7 @@ export default function HomePage() {
           title="Temporada Atual"
           subtitle="Episódios semanais sendo exibidos agora no Japão"
           icon={<Calendar size={22} className="text-[#FF6B00]" />}
-          animes={seasonNowData?.data || []}
+          animes={filterAnimes(seasonNowData?.data || [])}
           isLoading={isLoadingSeasonNow}
           viewAllHref="/temporadas"
         />
@@ -99,7 +142,7 @@ export default function HomePage() {
           title="Mais Populares"
           subtitle="Os clássicos e grandes sucessos aclamados pela comunidade"
           icon={<TrendingUp size={22} className="text-[#FF6B00]" />}
-          animes={topAnimeData?.data || []}
+          animes={filterAnimes(topAnimeData?.data || [])}
           isLoading={isLoadingTop}
           viewAllHref="/populares"
         />
@@ -109,17 +152,17 @@ export default function HomePage() {
           title="Mais Bem Avaliados"
           subtitle="Títulos com as maiores notas e qualificações de fãs"
           icon={<Star size={22} className="text-[#FF6B00]" />}
-          animes={topFavoriteData?.data || []}
+          animes={filterAnimes(topFavoriteData?.data || [])}
           isLoading={isLoadingFavorite}
           viewAllHref="/populares"
         />
 
-        {/* Section 6: Recomendações em Destaque */}
+        {/* Section 5: Recomendações em Destaque */}
         <AnimeCarousel
           title="Recomendações Imperdíveis"
           subtitle="Seleção especial recomendada pela comunidade otaku"
           icon={<Compass size={22} className="text-[#FF6B00]" />}
-          animes={seasonNowData?.data?.slice(5, 20) || []}
+          animes={filterAnimes(seasonNowData?.data?.slice(5, 20) || [])}
           isLoading={isLoadingSeasonNow}
         />
       </div>
