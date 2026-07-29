@@ -13,14 +13,19 @@ O utilitário [`utils/offlineCacheDB.ts`](file:///c:/Users/junin/Documents/proje
 
 ### Object Stores (Tabelas)
 
-1. **`catalog`** (KeyPath: `cacheKey`)
+1. **`catalog`** (KeyPath: `key`)
    - Armazena listas de busca, temporais e rankings populares.
-   - Campos: `cacheKey`, `data`, `updatedAt`.
-2. **`animes`** (KeyPath: `id`)
+   - Campos: `key`, `data`, `updatedAt`.
+2. **`favorites`** (KeyPath: `mal_id`)
+   - Armazena lista de animes favoritados para acesso instantâneo offline.
+3. **`anime_details`** (KeyPath: `mal_id`)
    - Armazena metadados detalhados de cada anime individual visualizado.
-   - Campos: `id`, `title`, `synopsis`, `images`, `updatedAt`.
+4. **`episodes`** (KeyPath: `animeId`)
+   - Armazena a lista de episódios indexados por anime.
 
----
+### 🛡️ Resiliência: Fallback Transparente em Memória (`memoryCacheMap`)
+Caso o navegador esteja rodando em **Modo Anônimo / Privado** (onde a abertura do IndexedDB pode ser bloqueada) ou com quota de disco excedida (`QuotaExceededError`), o utilitário intercepta o erro via `try...catch` e redireciona a persistência transparente para um `Map` em memória (`memoryCacheMap`). Isso garante zero travamentos na aplicação.
+
 
 ## 🔄 Fluxo de Resolução de Dados (Online vs Offline)
 

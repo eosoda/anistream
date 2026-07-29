@@ -29,6 +29,11 @@ O player de vídeo do AniStream ([`src/components/VideoPlayer.tsx`](file:///c:/U
 ### 6. Autoplay e Contagem Regressiva para Próximo Episódio
 - Exibe modal com contagem de 5 segundos no final do vídeo com opção de cancelar ou avançar imediatamente.
 
+### 7. Resiliência no Proxy SSRF & Troca Automática de Servidor
+- **Proxy SSRF (`/api/streams/proxy/[sourceId]`)**: Função `fetchUpstreamWithRetry()` com 2 retentativas automáticas e backoff exponencial (100ms, 300ms) quando o servidor de vídeo de origem responder com status 502/503/504 ou timeout.
+- **Alternância Automática no Player**: Ao detectar falha no carregamento do stream (`onError`), o player alterna automaticamente para o servidor espelho seguinte e exibe um aviso toast: *"Servidor Instável. Alternando automaticamente para o servidor espelho..."*.
+
+
 ---
 
 ## ⌨️ Tabela de Atalhos de Teclado

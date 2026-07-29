@@ -50,3 +50,6 @@ async function throttleRequest<T>(requestFn: () => Promise<T>): Promise<T> {
 
 1. **React Query Caching**: As requisições são mantidas em cache na memória do navegador pelo `@tanstack/react-query` com `staleTime` de 5 a 15 minutos, evitando chamadas repetidas ao navegar entre páginas.
 2. **IndexedDB Fallback**: Se uma requisição à API falhar ou a internet do usuário cair, o serviço consulta o catálogo local no IndexedDB antes de retornar erro.
+3. **Pacing no Robô Autopilot**: A API de auto-indexação ([`app/api/admin/autopilot/route.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/app/api/admin/autopilot/route.ts)) insere um intervalo mínimo de `1000ms` entre requisições em lote à API Jikan v4 e executa retentativa com backoff de `2000ms` em respostas HTTP 429.
+4. **Validação Estrita Zod (`schemas/admin.ts`)**: Validação e sanitização estrita de dados nas APIs administrativas de Broadcast (`CreateAnnouncementSchema`), Webhooks (`CreateWebhookSchema`), Manutenção (`MaintenanceSettingSchema`) e Releases (`CreateReleaseSchema`).
+
