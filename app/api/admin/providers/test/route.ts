@@ -25,21 +25,26 @@ export async function POST(req: Request) {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
+      // Se for uma API ou Embed externo, testar via GET com User-Agent e Accept adequado
       const res = await fetch(targetUrl, {
-        method: 'HEAD',
+        method: targetUrl.includes('api') || targetUrl.includes('koyeb') ? 'GET' : 'HEAD',
         signal: controller.signal,
-        headers: { 'User-Agent': 'AniStream-ProviderTester/1.0' },
+        headers: {
+          'User-Agent': 'AniStream-ProviderTester/1.0',
+          Accept: 'application/json, text/html, */*',
+        },
+        cache: 'no-store',
       });
 
       clearTimeout(timeoutId);
       status = res.status;
-      ok = res.ok || res.status === 200 || res.status === 206 || res.status === 302;
+      ok = res.ok || res.status === 200 || res.status === 206 || res.status === 302 || res.status === 301;
     } catch (err: any) {
       ok = false;
       status = 504;
-      errorMsg = err.message || 'Timeout de conexão excedido (4.5s)';
+      errorMsg = err.message || 'Timeout de conexão excedido (6s)';
     }
 
     const latencyMs = Date.now() - startTime;

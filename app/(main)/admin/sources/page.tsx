@@ -347,7 +347,8 @@ export default function AdminSourcesPage() {
                 >
                   <option value="M3U">Playlist M3U / M3U8</option>
                   <option value="JSON">Catálogo JSON</option>
-                  <option value="API">API REST Externa</option>
+                  <option value="EXTERNAL_API">API REST Externa</option>
+                  <option value="EMBED">Player iFrame / Embed</option>
                 </select>
               </div>
 

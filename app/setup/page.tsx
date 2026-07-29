@@ -295,7 +295,7 @@ Hosts de Mídia     : ${mediaHosts}
 
   if (checkingStatus) {
     return (
-      <div className="min-h-screen bg-[#0B0B0F] text-white flex flex-col items-center justify-center gap-3">
+      <div className="py-20 text-white flex flex-col items-center justify-center gap-3">
         <Loader2 size={36} className="text-[#FF6B00] animate-spin" />
         <p className="text-xs font-bold text-gray-400">Verificando status do sistema...</p>
       </div>
@@ -303,7 +303,7 @@ Hosts de Mídia     : ${mediaHosts}
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F] text-white flex items-center justify-center p-4 sm:p-8">
+    <div className="w-full flex items-center justify-center py-4 sm:py-6">
       <div className="w-full max-w-2xl p-8 rounded-3xl bg-white/5 border border-white/10 glass-panel shadow-2xl space-y-8 relative overflow-hidden">
         {/* Header com Progresso */}
         <div className="space-y-4 text-center">
@@ -831,7 +831,7 @@ export default function SetupWizardPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="min-h-screen bg-[#0B0B0F] text-white flex flex-col items-center justify-center gap-3">
+        <div className="py-20 text-white flex flex-col items-center justify-center gap-3">
           <Loader2 size={36} className="text-[#FF6B00] animate-spin" />
           <p className="text-xs font-bold text-gray-400">Carregando assistente de instalação...</p>
         </div>

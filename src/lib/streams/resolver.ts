@@ -10,6 +10,8 @@ import {
 } from './types';
 import { validateStreamSource } from './validator';
 
+import { ExternalApisProvider } from '../providers/external-apis.provider';
+
 export class StreamResolver {
   private providers: AnimeProvider[] = [];
 
@@ -19,6 +21,7 @@ export class StreamResolver {
     } else {
       // Registrar provedores padrão autorizados
       this.providers = [
+        new ExternalApisProvider(),
         new LocalDatabaseProvider(),
         new ConfiguredJsonProvider(),
         new AuthorizedM3uProvider(),

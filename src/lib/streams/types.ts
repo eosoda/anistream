@@ -5,7 +5,7 @@ export type AudioLanguage =
   | 'es'
   | 'unknown';
 
-export type StreamType = 'hls' | 'mp4' | 'dash';
+export type StreamType = 'hls' | 'mp4' | 'dash' | 'embed';
 
 export type SubtitleFormat = 'vtt' | 'srt' | 'ass';
 
