@@ -14,7 +14,7 @@ import {
   Clock,
   FileCode,
 } from 'lucide-react';
-import { VideoPlayer } from '@/components/VideoPlayer';
+import { VideoPlayer } from '@/components/player/VideoPlayer';
 
 export default function AdminStreamTesterPage() {
   const [url, setUrl] = useState('');

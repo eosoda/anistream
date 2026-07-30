@@ -34,7 +34,13 @@ import { SafeImage } from '@/components/ui/SafeImage';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ReportProblemModal } from '@/components/player/ReportProblemModal';
 
-interface ResolvedSubTrack {
+export interface SubtitleTrack {
+  src: string;
+  label: string;
+  language: string;
+}
+
+export interface ResolvedSubTrack {
   id: string;
   language: string;
   label: string;
@@ -61,13 +67,14 @@ interface ResolvedStream {
   alternatives?: ResolvedAlternative[];
 }
 
-interface VideoPlayerProps {
-  animeId: number;
-  animeTitle: string;
+export interface VideoPlayerProps {
+  animeId?: number;
+  animeTitle?: string;
   animeImage?: string;
-  episodeNum: number;
+  episodeNum?: number;
   episodeTitle?: string;
   nextEpNum?: number | null;
+  playbackUrl?: string;
   resolvedStream?: ResolvedStream | null;
   streamStatusMessage?: string | null;
   onNextEpisode?: () => void;
@@ -81,12 +88,13 @@ const AUDIO_LANGUAGES = [
 ];
 
 export function VideoPlayer({
-  animeId,
-  animeTitle,
+  animeId = 0,
+  animeTitle = '',
   animeImage,
-  episodeNum,
+  episodeNum = 1,
   episodeTitle,
   nextEpNum,
+  playbackUrl,
   resolvedStream,
   streamStatusMessage,
   onNextEpisode,
@@ -100,20 +108,22 @@ export function VideoPlayer({
   const { showToast } = useToast();
   const prefetchedRef = useRef<boolean>(false);
 
-  // Construir a lista de servidores combinando resolvedStream e alternativas
+  // Construir a lista de servidores combinando resolvedStream/playbackUrl e alternativas
   const serverList = React.useMemo(() => {
-    if (resolvedStream?.playbackUrl) {
+    const effectiveStream = resolvedStream || (playbackUrl ? { playbackUrl, provider: 'Fonte de Teste', type: playbackUrl.includes('.m3u8') ? 'hls' : 'mp4' } : null);
+
+    if (effectiveStream?.playbackUrl) {
       const mainServer = {
         id: 'main-stream',
-        name: `${resolvedStream.provider || 'Fonte 1'} (${resolvedStream.quality || 'Auto'})`,
-        type: resolvedStream.type || 'hls',
-        src: resolvedStream.playbackUrl,
+        name: `${effectiveStream.provider || 'Fonte 1'} (${effectiveStream.quality || 'Auto'})`,
+        type: effectiveStream.type || 'hls',
+        src: effectiveStream.playbackUrl,
       };
 
-      const altServers = (resolvedStream.alternatives || []).map((alt, idx) => ({
+      const altServers = (effectiveStream.alternatives || []).map((alt, idx) => ({
         id: alt.sourceId || `alt-${idx}`,
         name: `${alt.provider || 'Fonte ' + (idx + 2)} (${alt.quality || 'Auto'})`,
-        type: alt.type || resolvedStream.type || 'hls',
+        type: alt.type || effectiveStream.type || 'hls',
         src: alt.playbackUrl,
       }));
 
@@ -121,7 +131,7 @@ export function VideoPlayer({
     }
 
     return [];
-  }, [resolvedStream]);
+  }, [resolvedStream, playbackUrl]);
 
   const [activeServer, setActiveServer] = useState(serverList[0]);
 
@@ -175,6 +185,10 @@ export function VideoPlayer({
 
   // Fallback automático com auditoria de erros e prevenção de loops infinitos de retentativa
   const handleVideoError = useCallback((customReason?: string) => {
+    if (!serverList || serverList.length <= 1) {
+      return;
+    }
+
     const errCode = videoRef.current?.error?.code;
     let errorDetail = customReason || 'Servidor instável ou inacessível';
 
@@ -189,7 +203,7 @@ export function VideoPlayer({
 
     const unfailedServer = serverList.find((s) => !failedServerIdsRef.current.has(s.id));
 
-    if (unfailedServer) {
+    if (unfailedServer && unfailedServer.id !== activeServer?.id) {
       setActiveServer(unfailedServer);
       showToast({
         type: 'warning',

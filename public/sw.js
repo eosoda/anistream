@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anistream-v2';
+const CACHE_NAME = 'anistream-v4';
 const STATIC_ASSETS = [
   '/',
   '/offline.html',
