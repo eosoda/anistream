@@ -15,6 +15,7 @@ import {
   Tv,
 } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { jikanService } from '@/services/jikan';
@@ -86,8 +87,10 @@ export function FloatingRecommendationsWidget() {
     return recommendedData.data.filter((anime) => !userAnimeIds.has(anime.mal_id)).slice(0, 10);
   }, [recommendedData, userAnimeIds]);
 
-  // Don't render floating icon if user globally disabled recommendations in Favorites settings OR dismissed it
-  if (!recommendationsEnabled || isDismissed) {
+  const pathname = usePathname();
+
+  // Don't render floating icon if user globally disabled recommendations in Favorites settings, dismissed it, or on /setup /admin routes
+  if (!recommendationsEnabled || isDismissed || pathname?.startsWith('/setup') || pathname?.startsWith('/admin')) {
     return null;
   }
 
