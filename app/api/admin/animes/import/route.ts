@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { normalizeAnimeTitle } from '@/lib/anime/normalize-title';
+import { searchAnimeMetadata } from '@/lib/anime/metadata-fetcher';
 import { defaultStreamResolver } from '@/lib/streams/resolver';
 
 export async function POST(request: NextRequest) {
@@ -19,59 +20,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let targetMalId = malId;
-    let animeInfo: any = null;
+    let meta: any = null;
 
-    // 1. Buscar metadados no Jikan por malId ou busca por título
-    if (targetMalId) {
-      const res = await fetch(`https://api.jikan.moe/v4/anime/${targetMalId}`, {
-        headers: { 'User-Agent': 'AniStream-AdminImport/1.0' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        animeInfo = data.data;
+    // 1. Buscar metadados resilientes via AniList/Jikan/Kitsu
+    const searchTerms = title || (malId ? `mal:${malId}` : '');
+    const metaList = await searchAnimeMetadata(searchTerms);
+
+    if (metaList.length > 0) {
+      meta = malId ? metaList.find((m) => m.malId === malId) || metaList[0] : metaList[0];
+    }
+
+    // Se ainda não encontrou e malId foi informado, tentar Jikan direto com timeout
+    if (!meta && malId) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch(`https://api.jikan.moe/v4/anime/${malId}`, {
+          headers: { 'User-Agent': 'AniStream-AdminImport/1.0' },
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (res.ok) {
+          const data = await res.json();
+          const item = data.data;
+          if (item) {
+            const mainTitle = item.title_english || item.title || 'Anime Sem Título';
+            meta = {
+              malId: item.mal_id,
+              title: mainTitle,
+              originalTitle: item.title_japanese || item.title,
+              normalizedTitle: normalizeAnimeTitle(mainTitle),
+              slug: mainTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `anime-${item.mal_id}`,
+              posterUrl: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url,
+              bannerUrl: item.images?.jpg?.large_image_url,
+              releaseYear: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : new Date().getFullYear()),
+              status: item.status === 'Currently Airing' ? 'Em Lançamento' : 'Concluído',
+              description: item.synopsis || 'Sem sinopse.',
+              episodesCount: item.episodes || 12,
+              rating: item.score || 8.0,
+            };
+          }
+        }
+      } catch (e) {
+        // Ignorar timeout
       }
     }
 
-    if (!animeInfo && title) {
-      const res = await fetch(
-        `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1`,
-        { headers: { 'User-Agent': 'AniStream-AdminImport/1.0' } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        animeInfo = data.data?.[0];
-        targetMalId = animeInfo?.mal_id;
-      }
-    }
-
-    if (!animeInfo) {
+    if (!meta) {
       return NextResponse.json(
-        { error: 'Anime não encontrado nas bases do MyAnimeList / Jikan' },
+        { error: 'Anime não encontrado nas bases (AniList / Jikan / Kitsu)' },
         { status: 404 }
       );
     }
 
     // 2. Extrair e higienizar campos do anime
-    const mainTitle = animeInfo.title_english || animeInfo.title || 'Anime Sem Título';
-    const normTitle = normalizeAnimeTitle(mainTitle);
-    const slug =
-      mainTitle
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || `anime-${animeInfo.mal_id}`;
-
-    const posterUrl =
-      animeInfo.images?.jpg?.large_image_url ||
-      animeInfo.images?.jpg?.image_url ||
-      null;
-
-    const backdropUrl =
-      animeInfo.images?.jpg?.large_image_url || posterUrl;
-
-    const genresList = (animeInfo.genres || [])
-      .map((g: any) => g.name)
-      .join(', ');
+    const mainTitle = meta.title;
+    const normTitle = meta.normalizedTitle || normalizeAnimeTitle(mainTitle);
+    const slug = meta.slug || mainTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
     // 3. Persistir Anime na tabela PostgreSQL
     const anime = await prisma.anime.upsert({
@@ -79,35 +84,36 @@ export async function POST(request: NextRequest) {
       update: {
         title: mainTitle,
         normalizedTitle: normTitle,
-        originalTitle: animeInfo.title_japanese || animeInfo.title,
-        description: animeInfo.synopsis || 'Sem sinopse disponível.',
-        synopsis: animeInfo.synopsis || 'Sem sinopse disponível.',
-        posterUrl,
-        backdropUrl,
-        rating: animeInfo.score || 8.0,
-        year: animeInfo.year || (animeInfo.aired?.from ? new Date(animeInfo.aired.from).getFullYear() : new Date().getFullYear()),
-        releaseYear: animeInfo.year || (animeInfo.aired?.from ? new Date(animeInfo.aired.from).getFullYear() : new Date().getFullYear()),
-        status: animeInfo.status === 'Currently Airing' ? 'Em Lançamento' : 'Concluído',
-        genres: genresList,
+        originalTitle: meta.originalTitle || mainTitle,
+        description: meta.description || 'Sem sinopse disponível.',
+        synopsis: meta.description || 'Sem sinopse disponível.',
+        posterUrl: meta.posterUrl || null,
+        backdropUrl: meta.bannerUrl || meta.posterUrl || null,
+        rating: meta.rating || 8.0,
+        year: meta.releaseYear || new Date().getFullYear(),
+        releaseYear: meta.releaseYear || new Date().getFullYear(),
+        status: meta.status || 'Em Lançamento',
+        genres: meta.genres || '',
       },
       create: {
         title: mainTitle,
         normalizedTitle: normTitle,
-        originalTitle: animeInfo.title_japanese || animeInfo.title,
+        originalTitle: meta.originalTitle || mainTitle,
         slug,
-        description: animeInfo.synopsis || 'Sem sinopse disponível.',
-        synopsis: animeInfo.synopsis || 'Sem sinopse disponível.',
-        posterUrl,
-        backdropUrl,
-        rating: animeInfo.score || 8.0,
-        year: animeInfo.year || (animeInfo.aired?.from ? new Date(animeInfo.aired.from).getFullYear() : new Date().getFullYear()),
-        releaseYear: animeInfo.year || (animeInfo.aired?.from ? new Date(animeInfo.aired.from).getFullYear() : new Date().getFullYear()),
-        status: animeInfo.status === 'Currently Airing' ? 'Em Lançamento' : 'Concluído',
-        genres: genresList,
+        description: meta.description || 'Sem sinopse disponível.',
+        synopsis: meta.description || 'Sem sinopse disponível.',
+        posterUrl: meta.posterUrl || null,
+        backdropUrl: meta.bannerUrl || meta.posterUrl || null,
+        rating: meta.rating || 8.0,
+        year: meta.releaseYear || new Date().getFullYear(),
+        releaseYear: meta.releaseYear || new Date().getFullYear(),
+        status: meta.status || 'Em Lançamento',
+        genres: meta.genres || '',
       },
     });
 
     // 4. Vincular AnimeIdentifier
+    const targetMalId = meta.malId || malId;
     if (targetMalId) {
       await prisma.animeIdentifier.upsert({
         where: {
@@ -125,8 +131,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 5. Buscar e Importar lista de Episódios
-    const totalEpisodesCount = animeInfo.episodes || 12;
+    // 5. Importar lista de episódios
+    const totalEpisodesCount = meta.episodesCount || 12;
     let importedEpisodesCount = 0;
     let createdSourcesCount = 0;
 
@@ -134,9 +140,13 @@ export async function POST(request: NextRequest) {
 
     if (targetMalId) {
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3500);
         const epRes = await fetch(`https://api.jikan.moe/v4/anime/${targetMalId}/episodes`, {
           headers: { 'User-Agent': 'AniStream-AdminImport/1.0' },
+          signal: controller.signal,
         });
+        clearTimeout(timeout);
         if (epRes.ok) {
           const epData = await epRes.json();
           if (Array.isArray(epData.data) && epData.data.length > 0) {
@@ -180,7 +190,7 @@ export async function POST(request: NextRequest) {
 
       importedEpisodesCount++;
 
-      // Tentar resolver fontes ativas dos provedores cadastrados para o episódio 1
+      // Resolver fonte ativa do episódio 1
       if (epItem.number === 1) {
         try {
           const resolution = await defaultStreamResolver.resolveEpisodeStream({
