@@ -2,21 +2,63 @@
 
 import React, { useEffect, useState } from 'react';
 import { Download, X } from 'lucide-react';
+import { useToast } from '@/context/ToastContext';
 
 export function PwaRegister() {
+  const { showToast } = useToast();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
 
   useEffect(() => {
-    // Registrar Service Worker
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then(() => console.log('PWA Service Worker registrado com sucesso'))
-        .catch((err) => console.log('Falha ao registrar Service Worker:', err));
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+      return;
     }
 
-    // Evento beforeinstallprompt
+    const triggerUpdateToast = () => {
+      showToast({
+        type: 'info',
+        title: 'Nova Atualização Disponível! 🚀',
+        message: 'Uma nova versão do AniStream está pronta. Clique aqui para recarregar a página agora.',
+        duration: 18000,
+        actionText: 'Clique aqui para Atualizar a Página',
+        onClick: () => {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistration().then((reg) => {
+              reg?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+            });
+          }
+          window.location.reload();
+        },
+      });
+    };
+
+    // Registrar Service Worker e monitorar atualizações
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        // 1. Se já houver um worker esperando ativação
+        if (registration.waiting) {
+          triggerUpdateToast();
+        }
+
+        // 2. Quando um novo worker for encontrado e baixado
+        registration.onupdatefound = () => {
+          const installingWorker = registration.installing;
+          if (installingWorker) {
+            installingWorker.onstatechange = () => {
+              if (
+                installingWorker.state === 'installed' &&
+                navigator.serviceWorker.controller
+              ) {
+                triggerUpdateToast();
+              }
+            };
+          }
+        };
+      })
+      .catch((err) => console.log('Falha ao registrar Service Worker:', err));
+
+    // Evento beforeinstallprompt para PWA
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -25,7 +67,7 @@ export function PwaRegister() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-  }, []);
+  }, [showToast]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;

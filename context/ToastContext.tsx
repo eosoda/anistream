@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Sparkles } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Sparkles, RefreshCw } from 'lucide-react';
 import { SafeImage } from '@/components/ui/SafeImage';
 
 export type ToastType = 'success' | 'info' | 'warning' | 'error';
@@ -14,6 +14,8 @@ export interface ToastItem {
   animeImage?: string;
   animeId?: number;
   duration?: number; // ms
+  onClick?: () => void;
+  actionText?: string;
 }
 
 interface ToastContextType {
@@ -37,7 +39,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
       setToasts((prev) => [...prev.slice(-4), newToast]); // keep max 5 toasts
 
-      const duration = toast.duration || 3500;
+      const duration = toast.duration || 4500;
       setTimeout(() => {
         removeToast(id);
       }, duration);
@@ -80,10 +82,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-live="polite"
       >
         {toasts.map((toast) => {
+          const isInteractive = Boolean(toast.onClick);
+
           return (
             <div
               key={toast.id}
+              onClick={() => {
+                if (toast.onClick) {
+                  toast.onClick();
+                  removeToast(toast.id);
+                }
+              }}
               className={`pointer-events-auto relative overflow-hidden rounded-2xl glass-panel p-3.5 shadow-2xl border transition-all duration-300 transform translate-y-0 animate-slide-up flex items-start gap-3 text-white ${
+                isInteractive ? 'cursor-pointer hover:scale-[1.02] hover:brightness-110 active:scale-[0.98]' : ''
+              } ${
                 toast.type === 'success'
                   ? 'bg-neutral-900/95 border-emerald-500/40 shadow-emerald-500/10'
                   : toast.type === 'error'
@@ -130,20 +142,29 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               )}
 
               {/* Toast Text Content */}
-              <div className="flex-1 min-w-0 pr-4">
+              <div className="flex-1 min-w-0 pr-4 space-y-1">
                 <h4 className="text-xs font-black text-white leading-snug truncate">
                   {toast.title}
                 </h4>
                 {toast.message && (
-                  <p className="text-[11px] text-gray-300 font-medium leading-tight mt-0.5 line-clamp-2">
+                  <p className="text-[11px] text-gray-300 font-medium leading-tight line-clamp-2">
                     {toast.message}
                   </p>
+                )}
+                {toast.actionText && (
+                  <div className="inline-flex items-center gap-1.5 pt-1 text-[10px] font-extrabold text-[#FF6B00] hover:underline">
+                    <RefreshCw size={11} className="animate-spin" />
+                    <span>{toast.actionText}</span>
+                  </div>
                 )}
               </div>
 
               {/* Dismiss button */}
               <button
-                onClick={() => removeToast(toast.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeToast(toast.id);
+                }}
                 className="absolute top-2.5 right-2.5 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
                 title="Fechar"
               >
@@ -162,7 +183,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                       ? 'bg-amber-400'
                       : 'bg-[#FF6B00]'
                   }`}
-                  style={{ animationDuration: `${toast.duration || 3500}ms` }}
+                  style={{ animationDuration: `${toast.duration || 4500}ms` }}
                 />
               </div>
             </div>
