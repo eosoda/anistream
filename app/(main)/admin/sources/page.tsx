@@ -367,7 +367,7 @@ export default function AdminSourcesPage() {
               <label className="block text-xs font-bold text-gray-300 mb-1">URL do Provedor / Playlist</label>
               <input
                 type="url"
-                placeholder="https://media.mydomain.com/playlists/main.m3u"
+                placeholder="https://seu-servidor.com/playlist.m3u ou https://api.provedor.com/v1"
                 value={newPropUrl}
                 onChange={(e) => setNewPropUrl(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"

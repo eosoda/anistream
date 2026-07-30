@@ -85,7 +85,7 @@ export default function AdminStreamTesterPage() {
             <input
               type="url"
               required
-              placeholder="https://media.mydomain.com/stream/master.m3u8"
+              placeholder="https://seu-servidor.com/stream/master.m3u8"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"

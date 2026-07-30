@@ -68,19 +68,22 @@ const DEFAULT_PROVIDERS = [
     enabled: true,
     autoIndex: false,
   },
-  {
-    name: 'Provedor M3U Principal Autorizado',
-    type: 'M3U',
-    url: 'https://media.mydomain.com/playlists/main-anistream.m3u',
-    priority: 20,
-    enabled: true,
-    autoIndex: true,
-  },
 ];
 
 // GET: Listar todos os provedores cadastrados (ou popular com padrões se necessário)
 export async function GET() {
   try {
+    // Remover provedores fictícios legados se existirem no banco de dados
+    await prisma.mediaProvider.deleteMany({
+      where: {
+        OR: [
+          { url: { contains: 'mydomain.com' } },
+          { url: { contains: 'exemplo.com' } },
+          { url: { contains: 'example.com' } },
+        ],
+      },
+    });
+
     let providers = await prisma.mediaProvider.findMany({
       orderBy: { priority: 'desc' },
     });

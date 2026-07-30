@@ -83,9 +83,7 @@ function SetupWizardForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [mediaHosts, setMediaHosts] = useState(
-    'media.mydomain.com, cdn.mydomain.com, s3.amazonaws.com'
-  );
+  const [mediaHosts, setMediaHosts] = useState('');
   const [m3uContent, setM3uContent] = useState('');
   const [m3uStats, setM3uStats] = useState<{ totalEntries: number; uniqueAnimes: number } | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -572,9 +570,10 @@ Hosts de Mídia     : ${mediaHosts}
                 <Globe size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input
                   type="text"
+                  placeholder="Ex: cdn.seudominio.com, media.seudominio.com (Opcional - Provedores ativos são autorizados automaticamente)"
                   value={mediaHosts}
                   onChange={(e) => setMediaHosts(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
                 />
               </div>
               <p className="text-[10px] text-gray-400 mt-1">

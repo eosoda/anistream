@@ -5,7 +5,7 @@ import { encryptData } from '@/lib/security/crypto';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { animeTitle, episodeNumber, providerName = 'auto-scraper-main' } = body;
+    const { animeTitle, episodeNumber, providerName = 'auto-scraper-main', sourceUrl } = body;
 
     if (!animeTitle || !episodeNumber) {
       return NextResponse.json(
@@ -38,8 +38,7 @@ export async function POST(req: Request) {
 
     const episode = anime.episodes[0];
 
-    // 2. Extração / Resolução de Candidate Stream URL (.m3u8)
-    const simulatedStreamUrl = `https://media.mydomain.com/streams/${anime.slug}/ep-${episodeNumber}/master.m3u8`;
+    const simulatedStreamUrl = sourceUrl || `https://kenjitsu.koyeb.app/stream/${anime.slug}/ep-${episodeNumber}/master.m3u8`;
     const encryptedUrl = encryptData(simulatedStreamUrl);
 
     // 3. Salvar como nova EpisodeSource
