@@ -3,13 +3,14 @@ import { EpisodeLookupInput, StreamSource, ProviderHealth } from '../streams/typ
 import { prisma } from '../db/prisma';
 import {
   getAniZoneSources,
-  getMiruroSources,
+  getGogoAnimeConsumetSources,
+  getZoroConsumetSources,
   getAnifySources,
-  getConsumetSources,
-  get2EmbedUrl,
-  getXpassEmbedUrl,
-  getApiPlayerEmbedUrl,
+  getAnimesOnlineSources,
+  getWarezCDNSources,
+  getXPass2EmbedSources,
 } from '@/services/providers/externalProviders';
+import { validateHlsPlaylist } from '../streams/hls-validator';
 
 export class ExternalApisProvider implements AnimeProvider {
   readonly id = 'external-apis';
@@ -22,7 +23,7 @@ export class ExternalApisProvider implements AnimeProvider {
     const sources: StreamSource[] = [];
 
     try {
-      // Buscar apenas provedores ativados (enabled: true) ordenados por prioridade
+      // Buscar apenas provedores ativados (enabled: true) no banco, ordenados por prioridade
       const dbProviders = await prisma.mediaProvider.findMany({
         where: {
           enabled: true,
@@ -31,8 +32,10 @@ export class ExternalApisProvider implements AnimeProvider {
         orderBy: { priority: 'desc' },
       });
 
-      const title = (input as any).title || input.animeId || '';
+      const title = input.animeTitle || (input as any).title || input.animeId || '';
       const epNum = input.episode || (input as any).episodeNumber || 1;
+      const seasonNum = input.season || 1;
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
       for (const p of dbProviders) {
         if (signal?.aborted) break;
@@ -40,47 +43,84 @@ export class ExternalApisProvider implements AnimeProvider {
         try {
           const nameLower = p.name.toLowerCase();
 
-          // 1. AniZone
-          if (nameLower.includes('anizone') || p.url.includes('anizone')) {
-            const episodeSlug = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-episode-${epNum}`;
-            const res = await getAniZoneSources(episodeSlug);
-            if (res.success && res.data) {
-              for (const s of res.data) {
+          // 1. Kenjitsu / AniZone
+          if (nameLower.includes('anizone') || nameLower.includes('kenjitsu')) {
+            const resSub = await getAniZoneSources(slug, epNum, false);
+            if (resSub.success && resSub.data) {
+              for (const s of resSub.data) {
                 sources.push({
                   id: `anizone-${p.id}-${s.url}`,
-                  provider: 'AniZone',
+                  provider: 'Kenjitsu / AniZone',
                   url: s.url,
                   type: s.type as any,
-                  quality: s.quality || 'auto',
+                  quality: s.quality || 'Auto',
                   priority: p.priority,
-                  audioLanguage: s.audio === 'dub' ? 'pt-BR' : 'ja',
+                  audioLanguage: 'ja',
+                  headers: s.headers,
+                });
+              }
+            }
+
+            const resDub = await getAniZoneSources(slug, epNum, true);
+            if (resDub.success && resDub.data) {
+              for (const s of resDub.data) {
+                sources.push({
+                  id: `anizone-dub-${p.id}-${s.url}`,
+                  provider: 'Kenjitsu / AniZone (Dublado)',
+                  url: s.url,
+                  type: s.type as any,
+                  quality: s.quality || 'Auto',
+                  priority: p.priority,
+                  audioLanguage: 'pt-BR',
+                  headers: s.headers,
                 });
               }
             }
           }
 
-          // 2. Miruro (se houver watchId ou id)
-          else if (nameLower.includes('miruro') || p.url.includes('miruro')) {
-            const watchId = `${input.animeId}-${epNum}`;
-            const res = await getMiruroSources(watchId);
+          // 2. GogoAnime (Consumet 5 Instâncias Fallback)
+          else if (nameLower.includes('gogoanime') || nameLower.includes('consumet')) {
+            const res = await getGogoAnimeConsumetSources(title, epNum, 'sub');
             if (res.success && res.data) {
               for (const s of res.data) {
                 sources.push({
-                  id: `miruro-${p.id}-${s.url}`,
-                  provider: 'Miruro',
+                  id: `gogoanime-${p.id}-${s.url}`,
+                  provider: 'GogoAnime',
                   url: s.url,
                   type: s.type as any,
-                  quality: s.quality || 'auto',
+                  quality: s.quality || 'Auto',
                   priority: p.priority,
+                  audioLanguage: 'ja',
+                  headers: s.headers,
                 });
               }
             }
           }
 
-          // 3. Anify
-          else if (nameLower.includes('anify') || p.url.includes('anify')) {
-            if (input.animeId) {
-              const res = await getAnifySources('zoro', `${input.animeId}-${epNum}`);
+          // 3. HiAnime / Zoro
+          else if (nameLower.includes('hianime') || nameLower.includes('zoro')) {
+            const res = await getZoroConsumetSources(title, epNum, 'sub');
+            if (res.success && res.data) {
+              for (const s of res.data) {
+                sources.push({
+                  id: `zoro-${p.id}-${s.url}`,
+                  provider: 'HiAnime / Zoro',
+                  url: s.url,
+                  type: s.type as any,
+                  quality: s.quality || 'Auto',
+                  priority: p.priority,
+                  audioLanguage: 'ja',
+                  headers: s.headers,
+                });
+              }
+            }
+          }
+
+          // 4. Anify
+          else if (nameLower.includes('anify')) {
+            const malIdNum = parseInt(input.animeId, 10);
+            if (!isNaN(malIdNum)) {
+              const res = await getAnifySources(malIdNum, 'zoro', false);
               if (res.success && res.data) {
                 for (const s of res.data) {
                   sources.push({
@@ -88,74 +128,70 @@ export class ExternalApisProvider implements AnimeProvider {
                     provider: 'Anify',
                     url: s.url,
                     type: s.type as any,
-                    quality: s.quality || 'auto',
+                    quality: s.quality || 'Auto',
                     priority: p.priority,
+                    audioLanguage: 'ja',
+                    headers: s.headers,
                   });
                 }
               }
             }
           }
 
-          // 4. Consumet
-          else if (nameLower.includes('consumet') || p.url.includes('consumet')) {
-            const epId = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-episode-${epNum}`;
-            const res = await getConsumetSources(epId);
+          // 5. AnimesOnline Scraper
+          else if (nameLower.includes('animesonline')) {
+            const res = await getAnimesOnlineSources(title, epNum);
             if (res.success && res.data) {
               for (const s of res.data) {
                 sources.push({
-                  id: `consumet-${p.id}-${s.url}`,
-                  provider: 'Consumet',
+                  id: `animesonline-${p.id}-${s.url}`,
+                  provider: 'AnimesOnline',
                   url: s.url,
-                  type: s.type as any,
-                  quality: s.quality || 'auto',
+                  type: 'embed',
+                  quality: '1080p',
                   priority: p.priority,
+                  audioLanguage: 'pt-BR',
+                  headers: s.headers,
                 });
               }
             }
           }
 
-          // 5. 2Embed
-          else if (nameLower.includes('2embed') || p.url.includes('2embed')) {
-            const embed = get2EmbedUrl(title, 1, epNum);
-            sources.push({
-              id: `2embed-${p.id}-${epNum}`,
-              provider: '2Embed',
-              url: embed.url,
-              type: 'embed',
-              quality: 'auto',
-              priority: p.priority,
-            });
-          }
-
-          // 6. Xpass
-          else if (nameLower.includes('xpass') || p.url.includes('xpass')) {
-            const tmdbId = Number(input.animeId) || 1000;
-            const embed = getXpassEmbedUrl(tmdbId, 1, epNum);
-            if (embed) {
-              sources.push({
-                id: `xpass-${p.id}-${epNum}`,
-                provider: 'Xpass',
-                url: embed.url,
-                type: 'embed',
-                quality: 'auto',
-                priority: p.priority,
-              });
+          // 6. WarezCDN / Superflix
+          else if (nameLower.includes('warezcdn') || nameLower.includes('superflix')) {
+            const res = await getWarezCDNSources(input.animeId || title, seasonNum, epNum);
+            if (res.success && res.data) {
+              for (const s of res.data) {
+                sources.push({
+                  id: `warez-${p.id}-${s.url}`,
+                  provider: 'WarezCDN / Superflix',
+                  url: s.url,
+                  type: 'embed',
+                  quality: '1080p',
+                  priority: p.priority,
+                  audioLanguage: 'pt-BR',
+                  headers: s.headers,
+                });
+              }
             }
           }
 
-          // 7. ApiPlayer
-          else if (nameLower.includes('apiplayer') || p.url.includes('apiplayer')) {
-            const tmdbId = Number(input.animeId) || 1000;
-            const embed = getApiPlayerEmbedUrl(tmdbId, 1, epNum);
-            if (embed) {
-              sources.push({
-                id: `apiplayer-${p.id}-${epNum}`,
-                provider: 'ApiPlayer',
-                url: embed.url,
-                type: 'embed',
-                quality: 'auto',
-                priority: p.priority,
-              });
+          // 7. XPass / 2Embed
+          else if (nameLower.includes('xpass') || nameLower.includes('2embed')) {
+            const res = await getXPass2EmbedSources(input.animeId || '1000', seasonNum, epNum, title);
+            if (res.success && res.data) {
+              for (const s of res.data) {
+                sources.push({
+                  id: `xpass-${p.id}-${s.url}`,
+                  provider: s.provider,
+                  url: s.url,
+                  type: 'embed',
+                  quality: '1080p',
+                  priority: p.priority,
+                  audioLanguage: 'ja',
+                  headers: s.headers,
+                });
+              }
             }
           }
         } catch (providerErr: any) {

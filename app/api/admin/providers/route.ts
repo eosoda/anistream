@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { autoAuthorizeHostnames, invalidateAuthorizedHostsCache } from '@/lib/security/allowed-hosts';
 
-// Provedores padrão pré-configurados inicializáveis
+// 8 Provedores padrão pré-configurados inicializáveis
 const DEFAULT_PROVIDERS = [
   {
-    name: 'AniZone / Kenjitsu API',
+    name: 'Kenjitsu / AniZone',
     type: 'EXTERNAL_API',
     url: 'https://kenjitsu.koyeb.app/api/anizone',
     priority: 100,
@@ -13,10 +13,18 @@ const DEFAULT_PROVIDERS = [
     autoIndex: true,
   },
   {
-    name: 'Miruro TV API',
+    name: 'GogoAnime (Consumet)',
     type: 'EXTERNAL_API',
-    url: 'https://mirurotvapi.vercel.app/api',
+    url: 'https://api-consumet-org-five.vercel.app',
     priority: 90,
+    enabled: true,
+    autoIndex: true,
+  },
+  {
+    name: 'HiAnime / Zoro',
+    type: 'EXTERNAL_API',
+    url: 'https://consumet-api-1.vercel.app',
+    priority: 85,
     enabled: true,
     autoIndex: true,
   },
@@ -29,42 +37,34 @@ const DEFAULT_PROVIDERS = [
     autoIndex: true,
   },
   {
-    name: 'Consumet / Gogoanime API',
+    name: 'AnimesOnline Scraper',
     type: 'EXTERNAL_API',
-    url: 'https://api.consumet.org',
-    priority: 70,
+    url: 'https://animesonline.cloud',
+    priority: 75,
     enabled: true,
     autoIndex: true,
   },
   {
-    name: 'TVmaze API (Episódios & Temporadas)',
-    type: 'EXTERNAL_API',
-    url: 'https://api.tvmaze.com',
+    name: 'WarezCDN / Superflix',
+    type: 'EMBED',
+    url: 'https://superflixapi.pro',
+    priority: 70,
+    enabled: true,
+    autoIndex: false,
+  },
+  {
+    name: 'XPass / 2Embed',
+    type: 'EMBED',
+    url: 'https://play.xpass.top',
     priority: 60,
     enabled: true,
     autoIndex: false,
   },
   {
-    name: '2Embed Player',
-    type: 'EMBED',
-    url: 'https://www.2embed.cc',
+    name: 'Catálogo M3U Autorizado',
+    type: 'M3U',
+    url: 'https://m3u-catalog.local',
     priority: 50,
-    enabled: true,
-    autoIndex: false,
-  },
-  {
-    name: 'Xpass Player',
-    type: 'EMBED',
-    url: 'https://play.xpass.top',
-    priority: 40,
-    enabled: true,
-    autoIndex: false,
-  },
-  {
-    name: 'ApiPlayer',
-    type: 'EMBED',
-    url: 'https://apiplayer.ru',
-    priority: 30,
     enabled: true,
     autoIndex: false,
   },
@@ -73,13 +73,16 @@ const DEFAULT_PROVIDERS = [
 // GET: Listar todos os provedores cadastrados (ou popular com padrões se necessário)
 export async function GET() {
   try {
-    // Remover provedores fictícios legados se existirem no banco de dados
+    // Remover provedores fictícios ou descontinuados legados
     await prisma.mediaProvider.deleteMany({
       where: {
         OR: [
           { url: { contains: 'mydomain.com' } },
           { url: { contains: 'exemplo.com' } },
           { url: { contains: 'example.com' } },
+          { name: { contains: 'TVmaze' } },
+          { name: { contains: 'Miruro' } },
+          { name: { contains: 'ApiPlayer' } },
         ],
       },
     });
@@ -88,10 +91,10 @@ export async function GET() {
       orderBy: { priority: 'desc' },
     });
 
-    // Se nenhum provedor existe, popular tudo. Se existirem apenas alguns legados, garantir os novos
-    const existingUrls = new Set(providers.map((p: any) => p.url));
+    // Se novos provedores não existirem, popular
+    const existingNames = new Set(providers.map((p: any) => p.name));
     for (const p of DEFAULT_PROVIDERS) {
-      if (!existingUrls.has(p.url)) {
+      if (!existingNames.has(p.name)) {
         await prisma.mediaProvider.create({ data: p });
       }
     }

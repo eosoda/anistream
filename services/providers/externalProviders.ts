@@ -17,6 +17,7 @@ export interface NormalizedSource {
   quality?: string;
   audio?: 'sub' | 'dub' | 'unknown';
   headers?: Record<string, string>;
+  subtitles?: Array<{ language: string; url: string }>;
 }
 
 export interface ProviderResult<T> {
@@ -31,40 +32,37 @@ export interface ProviderResult<T> {
 async function fetchWithTimeout<T>(
   url: string,
   providerName: string,
-  transform: (json: any) => T
+  transform: (json: any) => T,
+  headers?: Record<string, string>,
+  timeoutMs = 6000
 ): Promise<ProviderResult<T>> {
   const startTime = Date.now();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        ...headers,
       },
       signal: controller.signal,
       cache: 'no-store',
     });
 
+    clearTimeout(timeout);
+
     if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Conteúdo não encontrado na API (HTTP 404)');
-      }
-      if (response.status === 429) {
-        throw new Error('Limite de requisições atingido na API (Rate Limit HTTP 429)');
-      }
-      if (response.status >= 500) {
-        throw new Error(`Servidor do provedor instável ou indisponível (HTTP ${response.status})`);
-      }
       throw new Error(`Resposta de erro da API (HTTP ${response.status})`);
     }
 
     let data: unknown;
     try {
       data = await response.json();
-    } catch (parseErr) {
-      throw new Error('Formato de resposta inválido (esperado JSON válido)');
+    } catch {
+      throw new Error('Formato de resposta inválido (JSON esperado)');
     }
 
     if (data === null || data === undefined) {
@@ -79,430 +77,420 @@ async function fetchWithTimeout<T>(
       data: transformed,
     };
   } catch (err: any) {
-    const errorMessage =
-      err.name === 'AbortError'
-        ? 'Timeout de conexão excedido (10s)'
-        : err.message || 'Falha desconhecida na requisição';
-
+    clearTimeout(timeout);
     return {
       provider: providerName,
       success: false,
       durationMs: Date.now() - startTime,
       data: null,
-      error: errorMessage,
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-// 1. TVmaze (Temporadas e Episódios apenas)
-export async function getTVmazeEpisodes(title: string): Promise<ProviderResult<NormalizedEpisode[]>> {
-  const encodedTitle = encodeURIComponent(title);
-  const searchUrl = `https://api.tvmaze.com/search/shows?q=${encodedTitle}`;
-
-  const searchResult = await fetchWithTimeout<number | null>(searchUrl, 'tvmaze', (json) => {
-    if (Array.isArray(json) && json.length > 0 && json[0]?.show?.id) {
-      return json[0].show.id;
-    }
-    return null;
-  });
-
-  if (!searchResult.success || !searchResult.data) {
-    return {
-      provider: 'tvmaze',
-      success: false,
-      durationMs: searchResult.durationMs,
-      data: null,
-      error: searchResult.error || 'Show não encontrado',
+      error: err.name === 'AbortError' ? `Timeout (${timeoutMs}ms)` : err.message,
     };
   }
-
-  const showId = searchResult.data;
-  const episodesUrl = `https://api.tvmaze.com/shows/${showId}/episodes`;
-
-  return fetchWithTimeout<NormalizedEpisode[]>(episodesUrl, 'tvmaze', (json) => {
-    if (!Array.isArray(json)) return [];
-    return json.map((ep: any) => ({
-      provider: 'tvmaze',
-      animeId: String(showId),
-      episodeId: String(ep.id),
-      season: ep.season || 1,
-      number: ep.number || 1,
-      title: ep.name || `Episódio ${ep.number}`,
-      thumbnail: ep.image?.medium || ep.image?.original,
-      audio: 'unknown',
-    }));
-  });
 }
 
-// 2. AniZone / Kenjitsu
-export async function getAniZoneEpisodes(title: string): Promise<ProviderResult<NormalizedEpisode[]>> {
-  const encodedTitle = encodeURIComponent(title);
-  const searchUrl = `https://kenjitsu.koyeb.app/api/anizone/anime/search?q=${encodedTitle}`;
-
-  return fetchWithTimeout<NormalizedEpisode[]>(searchUrl, 'anizone', (json) => {
-    const anime = Array.isArray(json) ? json[0] : json?.results?.[0] || json;
-    if (!anime) return [];
-
-    const slug = anime.slug || anime.id || encodedTitle;
-    const totalEp = anime.totalEpisodes || anime.episodesCount || 12;
-    const episodes: NormalizedEpisode[] = [];
-
-    for (let i = 1; i <= totalEp; i++) {
-      episodes.push({
-        provider: 'anizone',
-        animeId: String(slug),
-        episodeId: `${slug}-episode-${i}`,
-        season: 1,
-        number: i,
-        title: `Episódio ${i}`,
-        thumbnail: anime.coverImage || anime.image,
-        audio: anime.isDubbed ? 'dub' : 'sub',
-      });
-    }
-    return episodes;
-  });
-}
-
-export async function getAniZoneSources(episodeId: string): Promise<ProviderResult<NormalizedSource[]>> {
-  const encodedEpId = encodeURIComponent(episodeId);
-  const sourcesUrl = `https://kenjitsu.koyeb.app/api/anizone/sources/${encodedEpId}`;
-
-  return fetchWithTimeout<NormalizedSource[]>(sourcesUrl, 'anizone', (json) => {
-    const sources: NormalizedSource[] = [];
-    const rawSources = json?.sources || (Array.isArray(json) ? json : []);
-
-    for (const src of rawSources) {
-      if (src?.url) {
-        sources.push({
-          provider: 'anizone',
-          episodeId,
-          url: src.url,
-          type: src.type === 'hls' || src.url.includes('.m3u8') ? 'hls' : src.type || 'mp4',
-          quality: src.quality || 'auto',
-          audio: src.dub ? 'dub' : 'sub',
-          headers: src.headers || undefined,
-        });
-      }
-    }
-    return sources;
-  });
-}
-
-// 3. Miruro
-export async function getMiruroEpisodes(aniListId: string | number): Promise<ProviderResult<NormalizedEpisode[]>> {
-  const encodedId = encodeURIComponent(String(aniListId));
-  const url = `https://mirurotvapi.vercel.app/api/episodes/${encodedId}`;
-
-  return fetchWithTimeout<NormalizedEpisode[]>(url, 'miruro', (json) => {
-    const list = Array.isArray(json) ? json : json?.episodes || [];
-    return list.map((ep: any) => ({
-      provider: 'miruro',
-      animeId: String(aniListId),
-      episodeId: ep.id || ep.watchId || `${aniListId}-${ep.number}`,
-      season: ep.season || 1,
-      number: ep.number || 1,
-      title: ep.title || `Episódio ${ep.number}`,
-      thumbnail: ep.image || ep.thumbnail,
-      audio: ep.isDub ? 'dub' : 'sub',
-    }));
-  });
-}
-
-export async function getMiruroSources(watchId: string): Promise<ProviderResult<NormalizedSource[]>> {
-  const encodedWatchId = encodeURIComponent(watchId);
-  const url = `https://mirurotvapi.vercel.app/api/${encodedWatchId}`;
-
-  return fetchWithTimeout<NormalizedSource[]>(url, 'miruro', (json) => {
-    const sources: NormalizedSource[] = [];
-    const rawSources = json?.sources || (Array.isArray(json) ? json : []);
-
-    for (const src of rawSources) {
-      if (src?.url) {
-        sources.push({
-          provider: 'miruro',
-          episodeId: watchId,
-          url: src.url,
-          type: src.isM3U8 || src.url.includes('.m3u8') ? 'hls' : 'mp4',
-          quality: src.quality || 'auto',
-          audio: json?.isDub ? 'dub' : 'sub',
-          headers: src.headers || undefined,
-        });
-      }
-    }
-    return sources;
-  });
-}
-
-// 4. Anify
-export async function getAnifyEpisodes(
-  aniListId: string | number,
-  provider: 'zoro' | 'animepahe' | 'animedao' = 'zoro',
-  preferDub: boolean = false
-): Promise<ProviderResult<NormalizedEpisode[]>> {
-  const encodedId = encodeURIComponent(String(aniListId));
-  const encodedProvider = encodeURIComponent(provider);
-  const url = `https://api.anify.tv/episodes/${encodedId}?provider=${encodedProvider}&preferDub=${preferDub}`;
-
-  return fetchWithTimeout<NormalizedEpisode[]>(url, `anify-${provider}`, (json) => {
-    const list = Array.isArray(json) ? json : json?.episodes || [];
-    return list.map((ep: any) => ({
-      provider: `anify-${provider}`,
-      animeId: String(aniListId),
-      episodeId: ep.id || String(ep.number),
-      season: 1,
-      number: ep.number || 1,
-      title: ep.title || `Episódio ${ep.number}`,
-      thumbnail: ep.img || ep.thumbnail,
-      audio: preferDub ? 'dub' : 'sub',
-    }));
-  });
-}
-
-export async function getAnifySources(
-  providerId: 'zoro' | 'animepahe' | 'animedao',
-  watchId: string,
-  preferDub: boolean = false
+// ==========================================
+// 1. Kenjitsu / AniZone Provider
+// ==========================================
+export async function getAniZoneSources(
+  slug: string,
+  episodeNum: number,
+  dub = false
 ): Promise<ProviderResult<NormalizedSource[]>> {
-  const encodedProvider = encodeURIComponent(providerId);
-  const encodedWatchId = encodeURIComponent(watchId);
-  const url = `https://api.anify.tv/sources?providerId=${encodedProvider}&watchId=${encodedWatchId}&preferDub=${preferDub}`;
+  const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const episodeSuffix = dub ? `-episode-${episodeNum}-dub` : `-episode-${episodeNum}`;
+  const url = `https://kenjitsu.koyeb.app/api/anizone/sources/-${cleanSlug}${episodeSuffix}`;
 
-  return fetchWithTimeout<NormalizedSource[]>(url, `anify-${providerId}`, (json) => {
-    const sources: NormalizedSource[] = [];
-    const rawSources = json?.sources || (Array.isArray(json) ? json : []);
+  return fetchWithTimeout<NormalizedSource[]>(
+    url,
+    'Kenjitsu / AniZone',
+    (data: any) => {
+      const sourcesList = data?.data?.sources || data?.sources || [];
+      if (!Array.isArray(sourcesList)) return [];
 
-    for (const src of rawSources) {
-      if (src?.url) {
-        sources.push({
-          provider: `anify-${providerId}`,
-          episodeId: watchId,
-          url: src.url,
-          type: src.type === 'hls' || src.url.includes('.m3u8') ? 'hls' : 'mp4',
-          quality: src.quality || 'auto',
-          audio: preferDub ? 'dub' : 'sub',
-          headers: json?.headers || undefined,
-        });
-      }
+      return sourcesList.map((s: any) => ({
+        provider: 'AniZone',
+        episodeId: `${cleanSlug}-ep-${episodeNum}`,
+        url: s.url || s.file || s.src,
+        type: (s.url || '').includes('.m3u8') ? 'hls' : (s.url || '').includes('.mp4') ? 'mp4' : 'embed',
+        quality: s.quality || 'Auto',
+        audio: dub ? 'dub' : 'sub',
+        headers: {
+          Referer: 'https://anizone.to/',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      }));
     }
-    return sources;
-  });
+  );
 }
 
-// 5. Consumet / Gogoanime
-const CONSUMET_BASE = process.env.CONSUMET_BASE_URL || 'https://api.consumet.org';
+// ==========================================
+// 2. GogoAnime (Consumet 5 Instâncias Fallback)
+// ==========================================
+const CONSUMET_INSTANCES = [
+  'https://api-consumet-org-five.vercel.app',
+  'https://consumet-api-1.vercel.app',
+  'https://anime-api-iota.vercel.app',
+  'https://consumet-api-zeta.vercel.app',
+  'https://consumet-api-ecru.vercel.app',
+];
 
-export async function getConsumetEpisodes(title: string): Promise<ProviderResult<NormalizedEpisode[]>> {
-  const encodedTitle = encodeURIComponent(title);
-  const searchUrl = `${CONSUMET_BASE}/anime/gogoanime/${encodedTitle}`;
+export async function getGogoAnimeConsumetSources(
+  title: string,
+  episodeNum: number,
+  category: 'sub' | 'dub' = 'sub'
+): Promise<ProviderResult<NormalizedSource[]>> {
+  const startTime = Date.now();
 
-  const searchRes = await fetchWithTimeout<string | null>(searchUrl, 'consumet', (json) => {
-    const results = json?.results || (Array.isArray(json) ? json : []);
-    return results[0]?.id || null;
-  });
+  for (const instance of CONSUMET_INSTANCES) {
+    try {
+      const searchRes = await fetchWithTimeout<any[]>(
+        `${instance}/anime/gogoanime/${encodeURIComponent(title)}`,
+        'GogoAnime',
+        (json) => json?.results || [],
+        undefined,
+        4000
+      );
 
-  if (!searchRes.success || !searchRes.data) {
+      if (!searchRes.success || !searchRes.data || searchRes.data.length === 0) {
+        continue;
+      }
+
+      const targetAnime = searchRes.data[0];
+      const animeId = targetAnime.id;
+
+      const infoRes = await fetchWithTimeout<any>(
+        `${instance}/anime/gogoanime/info/${animeId}`,
+        'GogoAnime-Info',
+        (json) => json,
+        undefined,
+        4000
+      );
+
+      if (!infoRes.success || !infoRes.data || !Array.isArray(infoRes.data.episodes)) {
+        continue;
+      }
+
+      const matchedEp = infoRes.data.episodes.find((e: any) => e.number === episodeNum) || infoRes.data.episodes[0];
+      if (!matchedEp) continue;
+
+      const watchRes = await fetchWithTimeout<NormalizedSource[]>(
+        `${instance}/anime/gogoanime/watch/${matchedEp.id}?category=${category}`,
+        'GogoAnime-Watch',
+        (json) => {
+          const rawSources = json?.sources || [];
+          const headers = json?.headers || { Referer: 'https://gogoanime.cl/' };
+          const subtitles = (json?.subtitles || []).map((sub: any) => ({
+            language: sub.lang || sub.language || 'English',
+            url: sub.url,
+          }));
+
+          return rawSources.map((s: any) => ({
+            provider: 'GogoAnime',
+            episodeId: matchedEp.id,
+            url: s.url,
+            type: s.isM3U8 || s.url.includes('.m3u8') ? 'hls' : 'mp4',
+            quality: s.quality || 'Auto',
+            audio: category,
+            headers,
+            subtitles,
+          }));
+        },
+        undefined,
+        4500
+      );
+
+      if (watchRes.success && watchRes.data && watchRes.data.length > 0) {
+        return watchRes;
+      }
+    } catch {
+      // Fallback para a próxima instância
+    }
+  }
+
+  return {
+    provider: 'GogoAnime (Consumet)',
+    success: false,
+    durationMs: Date.now() - startTime,
+    data: null,
+    error: 'Todas as 5 instâncias do Consumet falharam ou não retornaram mídias.',
+  };
+}
+
+// ==========================================
+// 3. HiAnime / Zoro (Consumet / Zoro)
+// ==========================================
+export async function getZoroConsumetSources(
+  title: string,
+  episodeNum: number,
+  category: 'sub' | 'dub' = 'sub'
+): Promise<ProviderResult<NormalizedSource[]>> {
+  const baseUrl = CONSUMET_INSTANCES[0];
+  const startTime = Date.now();
+
+  try {
+    const searchRes = await fetchWithTimeout<any[]>(
+      `${baseUrl}/anime/zoro/${encodeURIComponent(title)}`,
+      'Zoro',
+      (json) => json?.results || []
+    );
+
+    if (!searchRes.success || !searchRes.data || searchRes.data.length === 0) {
+      throw new Error('Anime não encontrado no Zoro');
+    }
+
+    const animeId = searchRes.data[0].id;
+
+    const infoRes = await fetchWithTimeout<any>(
+      `${baseUrl}/anime/zoro/info/${animeId}`,
+      'Zoro-Info',
+      (json) => json
+    );
+
+    if (!infoRes.success || !infoRes.data || !Array.isArray(infoRes.data.episodes)) {
+      throw new Error('Episódios não retornados pelo Zoro');
+    }
+
+    const ep = infoRes.data.episodes.find((e: any) => e.number === episodeNum) || infoRes.data.episodes[0];
+    if (!ep) throw new Error('Episódio não localizado');
+
+    return fetchWithTimeout<NormalizedSource[]>(
+      `${baseUrl}/anime/zoro/watch/${ep.id}?server=hd-1&category=${category}`,
+      'HiAnime / Zoro',
+      (json) => {
+        const rawSources = json?.sources || [];
+        const headers = json?.headers || { Referer: 'https://hianime.to/' };
+        const subtitles = (json?.subtitles || []).map((s: any) => ({
+          language: s.lang || s.language || 'English',
+          url: s.url,
+        }));
+
+        return rawSources.map((s: any) => ({
+          provider: 'HiAnime / Zoro',
+          episodeId: ep.id,
+          url: s.url,
+          type: 'hls',
+          quality: s.quality || 'Auto',
+          audio: category,
+          headers,
+          subtitles,
+        }));
+      }
+    );
+  } catch (err: any) {
     return {
-      provider: 'consumet',
+      provider: 'HiAnime / Zoro',
       success: false,
-      durationMs: searchRes.durationMs,
+      durationMs: Date.now() - startTime,
       data: null,
-      error: searchRes.error || 'Anime não encontrado no Consumet',
+      error: err.message,
     };
   }
-
-  const animeId = searchRes.data;
-  const infoUrl = `${CONSUMET_BASE}/anime/gogoanime/info/${encodeURIComponent(animeId)}`;
-
-  return fetchWithTimeout<NormalizedEpisode[]>(infoUrl, 'consumet', (json) => {
-    const episodes = json?.episodes || [];
-    return episodes.map((ep: any) => ({
-      provider: 'consumet',
-      animeId,
-      episodeId: ep.id,
-      season: 1,
-      number: ep.number || 1,
-      title: ep.title || `Episódio ${ep.number}`,
-      audio: ep.id?.includes('-dub') ? 'dub' : 'sub',
-    }));
-  });
 }
 
-export async function getConsumetSources(episodeId: string): Promise<ProviderResult<NormalizedSource[]>> {
-  const encodedEpId = encodeURIComponent(episodeId);
-  const url = `${CONSUMET_BASE}/anime/gogoanime/watch/${encodedEpId}`;
+// ==========================================
+// 4. Anify Provider
+// ==========================================
+export async function getAnifySources(
+  aniListId: number,
+  provider = 'zoro',
+  preferDub = true
+): Promise<ProviderResult<NormalizedSource[]>> {
+  const startTime = Date.now();
 
-  return fetchWithTimeout<NormalizedSource[]>(url, 'consumet', (json) => {
+  try {
+    const epUrl = `https://api.anify.tv/episodes/${aniListId}?provider=${provider}&preferDub=${preferDub}`;
+    const epRes = await fetchWithTimeout<any[]>(
+      epUrl,
+      'Anify-Episodes',
+      (json) => json || []
+    );
+
+    if (!epRes.success || !epRes.data || epRes.data.length === 0) {
+      throw new Error('Nenhum episódio retornado pela Anify');
+    }
+
+    const providerId = epRes.data[0]?.id || epRes.data[0]?.episodes?.[0]?.id;
+    if (!providerId) throw new Error('ID de provedor Anify inválido');
+
+    const sourcesUrl = `https://api.anify.tv/sources?providerId=${encodeURIComponent(providerId)}`;
+    return fetchWithTimeout<NormalizedSource[]>(
+      sourcesUrl,
+      'Anify',
+      (json) => {
+        const sources = json?.sources || [];
+        const headers = json?.headers || {};
+        const subtitles = (json?.subtitles || []).map((s: any) => ({
+          language: s.lang || 'PT-BR',
+          url: s.url,
+        }));
+
+        return sources.map((s: any) => ({
+          provider: 'Anify',
+          episodeId: String(providerId),
+          url: s.url,
+          type: s.url.includes('.m3u8') ? 'hls' : 'mp4',
+          quality: s.quality || 'Auto',
+          audio: preferDub ? 'dub' : 'sub',
+          headers,
+          subtitles,
+        }));
+      }
+    );
+  } catch (err: any) {
+    return {
+      provider: 'Anify',
+      success: false,
+      durationMs: Date.now() - startTime,
+      data: null,
+      error: err.message,
+    };
+  }
+}
+
+// ==========================================
+// 5. AnimesOnline Scraper Provider
+// ==========================================
+export async function getAnimesOnlineSources(
+  query: string,
+  episodeNum: number
+): Promise<ProviderResult<NormalizedSource[]>> {
+  const startTime = Date.now();
+  const slug = query.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const epUrl = `https://animesonline.cloud/episodio/${slug}-episodio-${episodeNum}`;
+
+  try {
+    const res = await fetch(epUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Referer: 'https://animesonline.cloud/',
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Página AnimesOnline HTTP ${res.status}`);
+    }
+
+    const html = await res.text();
+    const iframeMatches = [...html.matchAll(/src=["'](https?:\/\/[^"']+)["']/gi)];
     const sources: NormalizedSource[] = [];
-    const rawSources = json?.sources || [];
 
-    for (const src of rawSources) {
-      if (src?.url) {
+    for (const match of iframeMatches) {
+      const srcUrl = match[1];
+      if (srcUrl.includes('player') || srcUrl.includes('embed') || srcUrl.includes('video')) {
         sources.push({
-          provider: 'consumet',
-          episodeId,
-          url: src.url,
-          type: src.isM3U8 || src.url.includes('.m3u8') ? 'hls' : 'mp4',
-          quality: src.quality || 'auto',
-          headers: json?.headers || undefined,
+          provider: 'AnimesOnline',
+          episodeId: `${slug}-${episodeNum}`,
+          url: srcUrl,
+          type: 'embed',
+          quality: '1080p',
+          audio: 'dub',
+          headers: { Referer: epUrl },
         });
       }
     }
-    return sources;
-  });
-}
 
-// 6. 2Embed (Embeds Apenas)
-export function get2EmbedUrl(idOrImdb: string, season?: number, episode?: number): NormalizedSource {
-  const cleanId = encodeURIComponent(idOrImdb);
-  let embedUrl = `https://www.2embed.cc/embed/${cleanId}`;
-
-  if (season !== undefined && episode !== undefined && Number.isInteger(season) && Number.isInteger(episode)) {
-    embedUrl = `https://www.2embed.cc/embed/${cleanId}?s=${season}&e=${episode}`;
+    return {
+      provider: 'AnimesOnline',
+      success: sources.length > 0,
+      durationMs: Date.now() - startTime,
+      data: sources,
+    };
+  } catch (err: any) {
+    return {
+      provider: 'AnimesOnline',
+      success: false,
+      durationMs: Date.now() - startTime,
+      data: null,
+      error: err.message,
+    };
   }
-
-  return {
-    provider: '2embed',
-    episodeId: `${cleanId}-s${season || 1}-e${episode || 1}`,
-    url: embedUrl,
-    type: 'embed',
-  };
 }
 
-// 7. Xpass (Embeds Apenas)
-export function getXpassEmbedUrl(tmdbId: number, season?: number, episode?: number): NormalizedSource | null {
-  if (!Number.isInteger(tmdbId) || tmdbId <= 0) return null;
+// ==========================================
+// 6. WarezCDN / Superflix Provider
+// ==========================================
+const WAREZCDN_HOSTS = [
+  'https://warezcdn.lat',
+  'https://warezcdn.site',
+  'https://superflixapi.pro',
+  'https://superflixapi.rest',
+];
 
-  let embedUrl = `https://play.xpass.top/e/movie/${tmdbId}`;
+export async function getWarezCDNSources(
+  imdbId: string,
+  season: number,
+  episode: number
+): Promise<ProviderResult<NormalizedSource[]>> {
+  const startTime = Date.now();
+  const sources: NormalizedSource[] = [];
 
-  if (season !== undefined && episode !== undefined) {
-    if (!Number.isInteger(season) || season <= 0 || !Number.isInteger(episode) || episode <= 0) {
-      return null;
-    }
-    embedUrl = `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`;
-  }
-
-  return {
-    provider: 'xpass',
-    episodeId: `tmdb-${tmdbId}-s${season || 1}-e${episode || 1}`,
-    url: embedUrl,
-    type: 'embed',
-  };
-}
-
-// 8. ApiPlayer (Embeds Apenas)
-export function getApiPlayerEmbedUrl(tmdbId: number, season: number, episode: number): NormalizedSource | null {
-  if (
-    !Number.isInteger(tmdbId) || tmdbId <= 0 ||
-    !Number.isInteger(season) || season <= 0 ||
-    !Number.isInteger(episode) || episode <= 0
-  ) {
-    return null;
-  }
-
-  return {
-    provider: 'apiplayer',
-    episodeId: `tmdb-${tmdbId}-s${season}-e${episode}`,
-    url: `https://apiplayer.ru/embed/tv/${tmdbId}/${season}/${episode}`,
-    type: 'embed',
-  };
-}
-
-// 9. AnimesOnline (Localização de URLs públicas)
-export function getAnimesOnlineEpisodeUrl(slug: string, episodeNumber: number): NormalizedEpisode {
-  const cleanSlug = encodeURIComponent(slug);
-  const epNum = Math.max(1, Math.floor(episodeNumber));
-
-  return {
-    provider: 'animesonline',
-    animeId: cleanSlug,
-    episodeId: `${cleanSlug}-episodio-${epNum}`,
-    season: 1,
-    number: epNum,
-    title: `Episódio ${epNum}`,
-  };
-}
-
-// 10. WarezCDN & SuperFlix (Indisponíveis por falta de API pública)
-export function getWarezCDNStatus(): ProviderResult<null> {
-  return {
-    provider: 'warezcdn',
-    success: false,
-    durationMs: 0,
-    data: null,
-    error: 'Não existe integração pública autorizada configurada.',
-  };
-}
-
-export function getSuperFlixStatus(): ProviderResult<null> {
-  return {
-    provider: 'superflix',
-    success: false,
-    durationMs: 0,
-    data: null,
-    error: 'Não existe integração pública autorizada configurada.',
-  };
-}
-
-// 11. AnimeWorld, TioAnime, MonosChinos (Verificadores de API pública / Não-Scraping)
-export function checkPublicApiProvider(providerName: string): ProviderResult<null> {
-  return {
-    provider: providerName,
-    success: false,
-    durationMs: 0,
-    data: null,
-    error: `O provedor ${providerName} não disponibiliza API pública documentada. Scraping proibido.`,
-  };
-}
-
-// Pipeline Unificado de Fallback
-export async function resolveEpisodesWithFallback(
-  title: string,
-  aniListId?: number
-): Promise<ProviderResult<NormalizedEpisode[]>> {
-  // 1. AniZone / Kenjitsu
-  const aniZoneRes = await getAniZoneEpisodes(title);
-  if (aniZoneRes.success && aniZoneRes.data && aniZoneRes.data.length > 0) {
-    return aniZoneRes;
-  }
-
-  // 2. Miruro (requer AniList ID)
-  if (aniListId) {
-    const miruroRes = await getMiruroEpisodes(aniListId);
-    if (miruroRes.success && miruroRes.data && miruroRes.data.length > 0) {
-      return miruroRes;
+  for (const host of WAREZCDN_HOSTS) {
+    try {
+      const targetUrl = `${host}/serie/${imdbId}/${season}/${episode}`;
+      sources.push({
+        provider: 'WarezCDN / Superflix',
+        episodeId: `warez-${imdbId}-s${season}e${episode}`,
+        url: targetUrl,
+        type: 'embed',
+        quality: '1080p',
+        audio: 'dub',
+        headers: { Referer: host },
+      });
+    } catch {
+      // Ignorar hosts offline
     }
   }
 
-  // 3. Anify (Testa providers em fallback: zoro, animepahe, animedao)
-  if (aniListId) {
-    const providers: ('zoro' | 'animepahe' | 'animedao')[] = ['zoro', 'animepahe', 'animedao'];
-    for (const prov of providers) {
-      const anifyRes = await getAnifyEpisodes(aniListId, prov);
-      if (anifyRes.success && anifyRes.data && anifyRes.data.length > 0) {
-        return anifyRes;
-      }
-    }
+  return {
+    provider: 'WarezCDN / Superflix',
+    success: sources.length > 0,
+    durationMs: Date.now() - startTime,
+    data: sources,
+  };
+}
+
+// ==========================================
+// 7. XPass / 2Embed Provider
+// ==========================================
+export async function getXPass2EmbedSources(
+  tmdbId: string,
+  season = 1,
+  episode = 1,
+  title?: string
+): Promise<ProviderResult<NormalizedSource[]>> {
+  const startTime = Date.now();
+  const sources: NormalizedSource[] = [];
+
+  // Embed 1: 2Embed
+  if (tmdbId) {
+    sources.push({
+      provider: '2Embed',
+      episodeId: `2embed-${tmdbId}-s${season}e${episode}`,
+      url: `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`,
+      type: 'embed',
+      quality: '1080p',
+      audio: 'sub',
+      headers: { Referer: 'https://www.2embed.cc/' },
+    });
   }
 
-  // 4. Consumet / Gogoanime
-  const consumetRes = await getConsumetEpisodes(title);
-  if (consumetRes.success && consumetRes.data && consumetRes.data.length > 0) {
-    return consumetRes;
-  }
-
-  // 5. TVmaze (apenas episódios/temporadas)
-  const tvmazeRes = await getTVmazeEpisodes(title);
-  if (tvmazeRes.success && tvmazeRes.data && tvmazeRes.data.length > 0) {
-    return tvmazeRes;
+  // Embed 2: XPass TV
+  if (tmdbId) {
+    sources.push({
+      provider: 'Xpass',
+      episodeId: `xpass-${tmdbId}-s${season}e${episode}`,
+      url: `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`,
+      type: 'embed',
+      quality: '1080p',
+      audio: 'sub',
+      headers: { Referer: 'https://play.xpass.top/' },
+    });
   }
 
   return {
-    provider: 'fallback-pipeline',
-    success: false,
-    durationMs: 0,
-    data: null,
-    error: 'Nenhum provedor retornou episódios válidos.',
+    provider: 'XPass / 2Embed',
+    success: sources.length > 0,
+    durationMs: Date.now() - startTime,
+    data: sources,
   };
 }

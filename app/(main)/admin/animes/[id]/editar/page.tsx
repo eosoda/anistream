@@ -12,8 +12,12 @@ import {
   Film,
   CheckCircle2,
   Edit,
+  Trash2,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { SafeImage } from '@/components/ui/SafeImage';
+import { EpisodeSourcesModal } from '@/components/admin/EpisodeSourcesModal';
 
 export default function AdminEditAnimePage({
   params,
@@ -43,6 +47,14 @@ export default function AdminEditAnimePage({
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Modal de fontes do episódio selecionado
+  const [selectedEpForSources, setSelectedEpForSources] = useState<{
+    episodeId: string;
+    episodeNumber: number;
+    seasonNumber: number;
+    episodeTitle?: string;
+  } | null>(null);
 
   // Carregar dados do anime
   const loadAnime = async () => {
@@ -101,7 +113,7 @@ export default function AdminEditAnimePage({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Falha ao atualizar anime');
+        throw new Error(data.error || 'Falha ao salvar anime');
       }
 
       setSuccess('Anime atualizado com sucesso!');
@@ -144,6 +156,21 @@ export default function AdminEditAnimePage({
     }
   };
 
+  // Excluir Episódio
+  const handleDeleteEpisode = async (epId: string, epNum: number) => {
+    if (!confirm(`Deseja excluir o episódio ${epNum}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/animes/${id}/episodes/${epId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        await loadAnime();
+      }
+    } catch {
+      setError('Erro ao excluir episódio.');
+    }
+  };
+
   const [syncing, setSyncing] = useState(false);
 
   const handleSync = async () => {
@@ -168,128 +195,121 @@ export default function AdminEditAnimePage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0B0B0F] text-white flex flex-col items-center justify-center gap-3">
-        <Loader2 size={36} className="text-[#FF6B00] animate-spin" />
-        <p className="text-xs font-bold text-gray-400">Carregando dados do anime...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#0B0B0F]">
+        <Loader2 className="animate-spin text-[#FF6B00]" size={36} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F] text-white p-6 sm:p-10 max-w-6xl mx-auto space-y-8">
-      {/* Voltar */}
-      <Link
-        href="/admin/animes"
-        className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
-      >
-        <ChevronLeft size={16} />
-        <span>Voltar ao Catálogo</span>
-      </Link>
-
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel">
-        <div>
-          <h1 className="text-2xl font-black text-white">Editar Anime: {title}</h1>
-          <p className="text-xs text-gray-400">Altere metadados e gerencie episódios da série</p>
+    <div className="min-h-screen bg-[#0B0B0F] p-4 sm:p-8 space-y-6 animate-fade-in">
+      {/* Cabeçalho */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link
+            href="/admin/animes"
+            className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/10"
+          >
+            <ChevronLeft size={20} />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-black text-white">Editar Anime</h1>
+            <p className="text-xs text-gray-400">ID: {id}</p>
+          </div>
         </div>
 
         <button
-          type="button"
           onClick={handleSync}
           disabled={syncing}
-          className="px-4 py-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white font-bold text-xs flex items-center gap-2 transition-all border border-emerald-500/20 shadow-lg shadow-emerald-500/10 disabled:opacity-50"
+          className="px-4 py-2.5 rounded-2xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-[#FF6B00]/20 disabled:opacity-50"
         >
-          {syncing ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Film size={16} />
-          )}
-          <span>Sincronizar Episódios e Fontes</span>
+          {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+          <span>Sincronizar Episódios/Fontes</span>
         </button>
       </div>
 
+      {/* Alertas */}
       {error && (
-        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold text-center">
+        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium">
           {error}
         </div>
       )}
-
       {success && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold text-center flex items-center justify-center gap-2">
-          <CheckCircle2 size={16} />
-          <span>{success}</span>
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium">
+          {success}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Formulário de Edição de Anime */}
-        <form onSubmit={handleUpdate} className="lg:col-span-2 space-y-4 p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel">
-          <h2 className="text-base font-bold text-white mb-2">Informações do Anime</h2>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">Título</label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-            />
-          </div>
-
+      {/* Grid Principal */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Form Dados do Anime */}
+        <form
+          onSubmit={handleUpdate}
+          className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-6"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Título Original</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Título Principal</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Título Original / Japonês</label>
               <input
                 type="text"
                 value={originalTitle}
                 onChange={(e) => setOriginalTitle(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Slug</label>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Slug URL</label>
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                required
+                className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white font-mono"
+              />
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">Ano de Lançamento</label>
               <input
                 type="number"
                 value={releaseYear}
                 onChange={(e) => setReleaseYear(e.target.value ? parseInt(e.target.value, 10) : '')}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
               />
             </div>
-
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">Status</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+                className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
               >
                 <option value="Em Lançamento">Em Lançamento</option>
                 <option value="Concluído">Concluído</option>
-                <option value="Anunciado">Anunciado</option>
+                <option value="Pausado">Pausado</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">URL do Poster</label>
+            <label className="block text-xs font-bold text-gray-300 mb-1">URL do Poster / Capa</label>
             <input
               type="url"
               value={posterUrl}
               onChange={(e) => setPosterUrl(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
+              className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
             />
           </div>
 
@@ -309,7 +329,7 @@ export default function AdminEditAnimePage({
             className="w-full py-3 rounded-2xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            <span>Salvar Alterações</span>
+            <span>Salvar Alterações do Anime</span>
           </button>
         </form>
 
@@ -366,33 +386,55 @@ export default function AdminEditAnimePage({
             </button>
           </form>
 
-          {/* Lista de Episódios */}
+          {/* Lista de Episódios com Gerenciamento de Fontes */}
           <div className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-3">
             <h2 className="text-sm font-bold text-white flex items-center justify-between border-b border-white/10 pb-2">
               <span>Episódios Cadastrados</span>
               <span className="text-xs font-mono text-[#FF6B00]">{episodes.length}</span>
             </h2>
 
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
               {episodes.length === 0 ? (
                 <p className="text-xs text-gray-500 text-center py-4">Nenhum episódio adicionado.</p>
               ) : (
                 episodes.map((ep) => (
                   <div
                     key={ep.id}
-                    className="p-3 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between text-xs"
+                    className="p-3 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between text-xs gap-3"
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <span className="font-bold text-white">S{ep.season}E{ep.number}</span>
-                      <p className="text-[11px] text-gray-400 line-clamp-1">{ep.title || `Episódio ${ep.number}`}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{ep.title || `Episódio ${ep.number}`}</p>
                     </div>
 
-                    <Link
-                      href={`/admin/sources?episodeId=${ep.id}`}
-                      className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-[#FF6B00] text-white font-bold text-[10px] transition-all"
-                    >
-                      Fontes ({ep.sources?.length || 0})
-                    </Link>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Botão para Abrir Modal de Gerenciamento de Fontes */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedEpForSources({
+                            episodeId: ep.id,
+                            episodeNumber: ep.number,
+                            seasonNumber: ep.season,
+                            episodeTitle: ep.title,
+                          })
+                        }
+                        className="px-2.5 py-1.5 rounded-xl bg-[#FF6B00]/20 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white font-bold text-[10px] transition-all flex items-center gap-1 border border-[#FF6B00]/30"
+                      >
+                        <Tv size={12} />
+                        <span>Fontes ({ep.sources?.length || 0})</span>
+                      </button>
+
+                      {/* Botão de Excluir Episódio */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteEpisode(ep.id, ep.number)}
+                        className="p-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white transition-all border border-red-500/20"
+                        title="Excluir Episódio"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -400,6 +442,20 @@ export default function AdminEditAnimePage({
           </div>
         </div>
       </div>
+
+      {/* Modal de Gerenciamento de Fontes do Episódio Selecionado */}
+      {selectedEpForSources && (
+        <EpisodeSourcesModal
+          isOpen={Boolean(selectedEpForSources)}
+          animeId={id}
+          episodeId={selectedEpForSources.episodeId}
+          episodeNumber={selectedEpForSources.episodeNumber}
+          seasonNumber={selectedEpForSources.seasonNumber}
+          episodeTitle={selectedEpForSources.episodeTitle}
+          onClose={() => setSelectedEpForSources(null)}
+          onSuccess={loadAnime}
+        />
+      )}
     </div>
   );
 }
