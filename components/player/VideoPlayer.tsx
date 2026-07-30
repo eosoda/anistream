@@ -678,7 +678,7 @@ export function VideoPlayer({
 
           <div className="flex items-center gap-1.5 flex-nowrap">
             {serverList.map((server) => {
-              const isActive = activeServer.id === server.id;
+              const isActive = activeServer?.id === server?.id;
               return (
                 <button
                   key={server.id}
@@ -733,15 +733,25 @@ export function VideoPlayer({
           }`}
         >
         {/* Banner Informativo de Status quando não houver fontes reais */}
-        {streamStatusMessage && (
+        {streamStatusMessage && serverList.length > 0 && (
           <div className="absolute top-4 left-4 z-30 px-3.5 py-2 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold backdrop-blur-md flex items-center gap-2 shadow-2xl animate-fade-in">
             <AlertTriangle size={15} className="shrink-0 text-amber-400" />
-            <span>{streamStatusMessage} (Exibindo reprodução de demonstração)</span>
+            <span>{streamStatusMessage}</span>
           </div>
         )}
 
-        {/* Elemento de Vídeo ou iFrame Embed */}
-        {activeServer?.type === 'embed' ? (
+        {/* Elemento de Vídeo ou iFrame Embed ou Mensagem de Indisponibilidade */}
+        {serverList.length === 0 ? (
+          <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-neutral-950/90 backdrop-blur-sm">
+            <div className="p-4 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <AlertTriangle size={32} />
+            </div>
+            <h4 className="text-base font-bold text-white">Nenhuma fonte de transmissão disponível</h4>
+            <p className="text-xs text-gray-400 max-w-md">
+              {streamStatusMessage || 'Nenhum servidor ativou este episódio no momento. Tente novamente mais tarde ou verifique os provedores no Painel Admin.'}
+            </p>
+          </div>
+        ) : activeServer?.type === 'embed' ? (
           <iframe
             src={activeServer.src}
             className="w-full h-full border-0"

@@ -144,6 +144,28 @@ export default function AdminEditAnimePage({
     }
   };
 
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch(`/api/admin/animes/${id}/sync`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccess(data.message || 'Episódios e fontes sincronizados com sucesso!');
+        await loadAnime();
+      } else {
+        setError(data.error || 'Falha ao sincronizar episódios');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro de conexão');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0B0B0F] text-white flex flex-col items-center justify-center gap-3">
@@ -164,11 +186,25 @@ export default function AdminEditAnimePage({
         <span>Voltar ao Catálogo</span>
       </Link>
 
-      <div className="flex items-center justify-between p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel">
         <div>
           <h1 className="text-2xl font-black text-white">Editar Anime: {title}</h1>
-          <p className="text-xs text-gray-400">Altere metadados e adicione episódios à série</p>
+          <p className="text-xs text-gray-400">Altere metadados e gerencie episódios da série</p>
         </div>
+
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={syncing}
+          className="px-4 py-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white font-bold text-xs flex items-center gap-2 transition-all border border-emerald-500/20 shadow-lg shadow-emerald-500/10 disabled:opacity-50"
+        >
+          {syncing ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Film size={16} />
+          )}
+          <span>Sincronizar Episódios e Fontes</span>
+        </button>
       </div>
 
       {error && (

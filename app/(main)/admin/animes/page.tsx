@@ -13,16 +13,29 @@ import {
   ChevronLeft,
   ChevronRight,
   Tv,
+  Download,
+  RefreshCw,
+  Power,
+  Sparkles,
 } from 'lucide-react';
 import { SafeImage } from '@/components/ui/SafeImage';
+import { ImportAnimeModal } from '@/components/admin/ImportAnimeModal';
+import { useToast } from '@/context/ToastContext';
 
 export default function AdminAnimesPage() {
+  const { showToast } = useToast();
   const [animes, setAnimes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  // Modal de importação & Autopilot status
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [autoIndexerEnabled, setAutoIndexerEnabled] = useState(false);
+  const [togglingAuto, setTogglingAuto] = useState(false);
 
   const fetchAnimes = async (query = '', pageNum = 1) => {
     setLoading(true);
@@ -40,9 +53,84 @@ export default function AdminAnimesPage() {
     }
   };
 
+  const fetchAutopilotStatus = async () => {
+    try {
+      const res = await fetch('/api/admin/autopilot');
+      const data = await res.json();
+      if (res.ok) {
+        setAutoIndexerEnabled(data.autoIndexerEnabled);
+      }
+    } catch (err) {
+      // Ignorar falha silenciada
+    }
+  };
+
   useEffect(() => {
     fetchAnimes(search, page);
+    fetchAutopilotStatus();
   }, [page]);
+
+  const handleToggleAutopilot = async () => {
+    setTogglingAuto(true);
+    const newStatus = !autoIndexerEnabled;
+    try {
+      const res = await fetch('/api/admin/autopilot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle', enabled: newStatus }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAutoIndexerEnabled(newStatus);
+        showToast({
+          type: newStatus ? 'success' : 'info',
+          title: newStatus ? 'Autopilot Ativado' : 'Autopilot Desativado',
+          message: data.message || `Indexação automática ${newStatus ? 'ativada' : 'desativada'}.`,
+        });
+      }
+    } catch (err) {
+      showToast({
+        type: 'error',
+        title: 'Erro ao alterar Autopilot',
+        message: 'Não foi possível alterar a configuração de indexação automática.',
+      });
+    } finally {
+      setTogglingAuto(false);
+    }
+  };
+
+  const handleSyncAnime = async (animeId: string, title: string) => {
+    setSyncingId(animeId);
+    try {
+      const res = await fetch(`/api/admin/animes/${animeId}/sync`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showToast({
+          type: 'success',
+          title: 'Sincronização Concluída! 🔄',
+          message: data.message || `Episódios e fontes de "${title}" sincronizados com sucesso.`,
+        });
+        fetchAnimes(search, page);
+      } else {
+        showToast({
+          type: 'error',
+          title: 'Falha na Sincronização',
+          message: data.error || 'Erro ao sincronizar episódios e fontes.',
+        });
+      }
+    } catch (err: any) {
+      showToast({
+        type: 'error',
+        title: 'Erro de Conexão',
+        message: err.message || 'Erro de rede durante sincronização.',
+      });
+    } finally {
+      setSyncingId(null);
+    }
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,8 +162,8 @@ export default function AdminAnimesPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0B0F] text-white p-6 sm:p-10 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel">
+      {/* Header com Ações Globais */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-[#FF6B00]/20 text-[#FF6B00]">
             <Film size={28} />
@@ -83,18 +171,49 @@ export default function AdminAnimesPage() {
           <div>
             <h1 className="text-2xl font-black text-white">Gerenciamento de Catálogo</h1>
             <p className="text-xs text-gray-400">
-              Cadastre, edite e gerencie animes, temporadas e episódios
+              Cadastre, edite, importe via MAL e gerencie o catálogo de animes
             </p>
           </div>
         </div>
 
-        <Link
-          href="/admin/animes/novo"
-          className="px-5 py-3 rounded-2xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs flex items-center gap-2 transition-all shadow-lg shadow-[#FF6B00]/20"
-        >
-          <Plus size={18} />
-          <span>Cadastrar Novo Anime</span>
-        </Link>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Botão de Alternar Autopilot / Adição Automática */}
+          <button
+            onClick={handleToggleAutopilot}
+            disabled={togglingAuto}
+            className={`px-4 py-2.5 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all border ${
+              autoIndexerEnabled
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+            }`}
+            title="Alternar Adição Automática de Animes"
+          >
+            {togglingAuto ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Power size={15} />
+            )}
+            <span>Auto-Animes: {autoIndexerEnabled ? 'ATIVADO' : 'DESATIVADO'}</span>
+          </button>
+
+          {/* Botão Importar Anime */}
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all border border-white/10"
+          >
+            <Download size={15} className="text-[#FF6B00]" />
+            <span>Importar Anime (MAL/Jikan)</span>
+          </button>
+
+          {/* Cadastrar Manual */}
+          <Link
+            href="/admin/animes/novo"
+            className="px-5 py-2.5 rounded-2xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs flex items-center gap-2 transition-all shadow-lg shadow-[#FF6B00]/20"
+          >
+            <Plus size={18} />
+            <span>Novo Anime</span>
+          </Link>
+        </div>
       </div>
 
       {/* Barra de Pesquisa */}
@@ -128,7 +247,7 @@ export default function AdminAnimesPage() {
           <Film size={40} className="text-gray-500 mb-1" />
           <h3 className="text-base font-bold text-white">Nenhum anime cadastrado</h3>
           <p className="text-xs text-gray-400 max-w-sm">
-            Clique no botão acima para adicionar um novo anime ou pesquise outro termo.
+            Clique no botão acima para importar um anime do MAL/Jikan ou cadastrar um novo.
           </p>
         </div>
       ) : (
@@ -177,6 +296,20 @@ export default function AdminAnimesPage() {
               </div>
 
               <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+                <button
+                  onClick={() => handleSyncAnime(anime.id, anime.title)}
+                  disabled={syncingId === anime.id}
+                  className="py-2 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white font-bold text-xs flex items-center justify-center gap-1 transition-all border border-emerald-500/20"
+                  title="Sincronizar Episódios e Fontes"
+                >
+                  {syncingId === anime.id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <RefreshCw size={14} />
+                  )}
+                  <span>Sync</span>
+                </button>
+
                 <Link
                   href={`/admin/animes/${anime.id}/editar`}
                   className="flex-1 py-2 rounded-xl bg-white/10 hover:bg-[#FF6B00] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
@@ -225,6 +358,13 @@ export default function AdminAnimesPage() {
           </button>
         </div>
       )}
+
+      {/* Modal de Importação Manual */}
+      <ImportAnimeModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => fetchAnimes(search, page)}
+      />
     </div>
   );
 }

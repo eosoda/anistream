@@ -183,9 +183,13 @@ function calculateSourceScore(
     score += 100;
   }
 
-  // 3. Tipo de Stream (HLS sobre MP4)
+  // 3. Tipo de Stream: Preferir streams diretos HLS e MP4 sobre Embeds de terceiros
   if (source.type === 'hls') {
-    score += 200;
+    score += 800;
+  } else if (source.type === 'mp4') {
+    score += 600;
+  } else if (source.type === 'embed') {
+    score += 0;
   }
 
   // 4. Prioridade administrativa
