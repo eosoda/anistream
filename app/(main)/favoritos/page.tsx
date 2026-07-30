@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Heart,
   Sparkles,
@@ -10,8 +10,11 @@ import {
   BellRing,
   Filter,
   HeartOff,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useToast } from '@/context/ToastContext';
 import { AnimeCard } from '@/components/anime/AnimeCard';
 import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
 import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
@@ -33,6 +36,9 @@ export default function FavoritesPage() {
     toggleRecommendationsEnabled,
   } = useFavorites();
 
+  const { showToast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [activeTab, setActiveTab] = useState<'all' | 'new_episodes' | 'airing'>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
@@ -50,6 +56,86 @@ export default function FavoritesPage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('anistream_view_mode', mode);
     }
+  };
+
+  const handleExportBackup = () => {
+    try {
+      const favsRaw = localStorage.getItem('anistream_favorites') || '[]';
+      const progressRaw = localStorage.getItem('anistream_watch_progress') || '{}';
+
+      const backupData = {
+        app: 'AniStream',
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        favorites: JSON.parse(favsRaw),
+        watchProgress: JSON.parse(progressRaw),
+      };
+
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `anistream-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast({
+        type: 'success',
+        title: 'Backup Exportado com Sucesso!',
+        message: 'Seu arquivo JSON de favoritos e progresso foi baixado.',
+      });
+    } catch (err) {
+      showToast({
+        type: 'error',
+        title: 'Erro ao Exportar',
+        message: 'Não foi possível gerar o arquivo de backup.',
+      });
+    }
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+
+        if (!parsed || (!parsed.favorites && !parsed.watchProgress)) {
+          throw new Error('Formato de backup inválido');
+        }
+
+        if (Array.isArray(parsed.favorites)) {
+          localStorage.setItem('anistream_favorites', JSON.stringify(parsed.favorites));
+        }
+
+        if (parsed.watchProgress && typeof parsed.watchProgress === 'object') {
+          localStorage.setItem('anistream_watch_progress', JSON.stringify(parsed.watchProgress));
+        }
+
+        showToast({
+          type: 'success',
+          title: 'Backup Importado!',
+          message: 'Seus favoritos e histórico foram restaurados. Recarregando...',
+        });
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } catch (err) {
+        showToast({
+          type: 'error',
+          title: 'Falha na Importação',
+          message: 'O arquivo JSON selecionado não é um backup AniStream válido.',
+        });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   const airingFavorites = favorites.filter(
@@ -84,23 +170,33 @@ export default function FavoritesPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <ViewToggle mode={viewMode} onChange={handleViewModeChange} />
-
-          <Tooltip content="Verificar datas de lançamentos de episódios na API Jikan" position="bottom">
+          <Tooltip content="Exportar backup completo em JSON" position="bottom">
             <button
-              onClick={() => checkNewEpisodes(true)}
-              disabled={isCheckingNewEpisodes}
+              onClick={handleExportBackup}
               className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 transition-all flex items-center gap-1.5"
             >
-              <RefreshCw
-                size={14}
-                className={`text-[#FF6B00] ${isCheckingNewEpisodes ? 'animate-spin' : ''}`}
-              />
-              <span>
-                {isCheckingNewEpisodes ? 'Verificando Jikan...' : 'Verificar API'}
-              </span>
+              <Download size={14} className="text-amber-400" />
+              <span>Exportar JSON</span>
             </button>
           </Tooltip>
+
+          <Tooltip content="Restaurar favoritos e progresso de um arquivo JSON" position="bottom">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 transition-all flex items-center gap-1.5"
+            >
+              <Upload size={14} className="text-sky-400" />
+              <span>Importar JSON</span>
+            </button>
+          </Tooltip>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportBackup}
+            className="hidden"
+          />
 
           {newEpisodesCount > 0 && (
             <button

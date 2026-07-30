@@ -117,6 +117,7 @@ export function VideoPlayer({
 
   const { saveProgress, getProgress } = useWatchProgress();
   const { showToast } = useToast();
+  const prefetchedRef = useRef<boolean>(false);
 
   // Construir a lista de servidores combinando resolvedStream e alternativas
   const serverList = React.useMemo(() => {
@@ -441,11 +442,21 @@ export function VideoPlayer({
     }
   };
 
+  useEffect(() => {
+    prefetchedRef.current = false;
+  }, [animeId, episodeNum, activeServer]);
+
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
     const curr = videoRef.current.currentTime;
     const dur = videoRef.current.duration;
     setCurrentTime(curr);
+
+    // Pre-fetch proativo do próximo episódio quando a reprodução passar de 88%
+    if (dur > 0 && curr / dur >= 0.88 && !prefetchedRef.current && nextEpNum && animeId) {
+      prefetchedRef.current = true;
+      fetch(`/api/anime/${animeId}/episodes/${nextEpNum}`).catch(() => {});
+    }
 
     if (dur > 0 && Math.floor(curr) % 3 === 0) {
       saveProgress({
@@ -698,18 +709,26 @@ export function VideoPlayer({
         />
       )}
 
-      {/* Container Principal do Player */}
-      <div
-        ref={containerRef}
-        onMouseMove={handleMouseMove}
-        onTouchStart={handleMouseMove}
-        onMouseLeave={() => isPlaying && setShowControls(false)}
-        className={`relative w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden glass-panel border-2 bg-black group select-none transition-all duration-300 ${
-          isTheaterMode
-            ? 'fixed inset-x-1 sm:inset-x-6 top-1/2 -translate-y-1/2 z-50 max-w-7xl mx-auto shadow-2xl shadow-[#FF6B00]/40 border-[#FF6B00]/60 ring-4 ring-[#FF6B00]/20'
-            : 'border-white/10 shadow-2xl'
-        }`}
-      >
+      {/* Container Principal do Player com Ambient Glow */}
+      <div className="relative group/player-wrapper">
+        {/* Glow de Iluminação Ambiente */}
+        <div
+          className={`absolute -inset-2 rounded-3xl bg-gradient-to-r from-[#FF6B00]/25 via-amber-500/20 to-purple-600/20 blur-2xl transition-opacity duration-700 pointer-events-none -z-10 ${
+            isPlaying || isTheaterMode ? 'opacity-80 animate-pulse' : 'opacity-30'
+          }`}
+        />
+
+        <div
+          ref={containerRef}
+          onMouseMove={handleMouseMove}
+          onTouchStart={handleMouseMove}
+          onMouseLeave={() => isPlaying && setShowControls(false)}
+          className={`relative w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden glass-panel border-2 bg-black group select-none transition-all duration-300 ${
+            isTheaterMode
+              ? 'fixed inset-x-1 sm:inset-x-6 top-1/2 -translate-y-1/2 z-50 max-w-7xl mx-auto shadow-2xl shadow-[#FF6B00]/40 border-[#FF6B00]/60 ring-4 ring-[#FF6B00]/20'
+              : 'border-white/10 shadow-2xl'
+          }`}
+        >
         {/* Banner Informativo de Status quando não houver fontes reais */}
         {streamStatusMessage && (
           <div className="absolute top-4 left-4 z-30 px-3.5 py-2 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold backdrop-blur-md flex items-center gap-2 shadow-2xl animate-fade-in">
@@ -1309,8 +1328,9 @@ export function VideoPlayer({
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Modal de Report de Erros */}
+    {/* Modal de Report de Erros */}
       <ReportProblemModal
         episodeId={String(animeId)}
         isOpen={isReportModalOpen}

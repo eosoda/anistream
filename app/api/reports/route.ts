@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { dispatchWebhooks } from '@/lib/webhooks/notifier';
 
 // GET: Listar chamados de erro (Admin)
 export async function GET() {
@@ -38,6 +39,17 @@ export async function POST(req: Request) {
         status: 'PENDING',
       },
     });
+
+    // Disparar notificação assíncrona para Discord/Telegram
+    dispatchWebhooks({
+      title: '🚨 Novo Relato de Problema em Episódio',
+      description: `Um usuário reportou um problema no episódio ID: **${episodeId}**`,
+      type: 'WARNING',
+      fields: [
+        { name: 'Tipo do Problema', value: type, inline: true },
+        { name: 'Descrição', value: description || 'Sem descrição adicional', inline: false },
+      ],
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
