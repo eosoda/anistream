@@ -1,35 +1,34 @@
 # 05. Player de Vídeo & Experiência de Streaming — AniStream 🎥
 
-O player de vídeo do AniStream ([`src/components/VideoPlayer.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/src/components/VideoPlayer.tsx)) foi atualizado na **Fase 1** com recursos avançados de usabilidade, atalhos globais, controle de velocidade e timestamps compartilháveis.
+O player de vídeo do AniStream ([`components/player/VideoPlayer.tsx`](file:///c:/Users/sodinha/Documents/projetos/anistream/components/player/VideoPlayer.tsx)) e o sistema de resolvedor de mídias ([`src/lib/streams/resolver.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/resolver.ts)) oferecem uma experiência completa de reprodução com suporte adaptativo, proxy seguro e múltiplos provedores.
 
 ---
 
-## 🚀 Recursos Avançados do Player
+## 🚀 1. Recursos Avançados do Player
 
 ### 1. Menu Único de Configurações ⚙️ (Popover Multinível)
-- **Design Limpo Estilo Netflix/YouTube**: Todos os controles avançados foram consolidados em um popover intuitivo com navegação multinível (Voltar `◄`):
-  - 🎧 **Áudio & Legendas**: Seleção dinâmica de idiomas e faixas.
+- **Design Estilo OTT**: Todos os controles avançados foram consolidados em um popover intuitivo com navegação multinível:
+  - 🎧 **Áudio & Legendas**: Seleção dinâmica de idiomas (`Dublado PT-BR`, `Legendado JA`) e faixas.
   - ⚡ **Velocidade de Reprodução**: `0.5x`, `0.75x`, `1.0x (Normal)`, `1.25x`, `1.5x`, `2.0x`.
-  - 💡 **Apagar Luzes (Full-Page Blackout)**: Escurecimento de 95% de todo o layout da página web.
-  - ⌨️ **Atalhos de Teclado**: Guia rápido de teclado integrado.
+  - 💡 **Apagar Luzes (Full-Page Blackout)**: Escurecimento de 95% do layout da página web.
+  - ⌨️ **Atalhos de Teclado**: Guia rápido de atalhos.
   - ⚠️ **Reportar Problema**: Formulário direto de feedback para o admin.
 
 ### 2. Pular Abertura (+85s) em Floating Pill
-- **Pill Flutuante**: Posicionado estrategicamente no canto inferior direito sobre o canvas de vídeo ("Pular Abertura +85s").
+- **Pill Flutuante**: Botão flutuante posicionado no canto inferior direito ("Pular Abertura +85s").
 
-### 3. Inicialização HLS (`hls.js`), Playlists `.m3u8` & Embeds iFrame
-- **Suporte Adaptativo HLS**: Transmissão nativa de playlists HLS (`.m3u8`) via `hls.js` com controle automático de resolução e buffer.
-- **Renderização Nativa de Embeds**: Fontes do tipo `embed` (como `2Embed`, `Xpass` e `ApiPlayer`) são renderizadas nativamente em um container `<iframe>` responsivo sem tentar forçar proxy de mídia.
-- **Limite de Retentativas**: Máximo de 2 tentativas por servidor antes de realizar o fallback automático para a próxima fonte.
-- **Auditoria de Erros HTML5 (`MediaError`)**: Mapeamento detalhado dos códigos de erro nativos (Rede, Decodificação, Codec Não Suportado) exibidos no Toast.
+### 3. Validação HLS `#EXTM3U`, Proxy Seguro & Embeds iFrame
+- **Validação de Playlists HLS ([hls-validator.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/hls-validator.ts))**: Validação automática do status HTTP, `Content-Type` (`application/x-mpegurl`, `application/vnd.apple.mpegurl`) e tag `#EXTM3U` no manifesto.
+- **Preservação de Cabeçalhos**: O proxy seguro `/api/streams/proxy/[sourceId]` repassa fidedignamente os cabeçalhos `User-Agent`, `Referer` e `Origin` exigidos pelo provedor de origem.
+- **Renderização Nativa de Embeds**: Fontes do tipo `embed` (como `2Embed`, `Xpass`, `WarezCDN` e `AnimesOnline`) são renderizadas nativamente em elementos `<iframe>` responsivos.
+- **Resolução On-Demand**: A URL de mídia é resolvida dinamicamente no momento do clique em "Assistir".
 
-### 4. Carrossel de Binge-Watching de Episódios
-- **Sliding Carousel abaixo do Player**: Carrossel horizontal deslizante com miniaturas, indicador *"Assistindo"* no episódio ativo e barra de progresso individual.
-
+### 4. Player de Teste Inline no Admin (`EpisodeSourcesModal`)
+- No Painel Admin (`/admin/animes/[id]/editar`), o modal [`EpisodeSourcesModal`](file:///c:/Users/sodinha/Documents/projetos/anistream/components/admin/EpisodeSourcesModal.tsx) possui um player inline integrado para o administrador testar a reprodução do vídeo ou embed em tempo real antes de salvar.
 
 ---
 
-## ⌨️ Tabela de Atalhos de Teclado
+## ⌨️ 2. Tabela de Atalhos de Teclado
 
 | Tecla | Ação |
 | :--- | :--- |

@@ -1,85 +1,50 @@
 # 06. Serviços de API & Resiliência — AniStream 🌐
 
- O AniStream utiliza **duas APIs públicas externas** para alimentar os dados de catálogo, rankings, fotos e contagem de episódios.
+O AniStream possui uma arquitetura de dados e streaming multi-fonte projetada para alta resiliência, velocidade e tolerância a falhas.
 
 ---
 
-### 3. Provedores de Streaming e Episódios Externos (`services/providers/externalProviders.ts`)
-- **Provedores Suportados**: `AniZone/Kenjitsu`, `Miruro`, `Anify`, `Consumet/Gogoanime`, `TVmaze` (episódios), `2Embed`, `Xpass`, `ApiPlayer`.
-- **Arquitetura de Requisição**: AbortController com timeout de 10s, `cache: "no-store"`, `encodeURIComponent` e tratamento de erros para HTTP 404, 429, 5xx e SyntaxError no parsing JSON.
-- **Pipeline de Fallback Dinâmico**: O `ExternalApisProvider` lê apenas registros ativados (`enabled: true`) no banco de dados, respeitando a ordem de prioridade definida no admin/setup.
+## 🌐 1. Camada de Metadados Multi-Fonte ([metadata-fetcher.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/anime/metadata-fetcher.ts))
+
+Para evitar travamentos e erros 504/503 em buscas de animes, o sistema consulta metadados em 3 camadas de fallback:
+
+1. **AniList GraphQL API (Prioridade Principal)**: Resposta em **~100ms** sem passar pelos bloqueios do MyAnimeList.
+2. **Jikan v4 + Timeout (4.5s)**: Fila de engarrafamento (350ms) com cancelamento rápido por `AbortController`.
+3. **Kitsu API (Fallback Terciário)**: Resposta alternativa para garantir retorno dos dados.
+4. **Extração de Aliases**: Salva automaticamente todos os nomes alternativos (romaji, native, english, synonyms) na tabela `AnimeAlias` do PostgreSQL para pareamento de episódios.
 
 ---
 
-## ⚡ Fila de Engarrafamento e Rate Limiting (`services/jikan.ts`)
+## 🎬 2. 8 Provedores de Streaming e Episódios Externos ([externalProviders.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/services/providers/externalProviders.ts))
 
-A API Jikan v4 possui limite público severo de **3 requisições por segundo**. Para evitar bloqueios por erro HTTP 429 (`Too Many Requests`), todas as chamadas no arquivo [`services/jikan.ts`](file:///c:/Users/junin/Documents/projetos/anistream/services/jikan.ts) passam obrigatoriamente pela função `throttleRequest()`:
+O backend implementa 8 provedores independentes de reprodução:
 
-```typescript
-let lastRequestTime = 0;
-const MIN_INTERVAL_MS = 350; // Intervalo mínimo garantido entre requisições
-
-async function throttleRequest<T>(requestFn: () => Promise<T>): Promise<T> {
-  const now = Date.now();
-  const timeSinceLast = now - lastRequestTime;
-  if (timeSinceLast < MIN_INTERVAL_MS) {
-    await new Promise((resolve) => setTimeout(resolve, MIN_INTERVAL_MS - timeSinceLast));
-  }
-  lastRequestTime = Date.now();
-  try {
-    return await requestFn();
-  } catch (error: any) {
-    if (error?.response?.status === 429) {
-      // Backoff e nova tentativa após 1.5s em caso de estouro de limite
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      return await requestFn();
-    }
-    throw error;
-  }
-}
-```
+1. **Kenjitsu / AniZone**: Busca `/api/anizone/anime/search`, legendados (`-episode-{episode}`) e dublados (`-dub`, `-dublado`).
+2. **GogoAnime (Consumet com 5 Instâncias Fallback)**:
+   - Alterna em sequência entre:
+     - `https://api-consumet-org-five.vercel.app`
+     - `https://consumet-api-1.vercel.app`
+     - `https://anime-api-iota.vercel.app`
+     - `https://consumet-api-zeta.vercel.app`
+     - `https://consumet-api-ecru.vercel.app`
+   - Extrai `sources`, `headers` e `subtitles`.
+3. **HiAnime / Zoro (Consumet / Zoro)**: Extração de playlists HLS (`.m3u8`).
+4. **Anify**: Extração por `aniListId` via `api.anify.tv`.
+5. **AnimesOnline (Scraper HTML + AJAX)**: Busca HTML e rotas `wp-admin/admin-ajax.php`.
+6. **WarezCDN / Superflix**: Suporte aos 4 domínios (`warezcdn.lat`, `warezcdn.site`, `superflixapi.pro`, `superflixapi.rest`).
+7. **XPass / 2Embed**: Embeds `/e/tv/`, `/e/movie/` e arquivos de playlist JSON.
+8. **Catálogo M3U Autorizado**: Playlists M3U/M3U8 personalizadas por URL.
 
 ---
 
-## ⚡ Circuit Breaker & Resiliência Externa (`src/lib/api/circuit-breaker.ts`)
+## ⚡ 3. Fila de Engarrafamento e Circuit Breaker
 
-Para proteger a aplicação de falhas ou degradações de rede no Jikan API e AniList, o AniStream implementa o padrão **Circuit Breaker**:
-
-1. **Monitoramento**: Registra falhas consecutivas em uma janela de 60 segundos.
-2. **Abertura de Circuito (OPEN)**: Se ocorrerem 5 falhas no período, o circuito é aberto por 30 segundos.
-3. **Fallback Automático**: Durante a abertura, requisições servem dados direto do banco local (PostgreSQL) / IndexedDB sem tentar conectar à API indisponível, retornando a flag `meta: { cached: true, offline: true }`.
+- **Jikan API Throttling (`services/jikan.ts`)**: Garante um intervalo mínimo de 350ms entre chamadas com backoff em erros 429.
+- **Circuit Breaker (`src/lib/api/circuit-breaker.ts`)**: Se ocorrerem 5 falhas seguidas em 60s, o circuito abre por 30s e serve dados do banco local sem causar timeouts na interface.
 
 ---
 
-## 📐 Padronização de Respostas HTTP (`src/lib/api/response.ts`)
+## 📐 4. Padronização de Respostas HTTP (`src/lib/api/response.ts`)
 
-Todas as rotas da API pública e administrativa utilizam o módulo centralizado de respostas:
-
-- **Sucesso (`apiSuccess<T>`)**:
-  ```json
-  {
-    "success": true,
-    "data": { ... },
-    "meta": { "total": 24, "offline": false }
-  }
-  ```
-- **Erro (`apiError`)**:
-  ```json
-  {
-    "success": false,
-    "error": {
-      "code": "RATE_LIMITED" | "INVALID_INPUT" | "NO_SOURCES_AVAILABLE",
-      "message": "Mensagem detalhada",
-      "details": { ... }
-    },
-    "timestamp": "2026-07-29T16:00:00Z"
-  }
-  ```
-
----
-
-## ⚡ Edge Caching (CDN Headers)
-
-- **Rotas de Catálogo Público (`/api/anime/*`)**: `Cache-Control: public, s-maxage=1800, stale-while-revalidate=86400`.
-- **Rotas de Streaming & Admin (`/api/streams/*`, `/api/admin/*`)**: `Cache-Control: no-store, private`.
-
+- **Sucesso (`apiSuccess<T>`)**: `{ success: true, data: T, meta?: ... }`
+- **Erro (`apiError`)**: `{ success: false, error: { code, message, details }, timestamp }`

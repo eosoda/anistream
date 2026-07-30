@@ -1,6 +1,6 @@
-# Especificação Arquitetural e Técnica — AniStream
+# Especificação Arquitetural e Técnica — AniStream 🚀
 
-Este documento detalha a arquitetura interna, fluxo de dados, estratégias de cache, gestão de estado e comunicação de APIs do projeto **AniStream**.
+Este documento detalha a arquitetura interna, fluxo de dados, estratégias de resiliência, 8 provedores de streaming, gestão de episódios/fontes e comunicação de APIs do projeto **AniStream**.
 
 ---
 
@@ -12,99 +12,115 @@ graph TD
     
     subgraph ContextState["Gerenciamento de Estado Global"]
         FavoritesCtx["FavoritesContext"]
-        ToastCtx["ToastContext"]
+        ToastCtx["ToastContext (Notificações & PWA Updates)"]
         ConfirmCtx["ConfirmationContext"]
     end
     
-    subgraph DataFetching["Camada de Dados (React Query)"]
-        JikanSvc["services/jikan.ts (Throttle 350ms)"]
-        AniListSvc["services/anilist.ts (GraphQL)"]
+    subgraph DataFetching["Camada de Metadados Multi-Fonte"]
+        MetaFetcher["metadata-fetcher.ts"]
+        AniListSvc["AniList GraphQL API (~100ms)"]
+        JikanSvc["services/jikan.ts (Throttle 350ms & 4.5s Timeout)"]
+        KitsuSvc["Kitsu.io API"]
     end
     
-    subgraph Storage["Persistência Local"]
+    subgraph StreamingPipeline["Pipeline de Streaming & Fontes (StreamResolver)"]
+        HlsVal["hls-validator.ts (#EXTM3U)"]
+        Proxy["/api/streams/proxy/[sourceId] (Headers Preservados)"]
+        Providers8["8 Provedores Independente (Kenjitsu, Consumet, Zoro, Anify, AnimesOnline, WarezCDN, XPass, M3U)"]
+    end
+    
+    subgraph Storage["Persistência & Banco de Dados"]
+        PostgreSQL["PostgreSQL 16 (Anime, Episode, EpisodeSource, AnimeAlias, MediaProvider)"]
         LS["LocalStorage (Favs, Progresso, Configs)"]
         IDB["IndexedDB (offlineCacheDB - Catálogo)"]
     end
     
     User --> ContextState
     User --> DataFetching
-    DataFetching --> JikanSvc
-    DataFetching --> AniListSvc
-    JikanSvc --> Storage
+    User --> StreamingPipeline
+    DataFetching --> MetaFetcher
+    MetaFetcher --> AniListSvc
+    MetaFetcher --> JikanSvc
+    MetaFetcher --> KitsuSvc
+    StreamingPipeline --> Providers8
+    StreamingPipeline --> HlsVal
+    StreamingPipeline --> Proxy
+    Providers8 --> PostgreSQL
     FavoritesCtx --> LS
 ```
 
 ---
 
-## ⚡ 2. Estratégia de Requisições e Throttling (API Jikan v4)
+## 🎬 2. 8 Provedores de Mídias e Episódios
 
-A API do MyAnimeList via Jikan v4 possui limite estrito de **3 requisições por segundo**. Para evitar erros HTTP 429 (Rate Limit Exceeded), o serviço [`services/jikan.ts`](file:///c:/Users/junin/Documents/projetos/anistream/services/jikan.ts) implementa uma fila de engarrafamento com atraso dinâmico:
+O AniStream suporta 8 provedores independentes e configuráveis via Painel Administrativo (`/admin/sources`):
 
-```typescript
-let lastRequestTime = 0;
-async function throttleRequest<T>(requestFn: () => Promise<T>): Promise<T> {
-  const now = Date.now();
-  const timeSinceLast = now - lastRequestTime;
-  const minInterval = 350; // Garante máximo de ~2.8 req/seg
-  if (timeSinceLast < minInterval) {
-    await new Promise((resolve) => setTimeout(resolve, minInterval - timeSinceLast));
-  }
-  lastRequestTime = Date.now();
-  try {
-    return await requestFn();
-  } catch (error: any) {
-    if (error?.response?.status === 429) {
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Backoff exponencial
-      return await requestFn();
-    }
-    throw error;
-  }
-}
-```
+1. **Kenjitsu / AniZone**:
+   - Busca: `/api/anizone/anime/search?q={query}`
+   - Legendado: `/api/anizone/sources/-{slug}-episode-{episode}`
+   - Dublado: `/api/anizone/sources/-{slug}-episode-{episode}-dub` e `-dublado`
+2. **GogoAnime (Consumet com 5 Instâncias Fallback)**:
+   - Fallback sequencial inteligente entre as instâncias: `api-consumet-org-five`, `consumet-api-1`, `anime-api-iota`, `consumet-api-zeta`, `consumet-api-ecru`.
+   - Repassa `sources`, `headers` (`Referer`) e `subtitles`.
+3. **HiAnime / Zoro (Consumet / Zoro)**:
+   - Endpoints Consumet Zoro com extração de playlists HLS (`.m3u8`).
+4. **Anify**:
+   - Episódios `/episodes/{aniListId}?provider=zoro` e fontes `/sources?providerId={providerId}`.
+5. **AnimesOnline (Scraper HTML + AJAX)**:
+   - Extração via `/episodio/{slug}` e `wp-admin/admin-ajax.php`.
+6. **WarezCDN / Superflix**:
+   - Suporte aos 4 domínios (`warezcdn.lat`, `warezcdn.site`, `superflixapi.pro`, `superflixapi.rest`).
+7. **XPass / 2Embed**:
+   - Embeds `/e/tv/`, `/e/movie/` e playlists JSON (`/mov/{tmdbId}/{season}/{episode}/0/playlist.json`).
+8. **Catálogo M3U Autorizado**:
+   - Playlists M3U/M3U8 personalizadas com nome, URL, idioma, qualidade e categoria.
 
 ---
 
-## 💾 3. Sistema de Cache Offline (IndexedDB)
+## ⚡ 3. Resolução On-Demand, Headers e Validação HLS
 
-O utilitário [`utils/offlineCacheDB.ts`](file:///c:/Users/junin/Documents/projetos/anistream/utils/offlineCacheDB.ts) gerencia um banco de dados IndexedDB de alta velocidade contendo 2 stores:
-
-1. **`catalog`**: Armazena respostas de busca, rankings populares e lançamentos de temporadas por `cacheKey`.
-2. **`animes`**: Armazena objetos detalhados de animes acessados.
-
-### Fluxo de Fallback Offline
-1. Quando a aplicação tenta realizar busca ou carregar um anime:
-2. Se `navigator.onLine === false` ou a API Jikan retornar erro de rede, o serviço tenta recuperar o resultado direto do IndexedDB.
-3. Se não houver cache no IndexedDB, é realizada a busca local no repositório estático [`data/fallbackAnime.ts`](file:///c:/Users/junin/Documents/projetos/anistream/data/fallbackAnime.ts).
+- **Resolução On-Demand (Lazy Resolution)**: A busca da URL do vídeo é executada exclusivamente quando o usuário clica em "Assistir" ou no preview, evitando armazenar URLs temporárias obsoletas.
+- **Preservação de Cabeçalhos**: O proxy repassa os cabeçalhos `User-Agent`, `Referer` e `Origin` exigidos por cada servidor de vídeo.
+- **Validador HLS ([hls-validator.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/hls-validator.ts))**: Valida o status HTTP, `Content-Type` (`application/x-mpegurl`, `application/vnd.apple.mpegurl`) e a tag `#EXTM3U` no manifesto.
+- **Pareamento por Aliases e Nomes Alternativos ([similarity.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/anime/similarity.ts))**: Ao resolver episódios, o sistema consulta a tabela `AnimeAlias` do PostgreSQL e testa todos os nomes alternativos (inglês, romaji, nativo e sinônimos) para garantir correspondência exata.
 
 ---
 
-## 🧱 4. Padrões de Design e Módulo de Componentes
+## 🛠️ 4. Gerenciamento de Episódios no Admin & Preview Inline
 
-Todos os componentes ficam na pasta `components/` dividida em 6 subpastas temáticas por domínio:
+- **Modal `EpisodeSourcesModal` ([EpisodeSourcesModal.tsx](file:///c:/Users/sodinha/Documents/projetos/anistream/components/admin/EpisodeSourcesModal.tsx))**:
+  - Lista de fontes cadastradas com chave ON/OFF (`enabled`), alteração de qualidade, idioma (`pt-BR`, `ja`), edição e exclusão.
+  - Varredura nos provedores em tempo real com checkboxes para o admin selecionar quais fontes deseja cadastrar ao episódio.
+  - Formulário para adição manual de links `.m3u8`, `.mp4` ou iFrame `embed`.
+  - **Player de Teste Inline**: Overlay com o `VideoPlayer` oficial da aplicação para testar a reprodução da fonte em tempo real antes de salvar.
 
-- **`anime/`**: Componentes focados em visualização de animes (`AnimeCard`, `CompactAnimeCard`, `AnimeCarousel`, `QuickViewModal`, `SeasonSelector`).
+---
+
+## 💾 5. Sistema de Metadados Multi-Fonte Resiliente
+
+O módulo [`src/lib/anime/metadata-fetcher.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/anime/metadata-fetcher.ts) implementa resiliência em 3 camadas:
+1. **AniList GraphQL API (Prioridade Principal)**: Responde em **~100ms** sem rate-limit e sem erros 504.
+2. **Jikan v4 + Timeout 4.5s (Fallback Secundário)**: Fila de engarrafamento (350ms) com cancelamento rápido em caso de instabilidade.
+3. **Kitsu API (Fallback Terciário)**: Fonte adicional para garantir retorno de dados.
+4. **Importação Determinística**: O modal de importação envia diretamente os metadados do card selecionado pelo usuário para o backend, evitando discrepâncias de busca.
+
+---
+
+## 🔔 6. Notificações de Atualização PWA / Service Worker
+
+- O componente [`PwaRegister.tsx`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/components/layout/PwaRegister.tsx) detecta quando uma nova versão do Service Worker é instalada.
+- O [`ToastContext.tsx`](file:///c:/Users/sodinha/Documents/projetos/anistream/context/ToastContext.tsx) exibe um Toast interativo: *"Nova Atualização Disponível! 🚀 Clique aqui para atualizar a página."*
+- Ao clicar no Toast, é enviado o comando `SKIP_WAITING` e o navegador executa `window.location.reload()`.
+
+---
+
+## 🧱 7. Organização de Componentes
+
+Pasta `components/`:
+- **`anime/`**: Componentes de catálogo e modais (`AnimeCard`, `CompactAnimeCard`, `QuickViewModal`, etc.).
 - **`player/`**: Componentes da experiência de vídeo (`VideoPlayer`, `EpisodeList`).
-- **`catalog/`**: Filtros e mecanismos de busca (`SearchBar`, `SearchFilters`, `QuickMultiFilter`, `ViewToggle`).
-- **`home/`**: Blocos da tela inicial (`BannerHero`, `ContinueWatchingSection`, `EpisodeRemindersPanel`, `ForYouSection`).
-- **`layout/`**: Componentes estruturais de páginas (`Navbar`, `Footer`, `QueryProvider`).
-- **`ui/`**: Componentes atômicos e primitivos de interface (`SafeImage`, `Tooltip`, `RatingBadge`, `GenreBadge`, `EmptyState`, `LoadingSkeleton`).
-
-### Regra de Compatibilidade de Imports (Barrel Export Pattern)
-Cada subpasta contém um arquivo `index.ts` reexportando seus componentes. Além disso, a raiz de `components/index.ts` reexporta todos os domínios, permitindo tanto imports modulares (`@/components/anime/AnimeCard`) quanto gerais (`@/components`).
-
----
-
-## 🛡️ 5. Resiliência de Hooks de Contexto (SSG / Prerender)
-
----
-
-## 🎬 6. Resolvedor de Streams & Provedores Externos (`StreamResolver`)
-
-O AniStream possui um pipeline extensível de resolução de fontes de mídia ([`src/lib/streams/resolver.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/resolver.ts)):
-
-1. **`ExternalApisProvider`**: Consulta no PostgreSQL (`MediaProvider`) todos os provedores do tipo `EXTERNAL_API` (`AniZone`, `Miruro`, `Anify`, `Consumet`, `TVmaze`) e `EMBED` (`2Embed`, `Xpass`, `ApiPlayer`) marcados como `enabled: true`, respeitando a ordem de prioridade.
-2. **`LocalDatabaseProvider` & `ConfiguredJsonProvider`**: Recupera fontes cadastradas localmente no banco ou espelhos JSON configurados.
-3. **`AuthorizedM3uProvider`**: Varre playlists M3U/M3U8 autorizadas.
-4. **Resolução de Player**:
-   - Streams de vídeo direto (HLS `.m3u8` / MP4) são servidos através do proxy seguro `/api/streams/proxy/[sourceId]`.
-   - Streams do tipo `embed` entregam a URL do iFrame diretamente para ser renderizada pelo container `<iframe>` no `VideoPlayer`.
+- **`catalog/`**: Filtros e pesquisa (`SearchBar`, `SearchFilters`, `QuickMultiFilter`, `ViewToggle`).
+- **`home/`**: Seções da página inicial (`BannerHero`, `ContinueWatchingSection`, `ForYouSection`).
+- **`layout/`**: Estrutura (`Navbar`, `Footer`, `QueryProvider`, `PwaRegister`).
+- **`admin/`**: Modais e painéis administrativos (`ImportAnimeModal`, `EpisodeSourcesModal`, `AutopilotPanel`).
+- **`ui/`**: Primitivos e componentes atômicos (`SafeImage`, `Tooltip`, `RatingBadge`, `GenreBadge`, `EmptyState`, `LoadingSkeleton`).

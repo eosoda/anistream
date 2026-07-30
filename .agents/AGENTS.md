@@ -1,7 +1,7 @@
 # Guidelines & Architecture Reference for AI Agents (AGENTS.md)
 
 ## 📌 Repository Summary
-**AniStream** is a modern Next.js 15 (App Router) web application for browsing, searching, and streaming anime. It features a rich dark-mode UI, offline IndexedDB caching, live search preview, custom video player with autoplay countdown, skip intro, picture-in-picture, and interactive quick multi-filters.
+**AniStream** is a modern Next.js 15 (App Router) web application for browsing, searching, and streaming anime. It features a rich dark-mode UI, offline IndexedDB caching, live search preview, custom video player with autoplay countdown, skip intro (+85s), picture-in-picture, and interactive quick multi-filters.
 
 ---
 
@@ -11,7 +11,8 @@
 - **Styling**: Vanilla CSS (`app/globals.css`), TailwindCSS utilities, Glassmorphism, Dark Palette (`#0B0B0F`, `#FF6B00`)
 - **Icons & Motion**: Lucide React icons, Motion (`motion/react`)
 - **Data Fetching**: `@tanstack/react-query` (v5)
-- **APIs & External Services**: Jikan API v4, AniList GraphQL, AniZone/Kenjitsu, Miruro, Anify, Consumet/Gogoanime, TVmaze, 2Embed, Xpass, ApiPlayer
+- **APIs & Metadata Layer**: AniList GraphQL API (~100ms), Jikan API v4 (350ms throttle), Kitsu API fallback
+- **Stream Providers (8 Independent Sources)**: Kenjitsu/AniZone, GogoAnime (Consumet with 5-instance fallback), HiAnime/Zoro, Anify, AnimesOnline Scraper, WarezCDN/Superflix, XPass/2Embed, Authorized M3U Catalog
 - **Offline Storage**: IndexedDB custom wrapper (`utils/offlineCacheDB.ts`)
 
 ---
@@ -25,12 +26,12 @@ app/
 ├── (main)/                # Public & Admin Route Group
 │   ├── layout.tsx         # Public Layout Chrome (Navbar, Footer, BroadcastBanner, FloatingRecommendationsWidget)
 │   ├── page.tsx           # Home Page (/)
-│   ├── admin/             # Painel Administrativo (/admin/...)
-│   ├── anime/             # Detalhes & Player (/anime/[id]/...)
-│   └── ...                # Demais páginas públicas (populares, pesquisa, filmes, favoritos, etc.)
+│   ├── admin/             # Administrative Panel (/admin/...)
+│   ├── anime/             # Details & Player (/anime/[id]/...)
+│   └── ...                # Other public routes (popular, search, movies, favorites, etc.)
 └── setup/                 # Setup Wizard Route
     ├── layout.tsx         # Dedicated Setup Layout (Setup Header, Installation Shield, Ambient Glow, Minimal Footer)
-    └── page.tsx           # Assistente de Instalação (/setup)
+    └── page.tsx           # Installation Wizard (/setup)
 ```
 
 ---
@@ -44,7 +45,8 @@ components/
 ├── player/      # Video playback (VideoPlayer, EpisodeList)
 ├── catalog/     # Search & filters (SearchBar, SearchFilters, QuickMultiFilter, ViewToggle)
 ├── home/        # Home sections (BannerHero, ContinueWatchingSection, ForYouSection, etc.)
-├── layout/      # Structure (Navbar, Footer, QueryProvider)
+├── layout/      # Structure (Navbar, Footer, QueryProvider, PwaRegister)
+├── admin/       # Admin modals & tools (ImportAnimeModal, EpisodeSourcesModal, AutopilotPanel)
 └── ui/          # Primitives & Atoms (SafeImage, Tooltip, RatingBadge, GenreBadge, EmptyState, LoadingSkeleton, OfflineStatusBanner)
 ```
 
@@ -58,9 +60,9 @@ The context tree is organized as follows:
 
 ```
 QueryClientProvider
-└── ToastProvider          (Context: showToast, copyToClipboard)
+└── ToastProvider          (Context: showToast, copyToClipboard, interactive onClick for PWA updates)
     └── ConfirmationProvider (Context: confirm dialogs)
-        └── FavoritesProvider (Context: favorites list, new ep checks, recommendations toggle)
+        └── FavoritesProvider (Context: favorites list, new episode checks, recommendations toggle)
             └── {children}
 ```
 
@@ -68,40 +70,58 @@ QueryClientProvider
 
 ---
 
-## ⚡ Jikan API Throttling & Offline Fallback Rules
-- **Rate Limit**: Jikan API strictly rate-limits at ~3 requests/second.
-- **Throttling Queue**: All requests in `services/jikan.ts` MUST go through `throttleRequest()` with a minimum 350ms interval.
-- **Offline Fallback**: If offline or on API failure, `searchAnime` falls back to IndexedDB catalog cache and local `FALLBACK_ANIMES`.
+## ⚡ Resilient Multi-Source Metadata Layer (`src/lib/anime/metadata-fetcher.ts`)
+- **AniList GraphQL API (Primary Priority)**: Responds in **~100ms** bypassing rate limits or HTTP 504 errors from MyAnimeList.
+- **Jikan v4 + Timeout (4.5s)**: Throttled queue (350ms) with fast AbortController cancellation in case of instability.
+- **Kitsu API (Tertiary Fallback)**: Alternative response to guarantee metadata retrieval.
+- **Alias Pairing (`AnimeAlias`)**: Automatically saves all alternative names (English, Romaji, Native, synonyms) into PostgreSQL's `AnimeAlias` table for exact episode and media title matching.
+- **Deterministic Import**: `ImportAnimeModal.tsx` sends the exact selected card metadata object directly to the backend.
 
 ---
 
-## 🔒 Segurança de Mídias e Hosts Autorizados (`AUTHORIZED_MEDIA_HOSTS`)
-- **Resolução Dinâmica em 3 Camadas**: A validação SSRF (`src/lib/security/ssrf.ts`) unifica domínios autorizados provenientes do `.env`, extração automática de `MediaProvider` (DB) e cadastros manuais em `SystemSetting`.
-- **Controle do Administrador**: Bloqueios estáticos legados foram removidos para que o administrador tenha autonomia total de testar e decidir quais fontes autorizar no Painel Admin (`/admin/sources`).
-- **Cache em Memória**: As verificações de segurança utilizam cache em memória com TTL (60s) e invalidação reativa em tempo real.
+## 🎬 8 Stream Providers, HLS Validation & VideoPlayer
+- **8 Integrated External Providers (`services/providers/externalProviders.ts`)**:
+  - `Kenjitsu / AniZone`, `GogoAnime Consumet` (fallback across 5 instances), `HiAnime / Zoro`, `Anify API`, `AnimesOnline Scraper`, `WarezCDN / Superflix`, `XPass / 2Embed`, `Authorized M3U Catalog`.
+- **HLS Playlist Validation ([hls-validator.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/hls-validator.ts))**: Validates HTTP status, `Content-Type`, and `#EXTM3U` header tag in the manifest.
+- **On-Demand Lazy Resolution & Headers**: Video URL resolution runs exclusively when the user clicks "Play". The proxy faithfully forwards `User-Agent`, `Referer`, and `Origin` headers.
+- **Admin Episode Manager (`EpisodeSourcesModal.tsx`)**:
+  - Real-time provider discovery with checkboxes, manual source addition (`.m3u8`, `.mp4`, `embed`), ON/OFF toggle (`enabled`), edit, delete, and **inline test player** directly inside the modal.
 
 ---
 
-## 🔌 Arquitetura de API, Circuit Breaker & Resiliência
-- **Padronização de Respostas (`src/lib/api/response.ts`)**: Todas as rotas usam `apiSuccess<T>` (`{ success: true, data: T, meta?: ... }`) e `apiError` (`{ success: false, error: { code, message, details }, timestamp }`).
-- **Circuit Breaker (`src/lib/api/circuit-breaker.ts`)**: Protege chamadas de APIs externas (Jikan / AniList / External Providers). Após 5 falhas seguidas em 60s, o circuito abre por 30s e ativa automaticamente o fallback local sem causar timeouts na interface.
-- **Edge Caching**: Rotas públicas de catálogo usam `Cache-Control: public, s-maxage=1800, stale-while-revalidate=86400`. Rotas de streaming e admin usam `no-store, private`.
+## 🔒 Media Security & Authorized Hosts (`AUTHORIZED_MEDIA_HOSTS`)
+- **3-Layer Dynamic Resolution**: SSRF validation (`src/lib/security/ssrf.ts`) unifies authorized domains from `.env`, automatic extraction from `MediaProvider` (DB), and manual entries in `SystemSetting`.
+- **Admin Control**: Legacy static locks were removed so administrators have full autonomy to test and decide which sources to authorize in the Admin Panel (`/admin/sources`).
+- **In-Memory Cache**: Security checks use an in-memory cache with a 60s TTL and real-time reactive invalidation.
 
 ---
 
-## 🎬 Sistema de Streaming, Provedores Externos & VideoPlayer
-- **Provedores Externos Integrados (`services/providers/externalProviders.ts`)**:
-  - `AniZone/Kenjitsu`, `Miruro`, `Anify`, `Consumet/Gogoanime`, `TVmaze` (episódios/temporadas), `2Embed`, `Xpass`, `ApiPlayer`.
-  - Todas as chamadas usam `encodeURIComponent`, `AbortController` (10s), `cache: "no-store"` e tratamento robusto de erros HTTP (404, 429, 5xx) e JSON parsing.
-- **Resolução Dinâmica por Banco (`ExternalApisProvider`)**:
-  - Consulta os registros da tabela `MediaProvider` com `enabled: true`, respeitando a ordem de prioridade definida no painel admin e setup.
-- **Suporte HLS (`hls.js`) & Embed iFrames**:
-  - Streams `.m3u8` e MP4 utilizam o proxy seguro `/api/streams/proxy/[sourceId]`.
-  - Embeds de terceiros (`2Embed`, `Xpass`, `ApiPlayer`) são renderizados nativamente em elementos `<iframe>` no `VideoPlayer`.
+## 🔌 API Architecture, Circuit Breaker & Resilience
+- **Standardized Responses (`src/lib/api/response.ts`)**: All routes use `apiSuccess<T>` (`{ success: true, data: T, meta?: ... }`) and `apiError` (`{ success: false, error: { code, message, details }, timestamp }`).
+- **Circuit Breaker (`src/lib/api/circuit-breaker.ts`)**: Protects external API calls. After 5 consecutive failures in 60s, the circuit opens for 30s and automatically activates local fallback without causing interface timeouts.
+- **Edge Caching**: Public catalog routes use `Cache-Control: public, s-maxage=1800, stale-while-revalidate=86400`. Streaming and admin routes use `no-store, private`.
 
 ---
 
-## 🚀 Build & Verification Commands
-- **Local Production Build**: `node ./node_modules/next/dist/bin/next build`
-- **Vitest Suite**: `npm run test`
-- **TypeScript Check**: Always verify clean compilation without type errors before finishing a task.
+## 🚀 Registered NPM & Verification Commands (`package.json`)
+
+All available npm scripts registered in `package.json`:
+
+| Command | Action / Script | Description |
+| :--- | :--- | :--- |
+| **`npm run dev`** | `next dev` | Starts the Next.js development server. |
+| **`npm run build`** | `next build` | Creates an optimized Next.js production build. |
+| **`npm run start`** | `next start` | Starts the production server. |
+| **`npm run db:generate`** | `prisma generate` | Generates Prisma Client types and models. |
+| **`npm run generate-tokens`** | `node scripts/generate-tokens.js` | Generates security keys and tokens. |
+| **`npm run test`** | `npx vitest run` | Runs the Vitest automated test suite once. |
+| **`npm run test:watch`** | `npx vitest` | Runs Vitest in interactive watch mode. |
+| **`npm run test:coverage`** | `npx vitest run --coverage` | Generates code coverage report via Vitest. |
+| **`npm run test:docker`** | `node scripts/verify-docker.js` | Runs pre-deploy Docker build & container verification. |
+| **`npm run test:e2e`** | `playwright test` | Executes Playwright end-to-end browser tests. |
+| **`npm run pre-deploy`** | `npm run test && npm run test:docker && npm run build` | Full validation pipeline before production deployment. |
+| **`npm run deploy:local`** | `node scripts/deploy-local.js` | Triggers a local container deployment. |
+| **`npm run lint`** | `eslint .` | Runs ESLint syntax and code quality check. |
+| **`npm run clean`** | `next clean` | Cleans Next.js build cache. |
+| **`npx tsc --noEmit`** | `tsc --noEmit` | **Mandatory Type Check**: Always verify clean TypeScript compilation before finishing tasks. |
+

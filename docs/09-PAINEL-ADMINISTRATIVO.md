@@ -7,27 +7,25 @@ Este documento descreve a arquitetura, rotas e fluxos do **Painel Administrativo
 ## 🛠️ 1. Funcionalidades do Painel & Setup
 
 1. **Assistente de Instalação Inicial (`/setup`)**:
-   - **Layout de Setup Exclusivo**: O assistente `/setup` roda em um layout isolado sem cabeçalho/rodapé públicos do site, focado na experiência de inicialização.
-   - **Redirecionamento Automático**: O componente `<SetupGuard />` no layout raiz força o redirecionamento para `/setup` no primeiro acesso enquanto não houver administradores cadastrados (`isInitialized === false`).
-   - **Proteção por Chave Randômica (Setup Key)**: Protege a instalação contra acessos não autorizados por robôs. A chave é exibida no console/logs (`docker logs anistream_app`) ou configurada via `INITIAL_SETUP_KEY`.
-   - **Fluxo em 5 Passos**: Validação de banco PostgreSQL -> Cadastro da conta do Administrador Mestre -> Provedores de Mídia, APIs Externas & Embeds -> Importação M3U opcional -> Conclusão.
+   - **Layout Isolado**: O assistente `/setup` roda em um layout minimalista sem cabeçalho/rodapé públicos do site.
+   - **Redirecionamento Automático**: O componente `<SetupGuard />` força o redirecionamento para `/setup` enquanto não houver administradores cadastrados.
+   - **Proteção por Chave Randômica (Setup Key)**: Chave exibida nos logs (`docker logs anistream_app`) ou configurada via `INITIAL_SETUP_KEY`.
+   - **Fluxo em 5 Passos**: Validação de banco PostgreSQL -> Cadastro da conta do Administrador Mestre -> 8 Provedores de Mídia & Embeds -> Importação M3U opcional -> Conclusão.
 
-2. **Provedores Configuráveis, APIs Externas, Embeds & Teste Ao Vivo (`/admin/sources` e `/setup`)**:
-   - Tabela de provedores cadastrados com suporte a M3U, JSON, `EXTERNAL_API` (`AniZone`, `Miruro`, `Anify`, `Consumet`, `TVmaze`) e `EMBED` (`2Embed`, `Xpass`, `ApiPlayer`).
-   - Botões de alternar status (Ativo/Inativo), teste sintético real com latência em ms e status HTTP (404, 429, 5xx) e ordenação por prioridade para fallback.
-   - **Gestão de Domínios Confiáveis / Mídias Autorizadas (`/api/admin/media-hosts`)**: Aba dedicada para visualização e autorização de hosts em 3 camadas (`.env`, `MediaProvider` e registros `MANUAL`).
+2. **Gerenciador de Fontes do Episódio & Player de Teste Inline (`/admin/animes/[id]/editar`)**:
+   - Cada episódio possui o modal [`EpisodeSourcesModal`](file:///c:/Users/sodinha/Documents/projetos/anistream/components/admin/EpisodeSourcesModal.tsx).
+   - **Fontes Cadastradas**: Exibe cada fonte vinculada com chave ON/OFF (`enabled`), alteração de qualidade, idioma de áudio (`pt-BR`, `ja`) e exclusão.
+   - **Varredura em Tempo Real**: Varre os provedores autorizados em tempo real e permite selecionar com checkboxes quais fontes cadastrar.
+   - **Adicionar Manualmente**: Formulário para cadastrar URLs diretas (`.m3u8`, `.mp4`) ou iFrames de embeds externos.
+   - **Player de Teste Inline**: Overlay com o `VideoPlayer` oficial da aplicação para testar a reprodução do vídeo ou embed em tempo real antes de salvar.
 
-7. **Robô de Auto-Indexação (*Autopilot Indexer*)**:
-   - **Modo Automático**: Varredura em segundo plano das fontes ativas buscando metadados oficiais (Jikan/AniList) e auto-criação de animes e episódios no PostgreSQL.
-   - **Modo Fila de Revisão**: Varredura com adição a uma fila de candidatos no admin para aprovação manual em 1 clique.
+3. **Importação Determinística de Animes (`ImportAnimeModal.tsx`)**:
+   - Permite pesquisar animes por título (AniList GraphQL / Jikan / Kitsu) e importar em 1 clique.
+   - Os metadados exatos do card selecionado pelo usuário (título, capas, sinopse, ano, episódios) são salvos diretamente no PostgreSQL sem ambiguidades.
 
-8. **Recursos de Gestão Avançada no Dashboard**:
-   - **Gerenciador de Broadcast System**: Envio de notificações e alertas superiores em lote para todos os usuários.
-   - **Detector de Links Quebrados (Dead Link Finder)**: Varredura em segundo plano com auto-desativação após 3 falhas consecutivas.
-   - **Backup e Restauração em Dump JSON**: Download de backup completo do banco de dados em JSON e restauração com lógica de *upsert*.
-   - **Controle de Banda & Proxy Meter**: Medição do volume de dados (MB/GB) trafegados no proxy SSRF por domínio com botão de pausa de servidor.
-   - **Modo Manutenção Agendado**: Bloqueio de acessos públicos durante atualizações com mensagem e previsão de término em `/manutencao`.
-   - **Publicador de Release Notes**: Gestão e linha do tempo de notas de versão em `/changelog`.
+4. **Provedores Configuráveis & Domínios Confiáveis (`/admin/sources`)**:
+   - Tabela de provedores cadastrados com suporte aos 8 provedores especificados (`Kenjitsu/AniZone`, `GogoAnime Consumet`, `HiAnime/Zoro`, `Anify`, `AnimesOnline`, `WarezCDN`, `XPass/2Embed`, `Catálogo M3U`).
+   - Gestão de Domínios Confiáveis / Mídias Autorizadas (`/api/admin/media-hosts`) em 3 camadas (`.env`, `MediaProvider` e registros `MANUAL`).
 
 ---
 
@@ -36,28 +34,16 @@ Este documento descreve a arquitetura, rotas e fluxos do **Painel Administrativo
 | Rota UI | Descrição |
 | :--- | :--- |
 | **`/admin/login`** | Página de login para administradores. |
-| **`/setup`** | Assistente de instalação inicial com fontes configuráveis e testáveis ao vivo (desativado após criação do primeiro admin). |
+| **`/setup`** | Assistente de instalação inicial com fontes configuráveis e testáveis ao vivo. |
 | **`/admin/dashboard`** | Dashboard de observabilidade, KPIs, Broadcast, Backup, Dead Links, Reports, Manutenção e Releases. |
 | **`/admin/animes`** | Catálogo interativo de animes cadastrados. |
-| **`/admin/animes/novo`** | Formulário de criação com busca automática no MyAnimeList. |
-| **`/admin/animes/[id]/editar`** | Edição de metadados e adição de episódios. |
+| **`/admin/animes/novo`** | Formulário de criação com busca e auto-preenchimento. |
+| **`/admin/animes/[id]/editar`** | Edição de metadados, gestão de episódios e modal `EpisodeSourcesModal` com player de teste inline. |
 | **`/admin/sources`** | Painel de gestão de provedores de mídia, Domínios Confiáveis (Mídias Autorizadas), teste de conexão e Robô Autopilot. |
-| **`/admin/sources/tester`** | Testador avançado de fontes de mídia com mini-player de preview. |
-| **`/manutencao`** | Tela pública do Modo Manutenção (redirecionada quando ativada no admin). |
-| **`/changelog`** | Linha do tempo pública de lançamentos e notas de versão. |
 
-### Endpoints da API Administrativa & Setup
+### Endpoints de Fontes e Episódios por Episódio
 
-- `GET /api/setup/status` — Verifica se o sistema está inicializado e valida a chave de setup.
-- `POST /api/setup/initialize` — Cadastra o admin mestre, autoriza os domínios do M3U e conclui a instalação (exige `setupKey`).
-- `GET /api/admin/providers` — CRUD de provedores de mídia (`MediaProvider`).
-- `POST /api/admin/providers/test` — Teste de conexão e latência ao vivo de um provedor de mídia.
-- `GET /api/admin/media-hosts` / `POST` / `DELETE` — Listagem, autorização dinâmica e remoção manual de domínios de mídia autorizados em `SystemSetting`.
-- `GET /api/admin/autopilot` / `POST` / `PATCH` — Controle do Robô de Auto-Indexação e Fila de Revisão.
-- `GET /api/admin/broadcast` / `POST` — Gerenciador de anúncios globais e notificações em lote.
-- `GET /api/admin/backup` / `POST` — Dump e restauração do banco de dados em JSON.
-- `POST /api/admin/dead-links` — Executa varredura de links quebrados e desativa fontes falhas.
-- `GET /api/reports` / `POST` / `PATCH` — Fila de suporte para chamados e relatos de erros no player.
-- `GET /api/maintenance` / `POST` — Status e controle do Modo Manutenção global.
-- `GET /api/changelog` / `POST` — Leitura e publicação de release notes.
-
+- `POST /api/admin/animes/[id]/episodes/[epId]/discover-sources` — Executa a varredura de mídias candidatas nos provedores ativos sem persisti-las automaticamente.
+- `POST /api/admin/animes/[id]/episodes/[epId]/sources` — Cadastra fontes manuais ou selecionadas em lote.
+- `PUT /api/admin/animes/[id]/episodes/[epId]/sources` — Altera propriedades da fonte (`enabled`, `quality`, `audioLanguage`, `urlEncrypted`, `provider`, `type`).
+- `DELETE /api/admin/animes/[id]/episodes/[epId]/sources` — Exclui uma fonte do episódio.
