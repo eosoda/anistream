@@ -45,6 +45,7 @@ interface ResolvedSubTrack {
 interface ResolvedAlternative {
   sourceId: string;
   provider: string;
+  type?: string;
   quality?: string;
   audioLanguage?: string;
   playbackUrl: string;
@@ -52,6 +53,7 @@ interface ResolvedAlternative {
 
 interface ResolvedStream {
   playbackUrl: string;
+  provider?: string;
   type?: string;
   quality?: string;
   audioLanguage?: string;
@@ -70,21 +72,6 @@ interface VideoPlayerProps {
   streamStatusMessage?: string | null;
   onNextEpisode?: () => void;
 }
-
-const SAMPLE_STREAMS = [
-  {
-    id: 's1',
-    name: 'Servidor 1 (HD Legendado)',
-    type: 'mp4',
-    src: 'https://vjs.zencdn.net/v/oceans.mp4',
-  },
-  {
-    id: 's2',
-    name: 'Servidor 2 (Backup HD)',
-    type: 'mp4',
-    src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-  },
-];
 
 const AUDIO_LANGUAGES = [
   { id: 'ja', name: 'Japonês', label: 'Japonês (Original)', code: 'JP', badge: 'LEG' },
@@ -118,22 +105,22 @@ export function VideoPlayer({
     if (resolvedStream?.playbackUrl) {
       const mainServer = {
         id: 'main-stream',
-        name: `Servidor Principal (${resolvedStream.quality || 'Auto'})`,
+        name: `${resolvedStream.provider || 'Fonte 1'} (${resolvedStream.quality || 'Auto'})`,
         type: resolvedStream.type || 'hls',
         src: resolvedStream.playbackUrl,
       };
 
       const altServers = (resolvedStream.alternatives || []).map((alt, idx) => ({
         id: alt.sourceId || `alt-${idx}`,
-        name: `${alt.provider || 'Servidor Reserva ' + (idx + 1)} (${alt.quality || 'Auto'})`,
-        type: resolvedStream.type || 'hls',
+        name: `${alt.provider || 'Fonte ' + (idx + 2)} (${alt.quality || 'Auto'})`,
+        type: alt.type || resolvedStream.type || 'hls',
         src: alt.playbackUrl,
       }));
 
       return [mainServer, ...altServers];
     }
 
-    return SAMPLE_STREAMS;
+    return [];
   }, [resolvedStream]);
 
   const [activeServer, setActiveServer] = useState(serverList[0]);
@@ -180,6 +167,12 @@ export function VideoPlayer({
     }
   }, [availableSubtitles]);
 
+  const failedServerIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    failedServerIdsRef.current.clear();
+  }, [animeId, episodeNum, resolvedStream]);
+
   // Fallback automático com auditoria de erros e prevenção de loops infinitos de retentativa
   const handleVideoError = useCallback((customReason?: string) => {
     const errCode = videoRef.current?.error?.code;
@@ -190,22 +183,24 @@ export function VideoPlayer({
     if (errCode === 3) errorDetail = 'Erro de decodificação do codec de vídeo';
     if (errCode === 4) errorDetail = 'Formato de vídeo não suportado pelo navegador';
 
-    const currentIndex = serverList.findIndex((s) => s.id === activeServer.id);
-    const nextIndex = (currentIndex + 1) % serverList.length;
-    const nextServer = serverList[nextIndex];
+    if (activeServer?.id) {
+      failedServerIdsRef.current.add(activeServer.id);
+    }
 
-    if (nextServer && nextServer.id !== activeServer.id) {
-      setActiveServer(nextServer);
+    const unfailedServer = serverList.find((s) => !failedServerIdsRef.current.has(s.id));
+
+    if (unfailedServer) {
+      setActiveServer(unfailedServer);
       showToast({
         type: 'warning',
         title: 'Alternando Servidor (Fallback)',
-        message: `${errorDetail}. Carregando ${nextServer.name}...`,
+        message: `${errorDetail}. Carregando ${unfailedServer.name}...`,
       });
     } else {
       showToast({
         type: 'error',
         title: 'Falha de Transmissão',
-        message: `${errorDetail}. Nenhuma outra fonte disponível no momento.`,
+        message: `${errorDetail}. Todas as fontes disponíveis falharam.`,
       });
     }
   }, [activeServer, serverList, showToast]);

@@ -4,6 +4,7 @@ import { defaultStreamResolver } from '@/lib/streams/resolver';
 import { generatePlaybackToken } from '@/lib/security/playback-token';
 import { checkRateLimit } from '@/lib/security/rate-limit';
 import { apiSuccess, apiError } from '@/lib/api/response';
+import { prisma } from '@/lib/db/prisma';
 
 export async function POST(request: NextRequest) {
   const reqPath = request.nextUrl.pathname;
@@ -39,7 +40,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const input = parseResult.data;
+    const input: any = parseResult.data;
+
+    // Enriquecer input com o título real do anime
+    if (!input.title && input.animeId) {
+      const malIdNum = parseInt(input.animeId, 10);
+      try {
+        const dbAnime = await prisma.anime.findFirst({
+          where: {
+            OR: [
+              ...(isNaN(malIdNum) ? [] : [{ mal_id: malIdNum }]),
+              { id: input.animeId },
+            ],
+          },
+          select: { title: true, titleEnglish: true, slug: true },
+        });
+
+        if (dbAnime) {
+          input.title = dbAnime.title || dbAnime.titleEnglish || '';
+          input.slug = dbAnime.slug || '';
+        }
+      } catch {
+        // ignora se db offline
+      }
+    }
 
     // 2. Resolve sources concurrently via StreamResolver
     const resolveResult = await defaultStreamResolver.resolveEpisodeStream(input);
@@ -85,6 +109,7 @@ export async function POST(request: NextRequest) {
 
     const streamData = {
       playbackUrl,
+      provider: selected.provider,
       type: selected.type,
       quality: selected.quality || 'auto',
       audioLanguage: selected.audioLanguage || 'ja',
