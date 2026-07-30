@@ -80,12 +80,18 @@ export async function getAuthorizedHosts(): Promise<Set<string>> {
  */
 export async function isAuthorizedHost(hostname: string): Promise<boolean> {
   const host = hostname.toLowerCase().trim();
+  const cleanHost = host.replace(/^www\./, '');
 
   // Consultar lista unificada de hosts autorizados
   const allowedSet = await getAuthorizedHosts();
 
   for (const allowedHost of allowedSet) {
-    if (host === allowedHost || host.endsWith(`.${allowedHost}`)) {
+    const cleanAllowed = allowedHost.toLowerCase().trim().replace(/^www\./, '');
+    if (
+      cleanHost === cleanAllowed ||
+      cleanHost.endsWith(`.${cleanAllowed}`) ||
+      cleanAllowed.endsWith(`.${cleanHost}`)
+    ) {
       return true;
     }
   }

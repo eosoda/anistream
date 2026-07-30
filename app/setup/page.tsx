@@ -465,6 +465,7 @@ Hosts de Mídia     : ${mediaHosts}
                 />
                 <button
                   type="button"
+                  tabIndex={-1}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-3 text-gray-400 hover:text-white transition-all"
                   title={showPassword ? 'Ocultar senha' : 'Exibir senha'}
@@ -509,6 +510,7 @@ Hosts de Mídia     : ${mediaHosts}
                 />
                 <button
                   type="button"
+                  tabIndex={-1}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-3 text-gray-400 hover:text-white transition-all"
                   title={showConfirmPassword ? 'Ocultar senha' : 'Exibir senha'}

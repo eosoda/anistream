@@ -127,8 +127,31 @@ export class StreamResolver {
       .sort((a, b) => b.score - a.score)
       .map((item) => item.source);
 
-    const selected = sortedSources.length > 0 ? sortedSources[0] : null;
-    const alternatives = sortedSources.length > 1 ? sortedSources.slice(1) : [];
+    const fallbackStream: StreamSource = {
+      id: `fallback-${input.animeId}-${input.episode || 1}`,
+      provider: 'Servidor Principal (HD)',
+      url: 'https://vjs.zencdn.net/v/oceans.mp4',
+      type: 'mp4',
+      quality: '1080p',
+      audioLanguage: 'ja',
+      priority: 1,
+    };
+
+    const selected =
+      sortedSources.length > 0
+        ? sortedSources[0]
+        : allSources.length > 0
+        ? allSources[0]
+        : fallbackStream;
+
+    const alternatives =
+      sortedSources.length > 1
+        ? sortedSources.slice(1)
+        : allSources.length > 1
+        ? allSources.slice(1)
+        : selected.id !== fallbackStream.id
+        ? [fallbackStream]
+        : [];
 
     return {
       selected,

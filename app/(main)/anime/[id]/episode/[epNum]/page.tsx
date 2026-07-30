@@ -54,14 +54,21 @@ export default function EpisodePlayerPage({
           body: JSON.stringify({
             animeId: String(animeId),
             season: 1,
+            episode: epNum,
             episodeNumber: epNum,
           }),
         });
         const data = await res.json();
         if (!res.ok) {
-          return { data: null, status: res.status, error: data.error || 'Sem fontes disponíveis no momento' };
+          const errorMessage =
+            typeof data.error === 'object' && data.error !== null
+              ? data.error.message || 'Sem fontes disponíveis no momento'
+              : typeof data.error === 'string'
+              ? data.error
+              : 'Sem fontes disponíveis no momento';
+          return { data: null, status: res.status, error: errorMessage };
         }
-        return { data, status: 200, error: null };
+        return { data: data.data || data, status: 200, error: null };
       } catch (err: any) {
         return { data: null, status: 500, error: err.message || 'Erro de conexão ao buscar fontes' };
       }

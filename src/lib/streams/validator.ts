@@ -39,6 +39,15 @@ export async function validateStreamSource(
       ...(source.headers || {}),
     };
 
+    if (source.type === 'embed') {
+      return {
+        valid: true,
+        type: 'embed',
+        status: 200,
+        latencyMs: Date.now() - startTime,
+      };
+    }
+
     if (source.type === 'hls') {
       headers['Accept'] =
         'application/vnd.apple.mpegurl, application/x-mpegURL, */*';

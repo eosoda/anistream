@@ -68,15 +68,20 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
-          // Se for requisição de navegação HTML de página e falhou por falta de rede
+        .catch(async () => {
           if (
             event.request.mode === 'navigate' ||
             (event.request.headers.get('accept') &&
               event.request.headers.get('accept').includes('text/html'))
           ) {
-            return caches.match('/offline.html');
+            const offlineResp = await caches.match('/offline.html');
+            if (offlineResp) return offlineResp;
           }
+          return new Response('Sem conexão ou recurso indisponível', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+          });
         });
     })
   );
