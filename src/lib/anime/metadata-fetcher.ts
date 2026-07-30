@@ -15,6 +15,7 @@ export interface StandardAnimeMetadata {
   episodesCount?: number;
   rating?: number;
   genres?: string;
+  aliases?: string[];
 }
 
 /**
@@ -70,6 +71,7 @@ async function fetchFromAniList(query: string): Promise<StandardAnimeMetadata[]>
             romaji
             native
           }
+          synonyms
           coverImage {
             extraLarge
             large
@@ -116,9 +118,20 @@ async function fetchFromAniList(query: string): Promise<StandardAnimeMetadata[]>
       const mainTitle = item.title?.english || item.title?.romaji || item.title?.native || 'Anime Sem Título';
       const cleanDesc = (item.description || '').replace(/<[^>]*>?/gm, '');
 
+      const aliasList = Array.from(
+        new Set(
+          [
+            item.title?.english,
+            item.title?.romaji,
+            item.title?.native,
+            ...(item.synonyms || []),
+          ].filter(Boolean)
+        )
+      );
+
       return {
-        malId: item.idMal || item.id,
-        anilistId: item.id,
+        malId: item.idMal ? Number(item.idMal) : undefined,
+        anilistId: item.id ? Number(item.id) : undefined,
         title: mainTitle,
         originalTitle: item.title?.native || item.title?.romaji,
         normalizedTitle: normalizeAnimeTitle(mainTitle),
@@ -131,6 +144,7 @@ async function fetchFromAniList(query: string): Promise<StandardAnimeMetadata[]>
         episodesCount: item.episodes || 12,
         rating: item.averageScore ? Number((item.averageScore / 10).toFixed(1)) : 8.0,
         genres: (item.genres || []).join(', '),
+        aliases: aliasList,
       };
     });
   } catch (e) {
@@ -158,6 +172,17 @@ async function fetchFromJikan(query: string): Promise<StandardAnimeMetadata[]> {
 
     return items.map((item: any) => {
       const mainTitle = item.title_english || item.title || 'Anime Sem Título';
+      const aliasList = Array.from(
+        new Set(
+          [
+            item.title_english,
+            item.title_japanese,
+            item.title,
+            ...(item.title_synonyms || []),
+          ].filter(Boolean)
+        )
+      );
+
       return {
         malId: item.mal_id,
         title: mainTitle,
@@ -172,6 +197,7 @@ async function fetchFromJikan(query: string): Promise<StandardAnimeMetadata[]> {
         episodesCount: item.episodes || 12,
         rating: item.score || 8.0,
         genres: (item.genres || []).map((g: any) => g.name).join(', '),
+        aliases: aliasList,
       };
     });
   } catch (e) {
@@ -199,6 +225,17 @@ async function fetchFromKitsu(query: string): Promise<StandardAnimeMetadata[]> {
     return items.map((item: any) => {
       const attr = item.attributes || {};
       const mainTitle = attr.canonicalTitle || attr.titles?.en || attr.titles?.en_jp || 'Anime Sem Título';
+      const aliasList = Array.from(
+        new Set(
+          [
+            attr.canonicalTitle,
+            attr.titles?.en,
+            attr.titles?.en_jp,
+            attr.titles?.ja_jp,
+            ...(attr.abbreviatedTitles || []),
+          ].filter(Boolean)
+        )
+      );
 
       return {
         malId: Number(item.id),
@@ -213,6 +250,7 @@ async function fetchFromKitsu(query: string): Promise<StandardAnimeMetadata[]> {
         description: attr.synopsis || 'Sem sinopse.',
         episodesCount: attr.episodeCount || 12,
         rating: attr.averageRating ? Number((Number(attr.averageRating) / 10).toFixed(1)) : 8.0,
+        aliases: aliasList,
       };
     });
   } catch (e) {

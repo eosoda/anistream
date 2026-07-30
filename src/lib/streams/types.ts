@@ -37,6 +37,9 @@ export interface EpisodeLookupInput {
   season: number;
   episode: number;
   preferredAudio?: AudioLanguage;
+  animeTitle?: string;
+  originalTitle?: string;
+  aliases?: string[];
 }
 
 export interface Episode {

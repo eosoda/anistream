@@ -22,13 +22,18 @@ interface ImportAnimeModalProps {
 }
 
 interface JikanSearchResult {
-  malId: number;
+  malId?: number;
+  anilistId?: number;
   title: string;
   originalTitle?: string;
   posterUrl?: string;
+  bannerUrl?: string;
   releaseYear?: number;
   status?: string;
   description?: string;
+  episodesCount?: number;
+  rating?: number;
+  genres?: string;
 }
 
 export function ImportAnimeModal({
@@ -78,13 +83,14 @@ export function ImportAnimeModal({
     return () => clearTimeout(timer);
   }, [query]);
 
-  const handleImport = async (malId: number, title: string) => {
-    setImportingId(malId);
+  const handleImport = async (item: JikanSearchResult) => {
+    const trackingId = item.malId || item.anilistId || Math.floor(Math.random() * 100000);
+    setImportingId(trackingId);
     try {
       const res = await fetch('/api/admin/animes/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ malId }),
+        body: JSON.stringify(item),
       });
 
       const data = await res.json();
@@ -127,9 +133,9 @@ export function ImportAnimeModal({
               <Sparkles size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-white">Importar Anime (MAL / Jikan)</h3>
+              <h3 className="text-xl font-black text-white">Importar Anime (AniList / MAL)</h3>
               <p className="text-xs text-gray-400">
-                Digite o nome do anime para importar metadados, capas e episódios para o PostgreSQL
+                Selecione um anime para importar metadados, capas e episódios para o PostgreSQL
               </p>
             </div>
           </div>
@@ -180,58 +186,64 @@ export function ImportAnimeModal({
             </div>
           )}
 
-          {results.map((item) => (
-            <div
-              key={item.malId}
-              className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all gap-4 group"
-            >
-              <div className="flex items-center gap-3.5 overflow-hidden">
-                {item.posterUrl ? (
-                  <img
-                    src={item.posterUrl}
-                    alt={item.title}
-                    className="w-12 h-16 object-cover rounded-xl shrink-0 shadow-md"
-                  />
-                ) : (
-                  <div className="w-12 h-16 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
-                    <Tv size={20} className="text-gray-400" />
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <h4 className="font-bold text-white text-sm truncate group-hover:text-[#FF6B00] transition-colors">
-                    {item.title}
-                  </h4>
-                  <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
-                    {item.releaseYear && <span>{item.releaseYear}</span>}
-                    {item.status && <span className="text-[#FF6B00] font-semibold">{item.status}</span>}
-                  </div>
-                  {item.description && (
-                    <p className="text-xs text-gray-500 truncate max-w-md mt-1">
-                      {item.description}
-                    </p>
-                  )}
-                </div>
-              </div>
+          {results.map((item, idx) => {
+            const trackingId = item.malId || item.anilistId || idx;
+            const isImportingThis = importingId === trackingId;
 
-              <button
-                onClick={() => handleImport(item.malId, item.title)}
-                disabled={importingId === item.malId}
-                className="px-4 py-2 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/90 text-white font-bold text-xs flex items-center gap-2 shrink-0 transition-all shadow-lg shadow-[#FF6B00]/20 disabled:opacity-50"
+            return (
+              <div
+                key={trackingId}
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all gap-4 group"
               >
-                {importingId === item.malId ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    <span>Importando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download size={14} />
-                    <span>Importar</span>
-                  </>
-                )}
-              </button>
-            </div>
-          ))}
+                <div className="flex items-center gap-3.5 overflow-hidden">
+                  {item.posterUrl ? (
+                    <img
+                      src={item.posterUrl}
+                      alt={item.title}
+                      className="w-12 h-16 object-cover rounded-xl shrink-0 shadow-md"
+                    />
+                  ) : (
+                    <div className="w-12 h-16 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
+                      <Tv size={20} className="text-gray-400" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-white text-sm truncate group-hover:text-[#FF6B00] transition-colors">
+                      {item.title}
+                    </h4>
+                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                      {item.releaseYear && <span>{item.releaseYear}</span>}
+                      {item.status && <span className="text-[#FF6B00] font-semibold">{item.status}</span>}
+                      {item.episodesCount && <span className="text-gray-400 font-mono">({item.episodesCount} eps)</span>}
+                    </div>
+                    {item.description && (
+                      <p className="text-xs text-gray-500 truncate max-w-md mt-1">
+                        {item.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleImport(item)}
+                  disabled={isImportingThis}
+                  className="px-4 py-2 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/90 text-white font-bold text-xs flex items-center gap-2 shrink-0 transition-all shadow-lg shadow-[#FF6B00]/20 disabled:opacity-50"
+                >
+                  {isImportingThis ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Importando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} />
+                      <span>Importar</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

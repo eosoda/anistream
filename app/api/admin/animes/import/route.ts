@@ -11,58 +11,42 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { malId, title } = body;
+    const { malId, anilistId, title } = body;
 
-    if (!malId && !title) {
+    if (!malId && !anilistId && !title) {
       return NextResponse.json(
-        { error: 'MAL ID ou Título é obrigatório para importação' },
+        { error: 'Título ou ID do anime é obrigatório para importação' },
         { status: 400 }
       );
     }
 
     let meta: any = null;
 
-    // 1. Buscar metadados resilientes via AniList/Jikan/Kitsu
-    const searchTerms = title || (malId ? `mal:${malId}` : '');
-    const metaList = await searchAnimeMetadata(searchTerms);
+    // 1. Se o modal enviou os metadados do card selecionado pelo usuário (title + posterUrl/description/releaseYear), usar diretamente
+    if (body.title && (body.posterUrl || body.description || body.releaseYear)) {
+      meta = {
+        malId: body.malId ? Number(body.malId) : undefined,
+        anilistId: body.anilistId ? Number(body.anilistId) : undefined,
+        title: body.title,
+        originalTitle: body.originalTitle || body.title,
+        normalizedTitle: normalizeAnimeTitle(body.title),
+        slug: body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+        posterUrl: body.posterUrl || null,
+        bannerUrl: body.bannerUrl || body.posterUrl || null,
+        releaseYear: body.releaseYear || new Date().getFullYear(),
+        status: body.status || 'Em Lançamento',
+        description: body.description || 'Sem sinopse.',
+        episodesCount: body.episodesCount || 12,
+        rating: body.rating || 8.0,
+        genres: body.genres || '',
+      };
+    } else {
+      // 2. Se for chamado via API externa por ID/Título, buscar via metadata-fetcher
+      const searchTerms = title || (malId ? `mal:${malId}` : '');
+      const metaList = await searchAnimeMetadata(searchTerms);
 
-    if (metaList.length > 0) {
-      meta = malId ? metaList.find((m) => m.malId === malId) || metaList[0] : metaList[0];
-    }
-
-    // Se ainda não encontrou e malId foi informado, tentar Jikan direto com timeout
-    if (!meta && malId) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch(`https://api.jikan.moe/v4/anime/${malId}`, {
-          headers: { 'User-Agent': 'AniStream-AdminImport/1.0' },
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (res.ok) {
-          const data = await res.json();
-          const item = data.data;
-          if (item) {
-            const mainTitle = item.title_english || item.title || 'Anime Sem Título';
-            meta = {
-              malId: item.mal_id,
-              title: mainTitle,
-              originalTitle: item.title_japanese || item.title,
-              normalizedTitle: normalizeAnimeTitle(mainTitle),
-              slug: mainTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `anime-${item.mal_id}`,
-              posterUrl: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url,
-              bannerUrl: item.images?.jpg?.large_image_url,
-              releaseYear: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : new Date().getFullYear()),
-              status: item.status === 'Currently Airing' ? 'Em Lançamento' : 'Concluído',
-              description: item.synopsis || 'Sem sinopse.',
-              episodesCount: item.episodes || 12,
-              rating: item.score || 8.0,
-            };
-          }
-        }
-      } catch (e) {
-        // Ignorar timeout
+      if (metaList.length > 0) {
+        meta = malId ? metaList.find((m) => m.malId === Number(malId)) || metaList[0] : metaList[0];
       }
     }
 
@@ -73,12 +57,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Extrair e higienizar campos do anime
+    // 3. Extrair e higienizar campos do anime
     const mainTitle = meta.title;
     const normTitle = meta.normalizedTitle || normalizeAnimeTitle(mainTitle);
-    const slug = meta.slug || mainTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const slug =
+      meta.slug ||
+      mainTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') ||
+      `anime-${Date.now()}`;
 
-    // 3. Persistir Anime na tabela PostgreSQL
+    // 4. Persistir Anime na tabela PostgreSQL
     const anime = await prisma.anime.upsert({
       where: { slug },
       update: {
@@ -112,7 +102,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 4. Vincular AnimeIdentifier
+    // 5. Vincular AnimeIdentifier
     const targetMalId = meta.malId || malId;
     if (targetMalId) {
       await prisma.animeIdentifier.upsert({
@@ -131,7 +121,47 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 5. Importar lista de episódios
+    if (meta.anilistId) {
+      await prisma.animeIdentifier.upsert({
+        where: {
+          provider_value: {
+            provider: 'anilist',
+            value: String(meta.anilistId),
+          },
+        },
+        update: { animeId: anime.id },
+        create: {
+          animeId: anime.id,
+          provider: 'anilist',
+          value: String(meta.anilistId),
+        },
+      });
+    }
+
+    // Persistir todos os nomes alternativos / aliases na tabela AnimeAlias
+    const allAliasesToSave = Array.from(
+      new Set([
+        mainTitle,
+        meta.originalTitle,
+        ...(meta.aliases || []),
+        ...(body.aliases || []),
+      ].filter(Boolean))
+    );
+
+    for (const aliasStr of allAliasesToSave) {
+      const normVal = normalizeAnimeTitle(aliasStr);
+      if (normVal) {
+        await prisma.animeAlias.create({
+          data: {
+            animeId: anime.id,
+            value: aliasStr,
+            normalizedValue: normVal,
+          },
+        }).catch(() => {});
+      }
+    }
+
+    // 6. Importar episódios e resolver fonte do episódio 1
     const totalEpisodesCount = meta.episodesCount || 12;
     let importedEpisodesCount = 0;
     let createdSourcesCount = 0;
@@ -162,7 +192,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (episodeItems.length === 0) {
-      const count = Math.min(totalEpisodesCount, 24);
+      const count = Math.min(totalEpisodesCount, 28);
       for (let i = 1; i <= count; i++) {
         episodeItems.push({ number: i, title: `Episódio ${i}` });
       }

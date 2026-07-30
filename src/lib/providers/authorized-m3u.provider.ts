@@ -60,12 +60,18 @@ export class AuthorizedM3uProvider implements AnimeProvider {
 
     const sources: StreamSource[] = [];
 
+    const allAliases = [
+      input.animeTitle || '',
+      input.originalTitle || '',
+      ...(input.aliases || []),
+    ].filter(Boolean);
+
     for (let i = 0; i < this.parsedItems.length; i++) {
       const item = this.parsedItems[i];
 
       const matchesAnime =
         input.animeId.startsWith('m3u-') ||
-        isTitleMatching(item.rawTitle, input.animeId);
+        isTitleMatching(item.rawTitle, input.animeTitle || input.animeId, [], allAliases);
 
       if (
         matchesAnime &&

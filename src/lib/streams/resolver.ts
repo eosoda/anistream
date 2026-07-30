@@ -40,6 +40,38 @@ export class StreamResolver {
     const attempts: ProviderAttempt[] = [];
     const rawSourcesMap = new Map<string, StreamSource>();
 
+    // Buscar anime e todos os seus aliases no banco se animeId for informado
+    if (input.animeId && (!input.animeTitle || !input.aliases || input.aliases.length === 0)) {
+      try {
+        const { prisma } = await import('../db/prisma');
+        const dbAnime = await prisma.anime.findFirst({
+          where: {
+            OR: [
+              { id: input.animeId },
+              { slug: input.animeId },
+            ],
+          },
+          include: { aliases: true },
+        });
+
+        if (dbAnime) {
+          input.animeTitle = input.animeTitle || dbAnime.title;
+          input.originalTitle = input.originalTitle || dbAnime.originalTitle || undefined;
+          const aliasValues = dbAnime.aliases.map((a: any) => a.value);
+          input.aliases = Array.from(
+            new Set([
+              ...(input.aliases || []),
+              dbAnime.title,
+              dbAnime.originalTitle || '',
+              ...aliasValues,
+            ])
+          ).filter(Boolean);
+        }
+      } catch (e) {
+        // Ignorar falhas pontuais de DB
+      }
+    }
+
     // 1. Consultar provedores autorizados em paralelo com Promise.allSettled
     const providerPromises = this.providers.map(async (provider) => {
       const startTime = Date.now();
