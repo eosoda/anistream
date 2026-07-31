@@ -189,7 +189,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
       </button>
 
       {/* Manual Slide Controls and Thumbnail Tabs */}
-      <div className="absolute top-3 right-3 sm:top-auto sm:bottom-3 sm:right-6 md:right-12 z-20 flex items-center gap-1.5 sm:gap-2.5 bg-black/70 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/10 shadow-lg scale-90 sm:scale-100">
+      <div className="absolute right-3 top-3 z-20 flex scale-90 items-center gap-1.5 rounded-full border border-white/10 bg-black/70 px-2.5 py-1.5 shadow-lg backdrop-blur-md md:bottom-3 md:right-12 md:top-auto md:scale-100 md:gap-2.5">
         <button
           onClick={() => setCurrentIndex((prev) => (prev === 0 ? animes.length - 1 : prev - 1))}
           className="grid size-10 place-items-center rounded-full text-white transition-colors hover:bg-white/20"
