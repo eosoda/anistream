@@ -1,16 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export function useDraggableScroll<T extends HTMLElement = HTMLDivElement>() {
   const elementRef = useRef<T>(null);
-  const [slider, setSlider] = useState<T | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const ref = useCallback((node: T | null) => {
-    elementRef.current = node;
-    setSlider(node);
-  }, []);
-
   useEffect(() => {
+    const slider = elementRef.current;
     if (!slider) return;
 
     let isDown = false;
@@ -156,7 +151,7 @@ export function useDraggableScroll<T extends HTMLElement = HTMLDivElement>() {
       slider.removeEventListener('dragstart', handleNativeDragStart);
       slider.removeEventListener('click', handleClickCapture, true);
     };
-  }, [slider]);
+  }, []);
 
-  return { ref, elementRef, isDragging };
+  return { ref: elementRef, elementRef, isDragging };
 }

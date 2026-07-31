@@ -1,6 +1,6 @@
 {
   "name": "anistream",
-  "version": "0.1.0",
+  "version": "2.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,6 +13,8 @@
     "test:coverage": "npx vitest run --coverage",
     "test:docker": "node scripts/verify-docker.js",
     "test:e2e": "playwright test",
+    "audit:performance": "node scripts/lighthouse-performance.mjs",
+    "audit:performance:observed": "node scripts/lighthouse-performance.mjs --observed",
     "pre-deploy": "npm run test && npm run test:docker && npm run build",
     "deploy:local": "node scripts/deploy-local.js",
     "lint": "eslint .",
@@ -61,6 +63,7 @@
     "@types/react-dom": "^19",
     "eslint": "9.39.1",
     "eslint-config-next": "16.0.8",
+    "lighthouse": "13.3.0",
     "prisma": "^6.3.0",
     "tailwindcss": "4.1.11",
     "typescript": "5.9.3",

@@ -110,10 +110,14 @@ export function Footer() {
         <div className="flex flex-col items-start justify-between gap-2 border-t border-white/5 pt-5 text-[11px] text-gray-500 sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} AniStream. Todos os direitos reservados.</p>
           <div className="flex items-center gap-4">
-            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-gray-400">
-              <span className="sm:hidden">Versão 2.0.0</span>
-              <span className="hidden sm:inline">Versão 2.0.0 (PWA + HLS Player + Admin CRUD)</span>
-            </span>
+            <Link
+              href="/changelog"
+              aria-label="Ver changelog da versão 2.1.0"
+              className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-gray-400 transition-colors hover:border-[#FF6B00]/50 hover:bg-[#FF6B00]/10 hover:text-[#FF8A3D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+            >
+              <span className="sm:hidden">Versão 2.1.0</span>
+              <span className="hidden sm:inline">Versão 2.1.0 (Player inteligente + busca local)</span>
+            </Link>
           </div>
         </div>
       </div>

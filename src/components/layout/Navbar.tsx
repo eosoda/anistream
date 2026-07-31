@@ -37,7 +37,7 @@ export function Navbar() {
       <header className="sticky top-0 z-50 w-full bg-[#0B0B0F]/85 backdrop-blur-xl border-b border-white/10 transition-all">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 md:h-20 flex items-center justify-between gap-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
+          <Link href="/" prefetch={false} className="flex items-center gap-2 group flex-shrink-0">
             <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-tr from-[#FF6B00] to-[#FF8533] flex items-center justify-center text-white shadow-lg shadow-[#FF6B00]/30 group-hover:scale-105 transition-transform">
               <Play size={18} className="fill-current ml-0.5 md:w-5 md:h-5" />
             </div>
@@ -60,6 +60,7 @@ export function Navbar() {
                 <Link
                   key={link.name}
                   href={link.href}
+                  prefetch={false}
                   className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-2 rounded-full font-bold text-xs xl:text-sm transition-all relative whitespace-nowrap shrink-0 ${
                     isActive
                       ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/30'
@@ -146,7 +147,7 @@ export function Navbar() {
         {/* Mobile Search Dropdown */}
         {isMobileSearchOpen && (
           <div className="md:hidden px-4 py-3 border-t border-white/10 bg-[#0B0B0F]/95 animate-fade-in">
-            <SearchBar placeholder="Buscar animes..." />
+            <SearchBar placeholder="Buscar animes..." onNavigate={() => setIsMobileSearchOpen(false)} />
           </div>
         )}
 
@@ -160,6 +161,7 @@ export function Navbar() {
                 <Link
                   key={link.name}
                   href={link.href}
+                  prefetch={false}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all ${
                     isActive
@@ -198,6 +200,7 @@ export function Navbar() {
             <Link
               key={`bottom-${link.name}`}
               href={link.href}
+              prefetch={false}
               className={`relative flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all ${
                 isActive ? 'text-[#FF6B00] font-bold' : 'text-gray-400 hover:text-white font-medium'
               }`}

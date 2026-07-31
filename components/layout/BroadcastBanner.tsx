@@ -15,14 +15,22 @@ export function BroadcastBanner() {
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch('/api/broadcast')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.announcements && Array.isArray(data.announcements)) {
-          setAnnouncements(data.announcements);
-        }
-      })
-      .catch(() => {});
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetch('/api/broadcast', { signal: controller.signal })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.announcements && Array.isArray(data.announcements)) {
+            setAnnouncements(data.announcements);
+          }
+        })
+        .catch(() => {});
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, []);
 
   const visibleAnnouncements = announcements.filter((a) => !dismissedIds.includes(a.id));

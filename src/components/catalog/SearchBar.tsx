@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, X, Loader2, Star, Tv, Mic, MicOff } from 'lucide-react';
-import { jikanService } from '@/services/jikan';
-import { JikanAnime } from '@/types/anime';
+import { searchAvailableAnime } from '@/services/localAnimeSearch';
+import type { LocalAnimeSearchItem } from '@/types/local-search';
 import { formatStatus } from '@/utils/formatters';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -13,16 +13,19 @@ import { Tooltip } from '@/components/ui/Tooltip';
 interface SearchBarProps {
   placeholder?: string;
   isCompact?: boolean;
+  onNavigate?: () => void;
+  initialQuery?: string;
 }
 
-export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false }: SearchBarProps) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<JikanAnime[]>([]);
+export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false, onNavigate, initialQuery = '' }: SearchBarProps) {
+  const [query, setQuery] = useState(initialQuery);
+  const [results, setResults] = useState<LocalAnimeSearchItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -109,31 +112,40 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
 
   // Instant debounced search - exactly 5 top results
   useEffect(() => {
+    const controller = new AbortController();
+    const trimmedQuery = query.trim();
     const timer = setTimeout(async () => {
-      if (!query.trim() || query.length < 2) {
+      if (trimmedQuery.length < 2) {
         setResults([]);
         setIsLoading(false);
         setIsOpen(false);
         setSelectedIndex(-1);
+        setSearchError(null);
         return;
       }
 
       setIsLoading(true);
       setIsOpen(true);
+      setSearchError(null);
 
       try {
-        const response = await jikanService.searchAnime(query, 1, 5);
+        const response = await searchAvailableAnime(trimmedQuery, 1, 5, controller.signal);
         setResults(response.data?.slice(0, 5) || []);
         setSelectedIndex(-1);
       } catch (err) {
+        if (controller.signal.aborted) return;
         console.error('Erro na pesquisa:', err);
         setResults([]);
+        setSearchError('Não foi possível buscar agora. Tente novamente.');
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -161,9 +173,11 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
         e.preventDefault();
         const targetAnime = results[selectedIndex];
         setIsOpen(false);
-        router.push(`/anime/${targetAnime.mal_id}`);
+        onNavigate?.();
+        router.push(`/anime/${targetAnime.malId}`);
       } else if (query.trim()) {
         setIsOpen(false);
+        onNavigate?.();
         router.push(`/pesquisa?q=${encodeURIComponent(query.trim())}`);
       }
     }
@@ -252,6 +266,8 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
               <Loader2 size={16} className="animate-spin text-[#FF6B00]" />
               Buscando animes...
             </div>
+          ) : searchError ? (
+            <div className="p-4 text-center text-sm text-red-300">{searchError}</div>
           ) : results.length > 0 ? (
             <>
               <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-[#FF6B00] bg-white/5 flex items-center justify-between">
@@ -261,16 +277,16 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
 
               {results.map((anime, idx) => {
                 const imageUrl =
-                  anime.images?.jpg?.small_image_url || anime.images?.jpg?.image_url;
-                const title = anime.title || anime.title_english || 'Anime';
-                const year = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : 'N/A');
+                  anime.posterUrl || undefined;
+                const title = anime.title;
+                const year = anime.year || 'N/A';
                 const isSelected = selectedIndex === idx;
 
                 return (
                   <Link
-                    key={anime.mal_id}
-                    href={`/anime/${anime.mal_id}`}
-                    onClick={() => setIsOpen(false)}
+                    key={anime.malId}
+                    href={`/anime/${anime.malId}`}
+                    onClick={() => { setIsOpen(false); onNavigate?.(); }}
                     onMouseEnter={() => setSelectedIndex(idx)}
                     className={`flex items-center gap-3 p-2.5 transition-colors group ${
                       isSelected ? 'bg-[#FF6B00]/20 border-l-4 border-[#FF6B00]' : 'hover:bg-white/5'
@@ -279,8 +295,8 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
                     <div className="relative w-11 h-15 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-800 border border-white/10 shadow-sm">
                       <SafeImage
                         src={imageUrl}
-                        fallbackSrc={anime.images?.jpg?.image_url}
-                        animeId={anime.mal_id}
+                        fallbackSrc={anime.posterUrl || undefined}
+                        animeId={anime.malId}
                         alt={title}
                         fill
                         sizes="44px"
@@ -296,10 +312,10 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
                         {title}
                       </h4>
                       <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-1 flex-wrap">
-                        {anime.score && (
+                        {anime.rating && (
                           <span className="flex items-center gap-0.5 text-amber-400 font-bold">
                             <Star size={11} className="fill-current" />
-                            {anime.score.toFixed(1)}
+                            {anime.rating.toFixed(1)}
                           </span>
                         )}
                         <span>•</span>
@@ -307,10 +323,10 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
                         <span>•</span>
                         <span className="flex items-center gap-1">
                           <Tv size={10} />
-                          {anime.type || 'TV'}
+                          {anime.episodeCount} {anime.episodeCount === 1 ? 'episódio' : 'episódios'}
                         </span>
                         <span>•</span>
-                        <span className="text-gray-300 font-medium">{formatStatus(anime.status)}</span>
+                        {anime.status && <span className="text-gray-300 font-medium">{formatStatus(anime.status)}</span>}
                       </div>
                     </div>
                   </Link>
@@ -319,7 +335,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false 
 
               <Link
                 href={`/pesquisa?q=${encodeURIComponent(query.trim())}`}
-                onClick={() => setIsOpen(false)}
+                onClick={() => { setIsOpen(false); onNavigate?.(); }}
                 className="block p-3 text-center text-xs font-bold text-[#FF6B00] bg-white/5 hover:bg-[#FF6B00]/10 transition-colors"
               >
                 Ver todos os resultados para &quot;{query}&quot; →

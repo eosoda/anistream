@@ -37,6 +37,7 @@ export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
 
   const title = anime.title || anime.title_english || anime.title_japanese || 'Sem título';
   const typeStr = anime.type || 'TV';
+  const isMovie = typeStr.toLowerCase() === 'movie';
   const episodesCount = anime.episodes ? `${anime.episodes} eps` : 'Em lançamento';
   const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : 'N/A');
 
@@ -112,8 +113,12 @@ export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
             <span>•</span>
             <span className="font-semibold text-gray-300">{yearStr}</span>
 
-            <span>•</span>
-            <span className="text-gray-400">{episodesCount}</span>
+            {!isMovie && (
+              <>
+                <span>•</span>
+                <span className="text-gray-400">{episodesCount}</span>
+              </>
+            )}
 
             <span>•</span>
             <span className="text-gray-300 font-medium">{formatStatus(anime.status)}</span>
@@ -129,23 +134,13 @@ export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
             )}
           </div>
 
-          {/* Genre Chips (desktop/tablet) */}
-          <div className="hidden md:flex items-center gap-1 pt-0.5">
-            {anime.genres?.slice(0, 3).map((genre) => (
-              <span
-                key={genre.mal_id}
-                className="text-[10px] text-gray-400 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full"
-              >
-                {genre.name}
-              </span>
-            ))}
-          </div>
-
           {/* Watch Progress Indicator */}
           {overallProgress && (
             <div className="flex items-center gap-2 text-[10px] text-emerald-400 font-bold pt-0.5">
               <span>
-                {overallProgress.percentage !== null
+                {isMovie && overallProgress.percentage !== null
+                  ? `${overallProgress.percentage}% assistido`
+                  : overallProgress.percentage !== null
                   ? `${overallProgress.percentage}% assistido (${overallProgress.watchedEpCount}/${overallProgress.totalEpisodes} eps)`
                   : `${overallProgress.watchedEpCount} ep(s) assistidos`}
               </span>

@@ -4,9 +4,11 @@ import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
-import { AnimeCard } from './AnimeCard';
+import { CarouselAnimeCard } from './CarouselAnimeCard';
 import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
+import { useFavorites } from '@/hooks/useFavorites';
+import { useWatchProgress } from '@/hooks/useWatchProgress';
 
 interface AnimeCarouselProps {
   title: string;
@@ -25,6 +27,8 @@ export function AnimeCarousel({
   viewAllHref,
   subtitle,
 }: AnimeCarouselProps) {
+  const { isFavorite, toggleFavoriteWithConfirm } = useFavorites();
+  const { getAnimeOverallProgress } = useWatchProgress();
   const {
     ref: scrollContainerRef,
     elementRef: scrollContainerElementRef,
@@ -32,19 +36,25 @@ export function AnimeCarousel({
   } = useDraggableScroll<HTMLDivElement>();
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const visibleAnimes = isExpanded ? animes : animes.slice(0, 4);
 
   useEffect(() => {
+    let frameId = 0;
     const checkScroll = () => {
-      if (!scrollContainerElementRef.current) return;
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerElementRef.current;
-      setCanScrollLeft(scrollLeft > 10);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        if (!scrollContainerElementRef.current) return;
+        const { scrollLeft, scrollWidth, clientWidth } = scrollContainerElementRef.current;
+        setCanScrollLeft(scrollLeft > 10);
+        setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+      });
     };
 
     checkScroll();
     const currentRef = scrollContainerElementRef.current;
     if (currentRef) {
-      currentRef.addEventListener('scroll', checkScroll);
+      currentRef.addEventListener('scroll', checkScroll, { passive: true });
       window.addEventListener('resize', checkScroll);
     }
     return () => {
@@ -52,11 +62,21 @@ export function AnimeCarousel({
         currentRef.removeEventListener('scroll', checkScroll);
       }
       window.removeEventListener('resize', checkScroll);
+      cancelAnimationFrame(frameId);
     };
-  }, [animes, isLoading, scrollContainerElementRef]);
+  }, [visibleAnimes.length, isLoading, scrollContainerElementRef]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerElementRef.current) return;
+    if (direction === 'right' && !isExpanded && animes.length > visibleAnimes.length) {
+      setIsExpanded(true);
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        const container = scrollContainerElementRef.current;
+        if (!container) return;
+        container.scrollBy({ left: container.clientWidth * 0.75, behavior: 'smooth' });
+      }));
+      return;
+    }
     const { clientWidth } = scrollContainerElementRef.current;
     const scrollAmount = clientWidth * 0.75;
     scrollContainerElementRef.current.scrollBy({
@@ -85,6 +105,7 @@ export function AnimeCarousel({
           {viewAllHref && (
             <Link
               href={viewAllHref}
+              prefetch={false}
               className="text-xs font-semibold text-[#FF6B00] hover:text-[#FF8533] hover:underline mr-2"
             >
               Ver todos →
@@ -122,6 +143,7 @@ export function AnimeCarousel({
       {/* Track */}
       <div
         ref={scrollContainerRef}
+        onPointerDown={() => setIsExpanded(true)}
         className={`flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar touch-pan-y py-2 px-1 cursor-grab active:cursor-grabbing select-none overscroll-x-contain ${
           isDragging ? 'scroll-auto snap-none' : 'scroll-smooth snap-x snap-mandatory'
         }`}
@@ -132,17 +154,22 @@ export function AnimeCarousel({
           </div>
         ) : isLoading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-[145px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start">
+            <div key={i} className="w-[145px] min-[560px]:w-[170px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start">
               <AnimeCardSkeleton />
             </div>
           ))
         ) : (
-          animes?.map((anime, index) => (
+          visibleAnimes.map((anime) => (
             <div
-              key={`${anime.mal_id}-${index}`}
-              className="w-[145px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start"
+              key={anime.mal_id}
+              className="w-[145px] min-[560px]:w-[170px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start"
             >
-              <AnimeCard anime={anime} index={index} />
+              <CarouselAnimeCard
+                anime={anime}
+                favorited={isFavorite(anime.mal_id)}
+                progress={getAnimeOverallProgress(anime.mal_id, anime.episodes)}
+                onToggleFavorite={toggleFavoriteWithConfirm}
+              />
             </div>
           ))
         )}

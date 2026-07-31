@@ -2,9 +2,6 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, ReactNode } from 'react';
-import { FavoritesProvider } from '@/context/FavoritesContext';
-import { ConfirmationProvider } from '@/context/ConfirmationContext';
-import { ToastProvider } from '@/context/ToastContext';
 
 export default function QueryProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -21,15 +18,7 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
       })
   );
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <ConfirmationProvider>
-          <FavoritesProvider>{children}</FavoritesProvider>
-        </ConfirmationProvider>
-      </ToastProvider>
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 

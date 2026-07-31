@@ -7,7 +7,6 @@ import { JikanAnime } from '@/types/anime';
 import { RatingBadge } from '@/components/ui/RatingBadge';
 import { formatSeasonName } from '@/utils/formatters';
 import { useFavorites } from '@/hooks/useFavorites';
-import { motion, AnimatePresence } from 'motion/react';
 import { SafeImage } from '@/components/ui/SafeImage';
 
 interface BannerHeroProps {
@@ -24,7 +23,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
     if (!animes || animes.length === 0 || !isAutoplay) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % animes.length);
-    }, 6000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [animes, isAutoplay]);
 
@@ -54,7 +53,9 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
     currentAnime.title_english || currentAnime.title || currentAnime.title_japanese || 'Anime';
 
   const backdropImage =
-    currentAnime.bannerImage ||
+    currentAnime.mal_id === 52991
+      ? '/hero-frieren-fast.webp'
+      : currentAnime.bannerImage ||
     currentAnime.trailer?.images?.maximum_image_url ||
     currentAnime.images?.jpg?.image_url ||
     currentAnime.images?.jpg?.large_image_url;
@@ -70,13 +71,8 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
       onMouseEnter={() => setIsAutoplay(false)}
       onMouseLeave={() => setIsAutoplay(true)}
     >
-      <AnimatePresence mode="wait">
-        <motion.div
+        <div
           key={currentAnime.mal_id}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.6 }}
           className="absolute inset-0"
         >
           {/* Background Image */}
@@ -87,8 +83,9 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
             alt={title}
             fill
             priority
+            unoptimized={backdropImage.startsWith('/')}
             sizes="100vw"
-            className="object-cover object-center filter brightness-75 scale-105"
+            className="object-cover object-center"
           />
 
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/70 to-transparent" />
@@ -141,6 +138,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
                   <Link
                     href={`/anime/${currentAnime.mal_id}`}
+                    prefetch={false}
                     className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#FF6B00] hover:bg-[#FF8533] text-white font-bold text-xs sm:text-sm transition-all transform hover:scale-105 shadow-xl shadow-[#FF6B00]/30"
                   >
                     <Play size={16} className="fill-current sm:w-4 sm:h-4" />
@@ -177,8 +175,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
               </div>
             </div>
           </div>
-        </motion.div>
-      </AnimatePresence>
+        </div>
 
       {/* Smooth Scroll Button to Main Content below */}
       <button

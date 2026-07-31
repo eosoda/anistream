@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { motion } from 'motion/react';
 import { Play, Heart, Tv, Sparkles, CheckCircle, PlayCircle, Mic, MessageSquare } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
 import { RatingBadge } from '@/components/ui/RatingBadge';
@@ -20,7 +19,7 @@ interface AnimeCardProps {
   index?: number;
 }
 
-export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, index }: AnimeCardProps) {
+export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }: AnimeCardProps) {
   const router = useRouter();
   const { isFavorite, toggleFavoriteWithConfirm, newEpisodesMap, markAsSeen } = useFavorites();
   const { getAnimeOverallProgress } = useWatchProgress();
@@ -46,21 +45,15 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, i
 
   const title = anime.title || anime.title_english || anime.title_japanese || 'Sem título';
   const typeStr = anime.type || 'TV';
+  const isMovie = typeStr.toLowerCase() === 'movie';
   const episodesCount = anime.episodes ? `${anime.episodes} eps` : 'Em lançamento';
   const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null);
 
   return (
-    <motion.div
+    <div
       onClick={(event) => {
         if (event.defaultPrevented || (event.target as HTMLElement).closest('a, button')) return;
         router.push(`/anime/${anime.mal_id}`);
-      }}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.35,
-        delay: index !== undefined ? Math.min((index % 12) * 0.04, 0.36) : 0,
-        ease: [0.21, 0.47, 0.32, 0.98],
       }}
       className={`group relative flex flex-col w-full h-full cursor-pointer rounded-xl overflow-hidden glass-panel glass-panel-hover transition-all duration-300 ease-out ${
         hasNewEpisode ? 'ring-2 ring-emerald-500/70 shadow-lg shadow-emerald-500/20' : ''
@@ -146,7 +139,9 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, i
               <span className="flex items-center gap-1 text-emerald-400">
                 <PlayCircle size={10} className="fill-emerald-500/30 text-emerald-400" />
                 <span>
-                  {overallProgress.totalEpisodes
+                  {isMovie && overallProgress.percentage !== null
+                    ? `${overallProgress.percentage}% assistido`
+                    : overallProgress.totalEpisodes
                     ? `${overallProgress.watchedEpCount}/${overallProgress.totalEpisodes} eps`
                     : `${overallProgress.watchedEpCount} ep${overallProgress.watchedEpCount > 1 ? 's' : ''}`}
                 </span>
@@ -175,23 +170,25 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, i
 
       {/* Card Details */}
       <div className="p-3 flex flex-col justify-between flex-grow gap-2">
-        <div>
+        <div className="space-y-1">
           <Link href={`/anime/${anime.mal_id}`} className="hover:text-[#FF6B00] transition-colors">
-            <h3 className="font-bold text-sm text-white line-clamp-1 group-hover:text-[#FF6B00] transition-colors" title={title}>
+            <h3 className="min-h-10 break-words text-sm font-bold leading-5 text-white transition-colors group-hover:text-[#FF6B00]" title={title}>
               {title}
             </h3>
           </Link>
-          <p className="text-xs text-gray-400 mt-1 line-clamp-1">
-            {overallProgress ? (
-              <span className="text-emerald-400 font-bold">
-                {overallProgress.percentage !== null
-                  ? `${overallProgress.percentage}% assistido (${overallProgress.watchedEpCount}/${overallProgress.totalEpisodes} eps)`
-                  : `${overallProgress.watchedEpCount} ep(s) assistidos`}
-              </span>
-            ) : (
-              episodesCount
-            )}
-          </p>
+          {!isMovie && (
+            <p className="min-h-8 break-words text-xs leading-4 text-gray-400">
+              {overallProgress ? (
+                <span className="text-emerald-400 font-bold">
+                  {overallProgress.percentage !== null
+                    ? `${overallProgress.percentage}% assistido (${overallProgress.watchedEpCount}/${overallProgress.totalEpisodes} eps)`
+                    : `${overallProgress.watchedEpCount} ep(s) assistidos`}
+                </span>
+              ) : (
+                episodesCount
+              )}
+            </p>
+          )}
         </div>
 
         {/* New Episode info & mark as seen bar */}
@@ -216,15 +213,7 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, i
         )}
 
         {/* Favorite Action Button */}
-        <div className="flex items-center justify-between pt-1 border-t border-white/5">
-          <div className="flex flex-wrap gap-1">
-            {anime.genres?.slice(0, 1).map((genre) => (
-              <span key={genre.mal_id} className="text-[10px] text-gray-400 bg-white/5 px-2 py-0.5 rounded">
-                {genre.name}
-              </span>
-            ))}
-          </div>
-
+        <div className="flex items-center justify-end pt-1 border-t border-white/5">
           <Tooltip content={favorited ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'} position="left">
             <button
               onClick={(e) => {
@@ -244,6 +233,6 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, i
         </div>
       </div>
 
-    </motion.div>
+    </div>
   );
 }

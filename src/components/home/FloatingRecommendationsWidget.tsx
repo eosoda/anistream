@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Sparkles,
   X,
@@ -18,18 +17,22 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
-import { jikanService } from '@/services/jikan';
+import type { JikanAnime } from '@/types/anime';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { RatingBadge } from '@/components/ui/RatingBadge';
 import { Tooltip } from '@/components/ui/Tooltip';
 
-export function FloatingRecommendationsWidget() {
+export function FloatingRecommendationsWidget({ initialOpen = false }: { initialOpen?: boolean }) {
   const { favorites, recommendationsEnabled, toggleRecommendationsEnabled, isFavorite, toggleFavoriteWithConfirm } =
     useFavorites();
   const { getWatchHistory } = useWatchProgress();
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [recommendationResult, setRecommendationResult] = useState<{
+    genreId: number;
+    items: JikanAnime[];
+  } | null>(null);
 
   const watchHistory = getWatchHistory();
 
@@ -74,18 +77,35 @@ export function FloatingRecommendationsWidget() {
 
   const primaryGenreId = topGenreIds[0];
 
-  // Fetch recommendations based on primary genre derived from favorites + history
-  const { data: recommendedData, isLoading } = useQuery({
-    queryKey: ['floatingRecommendations', primaryGenreId],
-    queryFn: () => jikanService.getAnimeByGenre(primaryGenreId, 1, 20),
-    enabled: !!primaryGenreId && recommendationsEnabled,
-  });
+  useEffect(() => {
+    if (!isOpen || !primaryGenreId || !recommendationsEnabled) return;
+    let active = true;
+
+    import('@/services/jikan')
+      .then(({ jikanService }) => jikanService.getAnimeByGenre(primaryGenreId, 1, 20))
+      .then(result => {
+        if (active) setRecommendationResult({ genreId: primaryGenreId, items: result.data || [] });
+      })
+      .catch(() => {
+        if (active) setRecommendationResult({ genreId: primaryGenreId, items: [] });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, primaryGenreId, recommendationsEnabled]);
+
+  const isLoading = Boolean(
+    isOpen && primaryGenreId && recommendationResult?.genreId !== primaryGenreId
+  );
 
   // Filter out animes already favorited or watched
   const recommendations = useMemo(() => {
-    if (!recommendedData?.data) return [];
-    return recommendedData.data.filter((anime) => !userAnimeIds.has(anime.mal_id)).slice(0, 10);
-  }, [recommendedData, userAnimeIds]);
+    const items = recommendationResult && primaryGenreId && recommendationResult.genreId === primaryGenreId
+      ? recommendationResult.items
+      : [];
+    return items.filter((anime) => !userAnimeIds.has(anime.mal_id)).slice(0, 10);
+  }, [primaryGenreId, recommendationResult, userAnimeIds]);
 
   const pathname = usePathname();
 

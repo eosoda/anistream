@@ -3,9 +3,10 @@ import { z } from 'zod';
 export const AudioLanguageSchema = z.enum(['ja', 'pt-BR', 'en', 'es', 'unknown']);
 
 export const AnimeSearchInputSchema = z.object({
-  query: z.string().min(1, 'A consulta de busca não pode estar vazia'),
+  query: z.string().trim().min(1).max(120),
   language: AudioLanguageSchema.optional(),
   limit: z.number().int().min(1).max(100).optional().default(20),
+  page: z.number().int().min(1).optional().default(1),
 });
 
 const AnimeInputSchema = z.object({

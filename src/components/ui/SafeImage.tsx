@@ -85,12 +85,12 @@ export function SafeImage({
   ...props
 }: SafeImageProps) {
   const aniListCover = animeId ? ANILIST_COVER_MAP[animeId] : undefined;
-  const svgFallback = getAnimePosterSvgFallback(alt);
+  const getSvgFallback = () => getAnimePosterSvgFallback(alt);
 
   const cleanedSrc = cleanImageUrl(src);
   const cleanedFallback = cleanImageUrl(fallbackSrc);
 
-  const initialSrc = cleanedSrc || aniListCover || cleanedFallback || svgFallback;
+  const initialSrc = cleanedSrc || aniListCover || cleanedFallback || getSvgFallback();
 
   const [prevSrc, setPrevSrc] = useState<string | null | undefined>(src);
   const [currentSrc, setCurrentSrc] = useState<string>(initialSrc);
@@ -98,7 +98,7 @@ export function SafeImage({
 
   if (prevSrc !== src) {
     setPrevSrc(src);
-    setCurrentSrc(cleanedSrc || aniListCover || cleanedFallback || svgFallback);
+    setCurrentSrc(cleanedSrc || aniListCover || cleanedFallback || getSvgFallback());
     setErrorCount(0);
   }
 
@@ -127,7 +127,7 @@ export function SafeImage({
       }
 
       // Step 4: Anime poster SVG fallback
-      setCurrentSrc(svgFallback);
+      setCurrentSrc(getSvgFallback());
       setErrorCount(2);
     } else if (errorCount === 1) {
       if (aniListCover && aniListCover !== currentSrc) {
@@ -140,19 +140,12 @@ export function SafeImage({
         setErrorCount(2);
         return;
       }
-      setCurrentSrc(svgFallback);
+      setCurrentSrc(getSvgFallback());
       setErrorCount(2);
     } else {
-      setCurrentSrc(svgFallback);
+      setCurrentSrc(getSvgFallback());
     }
   };
-
-  const isExternalCdn =
-    typeof currentSrc === 'string' &&
-    (currentSrc.includes('jikan.moe') ||
-      currentSrc.includes('myanimelist') ||
-      currentSrc.includes('anilist') ||
-      currentSrc.includes('kitsu'));
 
   return (
     <Image
@@ -160,7 +153,7 @@ export function SafeImage({
       src={currentSrc}
       alt={alt || 'Anime Cover'}
       className={className}
-      unoptimized={unoptimized !== undefined ? unoptimized : isExternalCdn}
+      unoptimized={unoptimized}
       referrerPolicy="no-referrer"
       draggable={false}
       onError={handleError}

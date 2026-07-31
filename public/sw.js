@@ -1,12 +1,7 @@
-const CACHE_NAME = 'anistream-v5';
+const CACHE_NAME = 'anistream-v6';
 const STATIC_ASSETS = [
-  '/',
   '/offline.html',
   '/manifest.json',
-  '/favoritos',
-  '/lista',
-  '/calendario',
-  '/pesquisa',
 ];
 
 self.addEventListener('install', (event) => {

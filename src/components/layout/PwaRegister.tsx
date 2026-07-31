@@ -33,7 +33,7 @@ export function PwaRegister() {
     };
 
     // Registrar Service Worker e monitorar atualizações
-    navigator.serviceWorker
+    const registerWorker = () => navigator.serviceWorker
       .register('/sw.js')
       .then((registration) => {
         // 1. Se já houver um worker esperando ativação
@@ -57,6 +57,7 @@ export function PwaRegister() {
         };
       })
       .catch((err) => console.log('Falha ao registrar Service Worker:', err));
+    const registrationTimer = window.setTimeout(registerWorker, 8000);
 
     // Evento beforeinstallprompt para PWA
     const handleBeforeInstall = (e: Event) => {
@@ -66,7 +67,10 @@ export function PwaRegister() {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => {
+      window.clearTimeout(registrationTimer);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    };
   }, [showToast]);
 
   const handleInstallClick = async () => {

@@ -34,17 +34,21 @@ export function AnimeCarousel({
   const [canScrollRight, setCanScrollRight] = useState(true);
 
   useEffect(() => {
+    let frameId = 0;
     const checkScroll = () => {
-      if (!scrollContainerElementRef.current) return;
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerElementRef.current;
-      setCanScrollLeft(scrollLeft > 10);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        if (!scrollContainerElementRef.current) return;
+        const { scrollLeft, scrollWidth, clientWidth } = scrollContainerElementRef.current;
+        setCanScrollLeft(scrollLeft > 10);
+        setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+      });
     };
 
     checkScroll();
     const currentRef = scrollContainerElementRef.current;
     if (currentRef) {
-      currentRef.addEventListener('scroll', checkScroll);
+      currentRef.addEventListener('scroll', checkScroll, { passive: true });
       window.addEventListener('resize', checkScroll);
     }
     return () => {
@@ -52,6 +56,7 @@ export function AnimeCarousel({
         currentRef.removeEventListener('scroll', checkScroll);
       }
       window.removeEventListener('resize', checkScroll);
+      cancelAnimationFrame(frameId);
     };
   }, [animes, isLoading, scrollContainerElementRef]);
 
@@ -132,7 +137,7 @@ export function AnimeCarousel({
           </div>
         ) : isLoading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-[145px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start">
+            <div key={i} className="w-[145px] min-[560px]:w-[170px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start">
               <AnimeCardSkeleton />
             </div>
           ))
@@ -140,7 +145,7 @@ export function AnimeCarousel({
           animes?.map((anime, index) => (
             <div
               key={`${anime.mal_id}-${index}`}
-              className="w-[145px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start"
+              className="w-[145px] min-[560px]:w-[170px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start"
             >
               <AnimeCard anime={anime} index={index} />
             </div>

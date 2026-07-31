@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { WifiOff, Wifi, Database } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 
 export function OfflineStatusBanner() {
   const [isOffline, setIsOffline] = useState(() => {
@@ -15,6 +14,7 @@ export function OfflineStatusBanner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
     const handleOffline = () => {
       setIsOffline(true);
@@ -24,8 +24,7 @@ export function OfflineStatusBanner() {
     const handleOnline = () => {
       setIsOffline(false);
       setShowReconnected(true);
-      const timer = setTimeout(() => setShowReconnected(false), 4000);
-      return () => clearTimeout(timer);
+      reconnectTimer = setTimeout(() => setShowReconnected(false), 4000);
     };
 
     window.addEventListener('offline', handleOffline);
@@ -34,19 +33,14 @@ export function OfflineStatusBanner() {
     return () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
     };
   }, []);
 
   return (
-    <AnimatePresence>
+    <>
       {isOffline && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="fixed top-16 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
-        >
+        <div className="fixed top-16 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none animate-fade-in">
           <div className="pointer-events-auto bg-amber-950/90 border border-amber-500/40 text-amber-200 px-4 py-2 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-semibold">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -59,17 +53,11 @@ export function OfflineStatusBanner() {
             </span>
             <Database size={13} className="text-amber-400/80 ml-1 flex-shrink-0" />
           </div>
-        </motion.div>
+        </div>
       )}
 
       {!isOffline && showReconnected && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="fixed top-16 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
-        >
+        <div className="fixed top-16 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none animate-fade-in">
           <div className="pointer-events-auto bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 px-4 py-2 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2 text-xs font-semibold">
             <Wifi size={14} className="text-emerald-400 flex-shrink-0" />
             <span>Conexão Restabelecida</span>
@@ -77,8 +65,8 @@ export function OfflineStatusBanner() {
               — Dados sincronizados com a internet
             </span>
           </div>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

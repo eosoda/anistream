@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { JikanAnime, JikanEpisode } from '@/types/anime';
-import { jikanService } from '@/services/jikan';
 import { offlineCacheDB } from '@/utils/offlineCacheDB';
 
 const FAVORITES_KEY = 'anistream_favorites_v1';
@@ -136,9 +135,10 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         console.warn('Error syncing favorites with IndexedDB:', e);
       }
     }
-    syncDB();
+    const syncTimer = window.setTimeout(syncDB, 8000);
     return () => {
       active = false;
+      window.clearTimeout(syncTimer);
     };
   }, []);
 
@@ -289,6 +289,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
           // If the anime is currently airing, fetch its latest episode data from Jikan
           if (isAiring) {
             try {
+              const { jikanService } = await import('@/services/jikan');
               const episodes: JikanEpisode[] = await jikanService.getAnimeEpisodes(anime.mal_id);
 
               if (episodes && episodes.length > 0) {
