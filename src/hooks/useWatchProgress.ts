@@ -29,16 +29,7 @@ export function getSavedWatchProgress(animeId: number, episodeNum: number): Epis
 }
 
 export function useWatchProgress() {
-  const [progressMap, setProgressMap] = useState<Record<string, EpisodeProgress>>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : {};
-    } catch (e) {
-      console.error('Failed to load watch progress from localStorage', e);
-      return {};
-    }
-  });
+  const [progressMap, setProgressMap] = useState<Record<string, EpisodeProgress>>({});
 
   // Save to localStorage when state updates
   const saveToStorage = (newMap: Record<string, EpisodeProgress>) => {
@@ -63,10 +54,12 @@ export function useWatchProgress() {
       }
     };
 
+    const restoreTimer = window.setTimeout(handleStorage, 0);
     window.addEventListener('storage', handleStorage);
     window.addEventListener('anistream_progress_updated', handleStorage);
 
     return () => {
+      window.clearTimeout(restoreTimer);
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('anistream_progress_updated', handleStorage);
     };

@@ -42,37 +42,32 @@ interface FavoritesContextType {
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
 
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
-  const [favorites, setFavorites] = useState<JikanAnime[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const storedFavs = localStorage.getItem(FAVORITES_KEY);
-      return storedFavs ? JSON.parse(storedFavs) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [favorites, setFavorites] = useState<JikanAnime[]>([]);
 
-  const [newEpisodesMap, setNewEpisodesMap] = useState<Record<number, NewEpisodeInfo>>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const storedMap = localStorage.getItem(NEW_EPISODES_MAP_KEY);
-      return storedMap ? JSON.parse(storedMap) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [newEpisodesMap, setNewEpisodesMap] = useState<Record<number, NewEpisodeInfo>>({});
 
   const [isCheckingNewEpisodes, setIsCheckingNewEpisodes] = useState<boolean>(false);
 
-  const [lastCheckTime, setLastCheckTime] = useState<Date | null>(() => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const storedTime = localStorage.getItem(LAST_CHECK_TIME_KEY);
-      return storedTime ? new Date(parseInt(storedTime, 10)) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
+
+  // Keep the server render and the first client render identical. Browser-only
+  // preferences are restored after hydration to avoid React mismatch errors.
+  useEffect(() => {
+    const restoreTimer = window.setTimeout(() => {
+      try {
+        const storedFavs = localStorage.getItem(FAVORITES_KEY);
+        const storedMap = localStorage.getItem(NEW_EPISODES_MAP_KEY);
+        const storedTime = localStorage.getItem(LAST_CHECK_TIME_KEY);
+        if (storedFavs) setFavorites(JSON.parse(storedFavs));
+        if (storedMap) setNewEpisodesMap(JSON.parse(storedMap));
+        if (storedTime) setLastCheckTime(new Date(parseInt(storedTime, 10)));
+      } catch {
+        // Corrupted browser data is ignored and replaced on the next valid write.
+      }
+    }, 0);
+
+    return () => window.clearTimeout(restoreTimer);
+  }, []);
 
   // Save favorites to LocalStorage
   const saveFavorites = (updated: JikanAnime[]) => {
