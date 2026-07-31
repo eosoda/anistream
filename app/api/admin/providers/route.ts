@@ -1,70 +1,25 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { autoAuthorizeHostnames, invalidateAuthorizedHostsCache } from '@/lib/security/allowed-hosts';
+import { ANIME_SDK_PROVIDERS } from '@/lib/providers/anime-sdk';
 
 // 8 Provedores padrão pré-configurados inicializáveis
 const DEFAULT_PROVIDERS = [
-  {
-    name: 'Kenjitsu / AniZone',
-    type: 'EXTERNAL_API',
-    url: 'https://kenjitsu.koyeb.app/api/anizone',
-    priority: 100,
-    enabled: true,
-    autoIndex: true,
-  },
-  {
-    name: 'GogoAnime (Consumet)',
-    type: 'EXTERNAL_API',
-    url: 'https://api-consumet-org-five.vercel.app',
-    priority: 90,
-    enabled: true,
-    autoIndex: true,
-  },
-  {
-    name: 'HiAnime / Zoro',
-    type: 'EXTERNAL_API',
-    url: 'https://consumet-api-1.vercel.app',
-    priority: 85,
-    enabled: true,
-    autoIndex: true,
-  },
-  {
-    name: 'Anify API',
-    type: 'EXTERNAL_API',
-    url: 'https://api.anify.tv',
-    priority: 80,
-    enabled: true,
-    autoIndex: true,
-  },
-  {
-    name: 'AnimesOnline Scraper',
-    type: 'EXTERNAL_API',
-    url: 'https://animesonline.cloud',
-    priority: 75,
-    enabled: true,
-    autoIndex: true,
-  },
-  {
-    name: 'WarezCDN / Superflix',
-    type: 'EMBED',
-    url: 'https://superflixapi.pro',
-    priority: 70,
-    enabled: true,
-    autoIndex: false,
-  },
+  ...ANIME_SDK_PROVIDERS.filter((provider) => provider.enabled).map(
+    (provider) => ({
+      name: provider.name,
+      type: 'ANIME_SDK',
+      url: provider.url,
+      priority: provider.priority,
+      enabled: true,
+      autoIndex: false,
+    })
+  ),
   {
     name: 'XPass / 2Embed',
     type: 'EMBED',
     url: 'https://play.xpass.top',
     priority: 60,
-    enabled: true,
-    autoIndex: false,
-  },
-  {
-    name: 'Catálogo M3U Autorizado',
-    type: 'M3U',
-    url: 'https://m3u-catalog.local',
-    priority: 50,
     enabled: true,
     autoIndex: false,
   },
@@ -85,6 +40,31 @@ export async function GET() {
           { name: { contains: 'ApiPlayer' } },
         ],
       },
+    });
+
+    // Estes adaptadores legados deixaram de entregar mídia reproduzível.
+    // Mantemos os registros e o histórico de testes no painel, mas não os
+    // consultamos durante a reprodução.
+    await prisma.mediaProvider.updateMany({
+      where: {
+        name: {
+          in: [
+            'AniZone / Kenjitsu API',
+            'Kenjitsu / AniZone',
+            'GogoAnime (Consumet)',
+            'Consumet / Gogoanime API',
+            'HiAnime / Zoro',
+            'Anify API',
+            'AnimesOnline Scraper',
+            'WarezCDN / Superflix',
+            '2Embed Player',
+            'Xpass Player',
+            'Catálogo M3U Autorizado',
+            'Anikoto',
+          ],
+        },
+      },
+      data: { enabled: false },
     });
 
     let providers = await prisma.mediaProvider.findMany({

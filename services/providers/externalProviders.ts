@@ -459,38 +459,109 @@ export async function getXPass2EmbedSources(
   title?: string
 ): Promise<ProviderResult<NormalizedSource[]>> {
   const startTime = Date.now();
-  const sources: NormalizedSource[] = [];
+  const playerUrl = `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`;
 
-  // Embed 1: 2Embed
-  if (tmdbId) {
-    sources.push({
-      provider: '2Embed',
-      episodeId: `2embed-${tmdbId}-s${season}e${episode}`,
-      url: `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`,
-      type: 'embed',
-      quality: '1080p',
-      audio: 'sub',
-      headers: { Referer: 'https://www.2embed.cc/' },
+  try {
+    const playerResponse = await fetch(playerUrl, {
+      headers: {
+        Referer: 'https://play.xpass.top/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      cache: 'no-store',
     });
-  }
+    if (!playerResponse.ok) {
+      throw new Error(`Player XPass HTTP ${playerResponse.status}`);
+    }
 
-  // Embed 2: XPass TV
-  if (tmdbId) {
-    sources.push({
-      provider: 'Xpass',
-      episodeId: `xpass-${tmdbId}-s${season}e${episode}`,
-      url: `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`,
-      type: 'embed',
-      quality: '1080p',
-      audio: 'sub',
-      headers: { Referer: 'https://play.xpass.top/' },
+    const html = await playerResponse.text();
+    const dataPath = html.match(/dataUrl\s*=\s*["']([^"']+)["']/i)?.[1];
+    let playlistPath =
+      html.match(/"playlist"\s*:\s*"([^"]+playlist\.json)"/i)?.[1] ||
+      html.match(/playlist\s*:\s*["']([^"']+playlist\.json)["']/i)?.[1];
+
+    if (dataPath) {
+      const serversResponse = await fetch(new URL(dataPath, playerUrl), {
+        headers: {
+          Referer: playerUrl,
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+        cache: 'no-store',
+      });
+      if (serversResponse.ok) {
+        const servers = (await serversResponse.json()) as Array<{
+          name?: string;
+          url?: string;
+        }>;
+        // O endpoint TIK costuma entregar manifests válidos com segmentos
+        // expirados. VIP é o espelho estável e sem HTML publicitário.
+        const preferred = servers.find(
+          (server) =>
+            server.name?.toUpperCase().startsWith('VIP') &&
+            server.url?.includes('playlist.json')
+        );
+        playlistPath =
+          preferred?.url ||
+          servers.find((server) => server.url?.includes('playlist.json'))?.url ||
+          playlistPath;
+      }
+    }
+
+    if (!playlistPath) {
+      throw new Error('Playlist JSON não encontrada no player XPass');
+    }
+
+    const playlistUrl = new URL(playlistPath, playerUrl).toString();
+    const playlistResponse = await fetch(playlistUrl, {
+      headers: {
+        Referer: playerUrl,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      cache: 'no-store',
     });
-  }
+    if (!playlistResponse.ok) {
+      throw new Error(`Playlist XPass HTTP ${playlistResponse.status}`);
+    }
 
-  return {
-    provider: 'XPass / 2Embed',
-    success: sources.length > 0,
-    durationMs: Date.now() - startTime,
-    data: sources,
-  };
+    const playlistJson = await playlistResponse.json();
+    const rawSources =
+      playlistJson?.playlist?.flatMap((item: any) => item?.sources || []) || [];
+    const sources: NormalizedSource[] = rawSources
+      .filter((source: any) => typeof source?.file === 'string')
+      .map((source: any, index: number) => ({
+        provider: 'Xpass Direct',
+        episodeId: `xpass-${tmdbId}-s${season}e${episode}-${index}`,
+        url: source.file,
+        type:
+          source.type === 'hls' || source.file.includes('.m3u8')
+            ? 'hls'
+            : source.file.includes('.mp4')
+            ? 'mp4'
+            : 'unknown',
+        quality: source.label || 'Auto',
+        audio: 'sub',
+        headers: {
+          Referer: playerUrl,
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      }))
+      .filter((source: NormalizedSource) => source.type !== 'unknown');
+
+    return {
+      provider: 'XPass Direct',
+      success: sources.length > 0,
+      durationMs: Date.now() - startTime,
+      data: sources,
+      error: sources.length > 0 ? undefined : 'XPass não retornou streams diretos',
+    };
+  } catch (err: any) {
+    return {
+      provider: 'XPass Direct',
+      success: false,
+      durationMs: Date.now() - startTime,
+      data: null,
+      error: err.message,
+    };
+  }
 }

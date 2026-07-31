@@ -21,9 +21,11 @@ import {
 import { SafeImage } from '@/components/ui/SafeImage';
 import { ImportAnimeModal } from '@/components/admin/ImportAnimeModal';
 import { useToast } from '@/context/ToastContext';
+import { useConfirmation } from '@/context/ConfirmationContext';
 
 export default function AdminAnimesPage() {
   const { showToast } = useToast();
+  const { confirm, alert } = useConfirmation();
   const [animes, setAnimes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -139,9 +141,15 @@ export default function AdminAnimesPage() {
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Tem certeza que deseja excluir o anime "${title}" e todos os seus episódios?`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Excluir anime e episódios?',
+      description: `“${title}” e todos os episódios e fontes associados serão excluídos permanentemente.`,
+      confirmText: 'Excluir anime',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+      animeTitle: title,
+    });
+    if (!confirmed) return;
 
     setDeletingId(id);
     try {
@@ -151,10 +159,18 @@ export default function AdminAnimesPage() {
       if (res.ok) {
         setAnimes(animes.filter((a) => a.id !== id));
       } else {
-        alert('Falha ao excluir o anime.');
+        await alert({
+          title: 'Falha ao excluir o anime',
+          description: 'O servidor recusou a exclusão. Atualize a página e tente novamente.',
+          variant: 'danger',
+        });
       }
     } catch {
-      alert('Erro de conexão ao excluir o anime.');
+      await alert({
+        title: 'Erro de conexão',
+        description: 'Não foi possível alcançar o servidor. Verifique a conexão e tente novamente.',
+        variant: 'danger',
+      });
     } finally {
       setDeletingId(null);
     }

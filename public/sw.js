@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anistream-v4';
+const CACHE_NAME = 'anistream-v5';
 const STATIC_ASSETS = [
   '/',
   '/offline.html',
@@ -34,56 +34,56 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignorar requisições de API POST ou não-GET
+  // APIs e artefatos versionados do Next nunca devem ficar presos no cache do
+  // service worker. O próprio Next já fornece cache-busting para /_next.
   if (event.request.method !== 'GET') return;
+  const requestUrl = new URL(event.request.url);
+  if (
+    requestUrl.origin === self.location.origin &&
+    (requestUrl.pathname.startsWith('/api/') ||
+      requestUrl.pathname.startsWith('/_next/'))
+  ) {
+    return;
+  }
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Retornar cache imediatamente e atualizar em segundo plano (Stale-While-Revalidate)
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse.ok) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
-              });
-            }
-          })
-          .catch(() => {});
+    (async () => {
+      const isNavigation =
+        event.request.mode === 'navigate' ||
+        (event.request.headers.get('accept') || '').includes('text/html');
 
-        return cachedResponse;
-      }
-
-      return fetch(event.request)
-        .then((networkResponse) => {
-          if (
-            networkResponse.ok &&
-            event.request.url.startsWith(self.location.origin) &&
-            !event.request.url.includes('/api/')
-          ) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
+      // Navegações são network-first para que um deploy nunca continue
+      // executando HTML/JS antigos. O cache serve apenas como fallback offline.
+      if (isNavigation) {
+        try {
+          const networkResponse = await fetch(event.request);
+          if (networkResponse.ok && requestUrl.origin === self.location.origin) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(event.request, networkResponse.clone());
           }
           return networkResponse;
-        })
-        .catch(async () => {
-          if (
-            event.request.mode === 'navigate' ||
-            (event.request.headers.get('accept') &&
-              event.request.headers.get('accept').includes('text/html'))
-          ) {
-            const offlineResp = await caches.match('/offline.html');
-            if (offlineResp) return offlineResp;
-          }
-          return new Response('Sem conexão ou recurso indisponível', {
-            status: 503,
-            statusText: 'Service Unavailable',
-            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-          });
+        } catch {
+          return (
+            (await caches.match(event.request)) ||
+            (await caches.match('/offline.html')) ||
+            new Response('Sem conexão ou recurso indisponível', { status: 503 })
+          );
+        }
+      }
+
+      const cachedResponse = await caches.match(event.request);
+      if (cachedResponse) return cachedResponse;
+
+      try {
+        return await fetch(event.request);
+      } catch {
+        return new Response('Sem conexão ou recurso indisponível', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });
-    })
+      }
+    })()
   );
 });
 

@@ -1,64 +1,78 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import {
+  getAnimeSdkProviderKey,
+  testAnimeSdkProvider,
+} from '@/lib/providers/anime-sdk';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authenticated) return auth.errorResponse!;
+
   try {
     const body = await req.json();
     const { id, url } = body;
-
-    let targetUrl = url;
-    let providerId = id;
-
-    if (id && !url) {
-      const p = await prisma.mediaProvider.findUnique({ where: { id } });
-      if (p) targetUrl = p.url;
-    }
+    const provider = id
+      ? await prisma.mediaProvider.findUnique({ where: { id } })
+      : null;
+    const targetUrl = url || provider?.url;
 
     if (!targetUrl) {
-      return NextResponse.json({ error: 'URL para teste é obrigatória.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'URL para teste é obrigatória.' },
+        { status: 400 }
+      );
     }
 
-    const startTime = Date.now();
+    const startedAt = Date.now();
     let status = 0;
     let ok = false;
-    let errorMsg: string | null = null;
+    let error: string | null = null;
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 20_000);
 
-      // Se for uma API ou Embed externo, testar via GET com User-Agent e Accept adequado
-      const res = await fetch(targetUrl, {
-        method: targetUrl.includes('api') || targetUrl.includes('koyeb') ? 'GET' : 'HEAD',
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'AniStream-ProviderTester/1.0',
-          Accept: 'application/json, text/html, */*',
-        },
-        cache: 'no-store',
-      });
+      if (provider?.type === 'ANIME_SDK') {
+        const key = getAnimeSdkProviderKey(provider.name);
+        if (!key) throw new Error('Adaptador AnimeSDK não reconhecido.');
+        const result = await testAnimeSdkProvider(key, controller.signal);
+        status = 200;
+        ok = result.sourceCount > 0;
+      } else {
+        const response = await fetch(targetUrl, {
+          method:
+            targetUrl.includes('api') || targetUrl.includes('koyeb')
+              ? 'GET'
+              : 'HEAD',
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'AniStream-ProviderTester/2.0',
+            Accept: 'application/json, text/html, */*',
+          },
+          cache: 'no-store',
+        });
+        status = response.status;
+        ok = response.ok || [200, 206, 301, 302].includes(status);
+        if (!ok) error = `Resposta HTTP de erro (${status})`;
+      }
 
       clearTimeout(timeoutId);
-      status = res.status;
-      ok = res.ok || res.status === 200 || res.status === 206 || res.status === 302 || res.status === 301;
-
-      if (!ok) {
-        if (status === 404) errorMsg = 'URL do provedor não encontrada (HTTP 404)';
-        else if (status === 429) errorMsg = 'Limite de requisições excedido na API (HTTP 429)';
-        else if (status >= 500) errorMsg = `Instabilidade no servidor do provedor (HTTP ${status})`;
-        else errorMsg = `Resposta HTTP de erro (${status})`;
-      }
-    } catch (err: any) {
+    } catch (caught) {
+      const caughtError = caught as Error;
       ok = false;
-      status = err.name === 'AbortError' ? 504 : 500;
-      errorMsg = err.name === 'AbortError' ? 'Timeout de conexão excedido (6s)' : err.message || 'Erro de rede ao conectar com provedor';
+      status = caughtError.name === 'AbortError' ? 504 : 500;
+      error =
+        caughtError.name === 'AbortError'
+          ? 'Teste funcional excedeu 20 segundos.'
+          : caughtError.message || 'Erro ao testar o provedor.';
     }
 
-    const latencyMs = Date.now() - startTime;
-
-    if (providerId) {
+    const latencyMs = Date.now() - startedAt;
+    if (provider) {
       await prisma.mediaProvider.update({
-        where: { id: providerId },
+        where: { id: provider.id },
         data: {
           lastTestedAt: new Date(),
           lastStatus: status,
@@ -72,10 +86,13 @@ export async function POST(req: Request) {
       ok,
       status,
       latencyMs,
-      error: errorMsg,
+      error,
       testedAt: new Date().toISOString(),
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (caught) {
+    return NextResponse.json(
+      { error: (caught as Error).message },
+      { status: 500 }
+    );
   }
 }

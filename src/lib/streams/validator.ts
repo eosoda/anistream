@@ -19,7 +19,12 @@ export async function validateStreamSource(
   const startTime = Date.now();
 
   // 1. Defesa SSRF e Host Autorizado
-  const ssrfCheck = await validateUrlSsrf(source.url);
+  const isServerDiscoveredRelay =
+    source.requiresProxy === true &&
+    (source.id.startsWith('xpass-') || source.id.startsWith('anime-sdk-'));
+  const ssrfCheck = await validateUrlSsrf(source.url, {
+    requireAuthorizedHost: !isServerDiscoveredRelay,
+  });
   if (!ssrfCheck.valid) {
     return {
       valid: false,
@@ -73,7 +78,7 @@ export async function validateStreamSource(
       }
 
       const contentType = response.headers.get('content-type') || '';
-      const content = await response.text();
+      let content = await response.text();
 
       // Verificar tags M3U8 obrigatórias
       if (!content.includes('#EXTM3U')) {
@@ -87,7 +92,7 @@ export async function validateStreamSource(
       }
 
       const isMaster = content.includes('#EXT-X-STREAM-INF');
-      const hasSegments = content.includes('#EXTINF');
+      let hasSegments = content.includes('#EXTINF');
 
       if (!isMaster && !hasSegments) {
         return {
@@ -96,6 +101,45 @@ export async function validateStreamSource(
           status: response.status,
           latencyMs,
           error: 'Manifest HLS sem playlists variantes ou segmentos #EXTINF',
+        };
+      }
+
+      // Um master manifest pode estar saudável e ainda apontar para preview,
+      // trailer ou playlist vazia. Seguimos a primeira variante e exigimos
+      // duração mínima plausível para um episódio.
+      if (isMaster) {
+        const lines = content.split(/\r?\n/);
+        const variantIndex = lines.findIndex((line) =>
+          line.startsWith('#EXT-X-STREAM-INF')
+        );
+        const variant = lines
+          .slice(variantIndex + 1)
+          .find((line) => line.trim() && !line.startsWith('#'));
+        if (variant) {
+          const variantResponse = await fetch(
+            new URL(variant.trim(), source.url).toString(),
+            { headers, signal: controller.signal }
+          );
+          if (variantResponse.ok) {
+            content = await variantResponse.text();
+            hasSegments = content.includes('#EXTINF');
+          }
+        }
+      }
+
+      const durationSeconds = Array.from(
+        content.matchAll(/#EXTINF:([\d.]+)/g)
+      ).reduce((total, match) => total + Number(match[1]), 0);
+      if (!hasSegments || (durationSeconds > 0 && durationSeconds < 300)) {
+        return {
+          valid: false,
+          type: 'hls',
+          status: response.status,
+          latencyMs: Date.now() - startTime,
+          error:
+            durationSeconds > 0
+              ? `Playlist curta demais (${Math.round(durationSeconds)}s)`
+              : 'Playlist HLS sem segmentos reproduzíveis',
         };
       }
 

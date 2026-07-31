@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ProviderStatus } from '@/components/ProviderStatus';
 import { AutopilotPanel } from '@/components/admin/AutopilotPanel';
+import { useConfirmation } from '@/context/ConfirmationContext';
 
 interface MediaProviderItem {
   id: string;
@@ -36,6 +37,7 @@ interface MediaProviderItem {
 }
 
 export default function AdminSourcesPage() {
+  const { confirm } = useConfirmation();
   const [activeTab, setActiveTab] = useState<'providers' | 'm3u' | 'json' | 'autopilot' | 'hosts'>('providers');
   const [providers, setProviders] = useState<MediaProviderItem[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
@@ -126,7 +128,14 @@ export default function AdminSourcesPage() {
   };
 
   const handleDeleteHost = async (hostToRemove: string) => {
-    if (!confirm(`Deseja remover o domínio manual "${hostToRemove}"?`)) return;
+    const confirmed = await confirm({
+      title: 'Remover domínio autorizado?',
+      description: `O domínio “${hostToRemove}” deixará de ser permitido para mídia.`,
+      confirmText: 'Remover domínio',
+      cancelText: 'Cancelar',
+      variant: 'warning',
+    });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/admin/media-hosts?host=${encodeURIComponent(hostToRemove)}`, {
         method: 'DELETE',
@@ -184,7 +193,17 @@ export default function AdminSourcesPage() {
   };
 
   const handleDeleteProvider = async (id: string) => {
-    if (!confirm('Deseja realmente remover este provedor?')) return;
+    const provider = providers.find((item) => item.id === id);
+    const confirmed = await confirm({
+      title: 'Remover provedor?',
+      description: provider
+        ? `O provedor “${provider.name}” será removido da resolução de episódios.`
+        : 'Este provedor será removido da resolução de episódios.',
+      confirmText: 'Remover provedor',
+      cancelText: 'Manter provedor',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await fetch(`/api/admin/providers?id=${id}`, { method: 'DELETE' });
       fetchProviders();
@@ -495,7 +514,7 @@ export default function AdminSourcesPage() {
                         {/* Deletar */}
                         <button
                           onClick={() => handleDeleteProvider(p.id)}
-                          className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
+                          className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-red-300/70 hover:text-red-300 transition-colors"
                           title="Remover Provedor"
                         >
                           <Trash2 size={14} />
@@ -657,7 +676,7 @@ export default function AdminSourcesPage() {
                       {isManual && (
                         <button
                           onClick={() => handleDeleteHost(h)}
-                          className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors shrink-0"
+                          className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-red-300/70 hover:text-red-300 transition-colors shrink-0"
                           title="Remover host manual"
                         >
                           <Trash2 size={14} />

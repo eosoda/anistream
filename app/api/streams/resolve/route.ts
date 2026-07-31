@@ -5,6 +5,40 @@ import { generatePlaybackToken } from '@/lib/security/playback-token';
 import { checkRateLimit } from '@/lib/security/rate-limit';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import { prisma } from '@/lib/db/prisma';
+import { encryptData } from '@/lib/security/crypto';
+
+function buildPlaybackUrl(
+  source: {
+    id: string;
+    url: string;
+    type: string;
+    headers?: Record<string, string>;
+    requiresProxy?: boolean;
+  },
+  token: string
+): string {
+  if (source.type === 'embed') return source.url;
+
+  // Fontes descobertas sob demanda ainda não possuem EpisodeSource no banco.
+  // O relay recebe um descritor autenticado/criptografado em vez de expor a
+  // página do provedor no navegador.
+  if (
+    source.requiresProxy &&
+    (source.id.startsWith('xpass-') || source.id.startsWith('anime-sdk-'))
+  ) {
+    const payload = encryptData(
+      JSON.stringify({
+        sourceId: source.id,
+        url: source.url,
+        type: source.type,
+        headers: source.headers || {},
+      })
+    );
+    return `/api/streams/relay?token=${encodeURIComponent(token)}&payload=${encodeURIComponent(payload)}`;
+  }
+
+  return `/api/streams/proxy/${source.id}?token=${encodeURIComponent(token)}`;
+}
 
 export async function POST(request: NextRequest) {
   const reqPath = request.nextUrl.pathname;
@@ -40,25 +74,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const input: any = parseResult.data;
+    const input = parseResult.data;
 
-    // Enriquecer input com o título real do anime
-    if (!input.title && input.animeId) {
-      const malIdNum = parseInt(input.animeId, 10);
+    // Enriquecer o input com o registro local. A URL pública usa normalmente o
+    // MAL ID, enquanto Anime.id é um CUID; AnimeIdentifier faz essa ponte.
+    if (!input.animeTitle && input.animeId) {
       try {
         const dbAnime = await prisma.anime.findFirst({
           where: {
             OR: [
-              ...(isNaN(malIdNum) ? [] : [{ mal_id: malIdNum }]),
               { id: input.animeId },
+              { slug: input.animeId },
+              {
+                identifiers: {
+                  some: {
+                    provider: { in: ['mal', 'myanimelist', 'MAL'] },
+                    value: input.animeId,
+                  },
+                },
+              },
             ],
           },
-          select: { title: true, titleEnglish: true, slug: true },
+          include: { aliases: true },
         });
 
         if (dbAnime) {
-          input.title = dbAnime.title || dbAnime.titleEnglish || '';
-          input.slug = dbAnime.slug || '';
+          input.animeTitle = dbAnime.title;
+          input.originalTitle = input.originalTitle || dbAnime.originalTitle || undefined;
+          input.aliases = Array.from(
+            new Set([
+              ...(input.aliases || []),
+              dbAnime.title,
+              dbAnime.originalTitle || '',
+              ...dbAnime.aliases.map((alias: { value: string }) => alias.value),
+            ])
+          ).filter(Boolean);
         }
       } catch {
         // ignora se db offline
@@ -85,10 +135,7 @@ export async function POST(request: NextRequest) {
     const token = await generatePlaybackToken(selected.id, undefined, 15);
 
     // 4. Construct safe playback URL (embeds returned directly, direct streams proxied)
-    const playbackUrl =
-      selected.type === 'embed'
-        ? selected.url
-        : `/api/streams/proxy/${selected.id}?token=${encodeURIComponent(token)}`;
+    const playbackUrl = buildPlaybackUrl(selected, token);
 
     // Map safe alternatives
     const safeAlternatives = await Promise.all(
@@ -97,12 +144,10 @@ export async function POST(request: NextRequest) {
         return {
           sourceId: alt.id,
           provider: alt.provider,
+          type: alt.type,
           quality: alt.quality || 'auto',
           audioLanguage: alt.audioLanguage || 'ja',
-          playbackUrl:
-            alt.type === 'embed'
-              ? alt.url
-              : `/api/streams/proxy/${alt.id}?token=${encodeURIComponent(altToken)}`,
+          playbackUrl: buildPlaybackUrl(alt, altToken),
         };
       })
     );

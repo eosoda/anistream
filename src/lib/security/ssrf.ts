@@ -35,7 +35,8 @@ export function isPrivateIp(ip: string): boolean {
 }
 
 export async function validateUrlSsrf(
-  urlString: string
+  urlString: string,
+  options: { requireAuthorizedHost?: boolean } = {}
 ): Promise<SSRFValidationResult> {
   try {
     const parsedUrl = new URL(urlString);
@@ -95,7 +96,8 @@ export async function validateUrlSsrf(
       const firstIp = addresses[0]?.address;
 
       // 7. Verificar se o host está na allowlist de mídia autorizada
-      const authorized = await isAuthorizedHost(hostname);
+      const requireAuthorizedHost = options.requireAuthorizedHost !== false;
+      const authorized = !requireAuthorizedHost || (await isAuthorizedHost(hostname));
       if (!authorized) {
         return {
           valid: false,

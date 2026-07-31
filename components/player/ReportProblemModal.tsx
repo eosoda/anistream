@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, Send, X } from 'lucide-react';
+import { useConfirmation } from '@/context/ConfirmationContext';
 
 interface ReportProblemModalProps {
   episodeId: string;
@@ -10,6 +11,7 @@ interface ReportProblemModalProps {
 }
 
 export function ReportProblemModal({ episodeId, isOpen, onClose }: ReportProblemModalProps) {
+  const { alert } = useConfirmation();
   const [type, setType] = useState('BROKEN_LINK');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +45,12 @@ export function ReportProblemModal({ episodeId, isOpen, onClose }: ReportProblem
         onClose();
       }, 2000);
     } catch (err: any) {
-      alert(err.message);
+      await alert({
+        title: 'Não foi possível enviar o relato',
+        description: err.message || 'Verifique sua conexão e tente novamente.',
+        buttonText: 'Voltar ao formulário',
+        variant: 'danger',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -67,7 +74,7 @@ export function ReportProblemModal({ episodeId, isOpen, onClose }: ReportProblem
 
         {successMsg ? (
           <div className="py-8 text-center space-y-2">
-            <CheckCircle2 size={48} className="text-emerald-400 mx-auto animate-bounce" />
+            <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
             <p className="text-sm font-bold text-white">{successMsg}</p>
           </div>
         ) : (

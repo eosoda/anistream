@@ -56,6 +56,9 @@ export default function EpisodePlayerPage({
             season: 1,
             episode: epNum,
             episodeNumber: epNum,
+            animeTitle: anime?.title_english || anime?.title,
+            originalTitle: anime?.title_japanese,
+            aliases: anime?.titles?.map((title) => title.title).filter(Boolean),
           }),
         });
         const data = await res.json();
@@ -73,7 +76,7 @@ export default function EpisodePlayerPage({
         return { data: null, status: 500, error: err.message || 'Erro de conexão ao buscar fontes' };
       }
     },
-    enabled: !isNaN(animeId) && !isNaN(epNum),
+    enabled: !isNaN(animeId) && !isNaN(epNum) && Boolean(anime),
   });
 
   if (isLoadingAnime) {

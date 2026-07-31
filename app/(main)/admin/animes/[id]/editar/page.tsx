@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { EpisodeSourcesModal } from '@/components/admin/EpisodeSourcesModal';
+import { useConfirmation } from '@/context/ConfirmationContext';
 
 export default function AdminEditAnimePage({
   params,
@@ -26,6 +27,7 @@ export default function AdminEditAnimePage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { confirm } = useConfirmation();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -158,7 +160,14 @@ export default function AdminEditAnimePage({
 
   // Excluir Episódio
   const handleDeleteEpisode = async (epId: string, epNum: number) => {
-    if (!confirm(`Deseja excluir o episódio ${epNum}?`)) return;
+    const confirmed = await confirm({
+      title: `Excluir episódio ${epNum}?`,
+      description: 'As fontes cadastradas para este episódio também serão removidas.',
+      confirmText: 'Excluir episódio',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/admin/animes/${id}/episodes/${epId}`, {
         method: 'DELETE',

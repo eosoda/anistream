@@ -35,7 +35,7 @@ export class StreamResolver {
 
   async resolveEpisodeStream(
     input: EpisodeLookupInput,
-    timeoutPerProviderMs = 4000
+    timeoutPerProviderMs = 6500
   ): Promise<ResolveStreamResult> {
     const attempts: ProviderAttempt[] = [];
     const rawSourcesMap = new Map<string, StreamSource>();
@@ -49,6 +49,11 @@ export class StreamResolver {
             OR: [
               { id: input.animeId },
               { slug: input.animeId },
+              {
+                identifiers: {
+                  some: { value: input.animeId },
+                },
+              },
             ],
           },
           include: { aliases: true },
@@ -158,19 +163,24 @@ export class StreamResolver {
       }))
       .sort((a, b) => b.score - a.score)
       .map((item) => item.source);
+    const fallbackSources = [...allSources].sort(
+      (a, b) =>
+        calculateSourceScore(b, timeoutPerProviderMs, preferredAudio) -
+        calculateSourceScore(a, timeoutPerProviderMs, preferredAudio)
+    );
 
     const selected =
       sortedSources.length > 0
         ? sortedSources[0]
-        : allSources.length > 0
-        ? allSources[0]
+        : fallbackSources.length > 0
+        ? fallbackSources[0]
         : null;
 
     const alternatives =
       sortedSources.length > 1
         ? sortedSources.slice(1)
-        : allSources.length > 1
-        ? allSources.slice(1)
+        : fallbackSources.length > 1
+        ? fallbackSources.slice(1)
         : [];
 
     return {

@@ -81,9 +81,28 @@ export class LocalDatabaseProvider implements AnimeProvider {
   ): Promise<StreamSource[]> {
     if (signal?.aborted) throw new Error('Operação abortada pelo cliente');
 
+    const anime = await prisma.anime.findFirst({
+      where: {
+        OR: [
+          { id: input.animeId },
+          { slug: input.animeId },
+          {
+            identifiers: {
+              some: { value: input.animeId },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (!anime) {
+      return [];
+    }
+
     const episode = await prisma.episode.findFirst({
       where: {
-        animeId: input.animeId,
+        animeId: anime.id,
         season: input.season,
         number: input.episode,
       },

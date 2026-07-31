@@ -11,6 +11,68 @@ import {
   getXPass2EmbedSources,
 } from '@/services/providers/externalProviders';
 import { validateHlsPlaylist } from '../streams/hls-validator';
+import { normalizeAnimeTitle } from '../anime/normalize-title';
+import {
+  getAnimeSdkProviderKey,
+  resolveAnimeSdkSources,
+} from './anime-sdk';
+
+async function resolveEmbedCatalogId(
+  input: EpisodeLookupInput,
+  title: string
+): Promise<string | null> {
+  try {
+    const anime = await prisma.anime.findFirst({
+      where: {
+        OR: [
+          { id: input.animeId },
+          { slug: input.animeId },
+          { identifiers: { some: { value: input.animeId } } },
+        ],
+      },
+      include: { identifiers: true },
+    });
+    const stored = anime?.identifiers.find((identifier: { provider: string }) =>
+      ['imdb', 'tmdb'].includes(identifier.provider.toLowerCase())
+    );
+    if (stored?.value) return stored.value;
+  } catch {
+    // O catálogo público pode funcionar mesmo sem um registro local.
+  }
+
+  if (!title) return null;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const response = await fetch(
+      `https://api.tvmaze.com/search/shows?q=${encodeURIComponent(title)}`,
+      { signal: controller.signal, cache: 'no-store' }
+    );
+    clearTimeout(timeout);
+    if (!response.ok) return null;
+
+    const results = (await response.json()) as Array<{
+      show?: {
+        name?: string;
+        externals?: { imdb?: string | null };
+      };
+    }>;
+    const normalizedCandidates = new Set(
+      [title, input.originalTitle, ...(input.aliases || [])]
+        .filter((value): value is string => Boolean(value))
+        .map(normalizeAnimeTitle)
+    );
+    const exact = results.find((result) =>
+      result.show?.name
+        ? normalizedCandidates.has(normalizeAnimeTitle(result.show.name))
+        : false
+    );
+    return exact?.show?.externals?.imdb || results[0]?.show?.externals?.imdb || null;
+  } catch {
+    return null;
+  }
+}
 
 export class ExternalApisProvider implements AnimeProvider {
   readonly id = 'external-apis';
@@ -27,18 +89,50 @@ export class ExternalApisProvider implements AnimeProvider {
       const dbProviders = await prisma.mediaProvider.findMany({
         where: {
           enabled: true,
-          type: { in: ['EXTERNAL_API', 'EMBED'] },
+          type: { in: ['ANIME_SDK', 'EXTERNAL_API', 'EMBED'] },
         },
         orderBy: { priority: 'desc' },
+      });
+      // Embeds são resolvidos localmente e devem entrar na lista antes das APIs
+      // de scraping, que podem consumir todo o orçamento de timeout.
+      dbProviders.sort((
+        a: { type: string; priority: number },
+        b: { type: string; priority: number }
+      ) => {
+        const typeWeight = (provider: { type: string }) =>
+          provider.type === 'ANIME_SDK' ? 2 : provider.type === 'EMBED' ? 1 : 0;
+        return typeWeight(b) - typeWeight(a) || b.priority - a.priority;
       });
 
       const title = input.animeTitle || (input as any).title || input.animeId || '';
       const epNum = input.episode || (input as any).episodeNumber || 1;
       const seasonNum = input.season || 1;
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const needsEmbedId = dbProviders.some(
+        (provider: { type: string }) => provider.type === 'EMBED'
+      );
+      const embedCatalogId = needsEmbedId
+        ? await resolveEmbedCatalogId(input, title)
+        : null;
+
+      const sdkProviders = dbProviders.filter(
+        (provider: { type: string }) => provider.type === 'ANIME_SDK'
+      );
+      const sdkResults = await Promise.allSettled(
+        sdkProviders.map(async (provider: { name: string; priority: number }) => {
+          const key = getAnimeSdkProviderKey(provider.name);
+          return key
+            ? resolveAnimeSdkSources(key, input, provider.priority, signal)
+            : [];
+        })
+      );
+      for (const result of sdkResults) {
+        if (result.status === 'fulfilled') sources.push(...result.value);
+      }
 
       for (const p of dbProviders) {
         if (signal?.aborted) break;
+        if (p.type === 'ANIME_SDK') continue;
 
         try {
           const nameLower = p.name.toLowerCase();
@@ -159,7 +253,8 @@ export class ExternalApisProvider implements AnimeProvider {
 
           // 6. WarezCDN / Superflix
           else if (nameLower.includes('warezcdn') || nameLower.includes('superflix')) {
-            const res = await getWarezCDNSources(input.animeId || title, seasonNum, epNum);
+            if (!embedCatalogId) continue;
+            const res = await getWarezCDNSources(embedCatalogId, seasonNum, epNum);
             if (res.success && res.data) {
               for (const s of res.data) {
                 sources.push({
@@ -178,18 +273,20 @@ export class ExternalApisProvider implements AnimeProvider {
 
           // 7. XPass / 2Embed
           else if (nameLower.includes('xpass') || nameLower.includes('2embed')) {
-            const res = await getXPass2EmbedSources(input.animeId || '1000', seasonNum, epNum, title);
+            if (!embedCatalogId) continue;
+            const res = await getXPass2EmbedSources(embedCatalogId, seasonNum, epNum, title);
             if (res.success && res.data) {
               for (const s of res.data) {
                 sources.push({
                   id: `xpass-${p.id}-${s.url}`,
                   provider: s.provider,
                   url: s.url,
-                  type: 'embed',
+                  type: s.type as any,
                   quality: '1080p',
                   priority: p.priority,
                   audioLanguage: 'ja',
                   headers: s.headers,
+                  requiresProxy: true,
                 });
               }
             }
@@ -202,7 +299,10 @@ export class ExternalApisProvider implements AnimeProvider {
       console.error('Erro ao consultar provedores externos:', err);
     }
 
-    return sources;
+    // Páginas embed de terceiros executam JavaScript publicitário e podem
+    // tentar abrir popups. No fluxo público aceitamos somente mídia direta,
+    // reproduzida pelo player nativo através do relay assinado.
+    return sources.filter((source) => source.type !== 'embed');
   }
 
   async healthCheck(): Promise<ProviderHealth> {

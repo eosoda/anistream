@@ -32,8 +32,10 @@ import {
 } from 'lucide-react';
 import { ProviderStatus } from '@/components/ProviderStatus';
 import { ImageCropModal } from '@/components/admin/ImageCropModal';
+import { useConfirmation } from '@/context/ConfirmationContext';
 
 export default function AdminDashboardPage() {
+  const { alert } = useConfirmation();
   const [metrics, setMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -753,7 +755,14 @@ export default function AdminDashboardPage() {
         aspectRatio="poster"
         isOpen={showCropModal}
         onClose={() => setShowCropModal(false)}
-        onSave={() => alert('Recorte visual aplicado!')}
+        onSave={() =>
+          alert({
+            title: 'Recorte aplicado',
+            description: 'O novo enquadramento visual foi aplicado à prévia.',
+            buttonText: 'Concluir',
+            variant: 'primary',
+          })
+        }
       />
     </div>
   );

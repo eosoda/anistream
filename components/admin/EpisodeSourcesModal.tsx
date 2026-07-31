@@ -18,6 +18,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
+import { useConfirmation } from '@/context/ConfirmationContext';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 
 interface EpisodeSourcesModalProps {
@@ -61,6 +62,7 @@ export function EpisodeSourcesModal({
   onSuccess,
 }: EpisodeSourcesModalProps) {
   const { showToast } = useToast();
+  const { confirm } = useConfirmation();
   const [activeTab, setActiveTab] = useState<'registered' | 'discover' | 'manual'>('registered');
 
   // Fontes cadastradas
@@ -151,7 +153,14 @@ export function EpisodeSourcesModal({
 
   // Excluir Fonte
   const handleDeleteSource = async (sourceId: string, providerName: string) => {
-    if (!confirm(`Deseja excluir a fonte "${providerName}"?`)) return;
+    const confirmed = await confirm({
+      title: 'Excluir fonte do episódio?',
+      description: `A fonte “${providerName}” será removida deste episódio.`,
+      confirmText: 'Excluir fonte',
+      cancelText: 'Manter fonte',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       const res = await fetch(
         `/api/admin/animes/${animeId}/episodes/${episodeId}/sources?sourceId=${sourceId}`,
