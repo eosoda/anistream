@@ -1,232 +1,55 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Play, Flame, Calendar, Film, ListFilter, Heart, Menu, X, Search, Trophy } from 'lucide-react';
+import { Play, Flame, Calendar, Film, ListFilter, Heart, Menu, X, Search, Trophy, Home } from 'lucide-react';
 import { SearchBar } from '@/components/catalog/SearchBar';
 import { useFavorites } from '@/hooks/useFavorites';
 import { UserStatsModal } from '@/components/user/UserStatsModal';
 
+const links = [
+  { name: 'Início', href: '/', Icon: Home },
+  { name: 'Populares', href: '/populares', Icon: Flame },
+  { name: 'Calendário', href: '/calendario', Icon: Calendar },
+  { name: 'Filmes', href: '/filmes', Icon: Film },
+  { name: 'Catálogo', href: '/lista', Icon: ListFilter },
+  { name: 'Favoritos', href: '/favoritos', Icon: Heart },
+];
+
 export function Navbar() {
   const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const { favorites, newEpisodesCount } = useFavorites();
+  const isActive = (href: string) => pathname === href;
+  const secondary = links.filter((link) => ['/populares', '/calendario', '/filmes'].includes(link.href));
+  const core = [links[0], { name: 'Buscar', href: '/pesquisa', Icon: Search }, links[4], links[5]];
 
-  const navLinks = [
-    { name: 'Home', href: '/', icon: <Play size={18} /> },
-    { name: 'Populares', href: '/populares', icon: <Flame size={18} /> },
-    { name: 'Calendário', href: '/calendario', icon: <Calendar size={18} /> },
-    { name: 'Filmes', href: '/filmes', icon: <Film size={18} /> },
-    { name: 'Catálogo', href: '/lista', icon: <ListFilter size={18} /> },
-    {
-      name: 'Favoritos',
-      href: '/favoritos',
-      icon: <Heart size={18} />,
-      badge: favorites.length > 0 ? favorites.length : undefined,
-      newBadgeCount: newEpisodesCount > 0 ? newEpisodesCount : 0,
-    },
-  ];
-
-  return (
-    <>
-      <UserStatsModal isOpen={isStatsOpen} onClose={() => setIsStatsOpen(false)} />
-
-      <header className="sticky top-0 z-50 w-full bg-[#0B0B0F]/85 backdrop-blur-xl border-b border-white/10 transition-all">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 md:h-20 flex items-center justify-between gap-4">
-          {/* Logo */}
-          <Link href="/" prefetch={false} className="flex items-center gap-2 group flex-shrink-0">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-tr from-[#FF6B00] to-[#FF8533] flex items-center justify-center text-white shadow-lg shadow-[#FF6B00]/30 group-hover:scale-105 transition-transform">
-              <Play size={18} className="fill-current ml-0.5 md:w-5 md:h-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-black text-lg md:text-2xl tracking-wider text-white">
-                ANI<span className="text-[#FF6B00]">STREAM</span>
-              </span>
-              <span className="text-[8px] md:text-[9px] text-gray-400 font-semibold tracking-widest -mt-1 uppercase">
-                Catálogo V1
-              </span>
-            </div>
-          </Link>
-
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 flex-nowrap shrink-0">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href;
-              const hasNew = link.newBadgeCount ? link.newBadgeCount > 0 : false;
-              return (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  prefetch={false}
-                  className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-2 rounded-full font-bold text-xs xl:text-sm transition-all relative whitespace-nowrap shrink-0 ${
-                    isActive
-                      ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/30'
-                      : 'text-gray-300 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <span className="relative flex-shrink-0">
-                    {link.icon}
-                    {hasNew && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0B0B0F] animate-ping" />
-                    )}
-                  </span>
-                  <span className="whitespace-nowrap">{link.name}</span>
-                  {hasNew ? (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-gradient-to-r from-emerald-500 to-teal-500 text-white animate-pulse border border-emerald-300/30 shadow-sm flex items-center gap-0.5 whitespace-nowrap">
-                      +{link.newBadgeCount} NOVO
-                    </span>
-                  ) : (
-                    link.badge !== undefined && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-white text-[#FF6B00] whitespace-nowrap">
-                        {link.badge}
-                      </span>
-                    )
-                  )}
-                </Link>
-              );
-            })}
-
-            {/* Botão de Estatísticas Pessoais */}
-            <button
-              onClick={() => setIsStatsOpen(true)}
-              className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/10"
-              title="Ver Estatísticas de Maratonas"
-            >
-              <Trophy size={18} className="text-[#FF6B00]" />
-            </button>
-          </nav>
-
-          {/* Desktop Search */}
-          <div className="hidden md:block flex-grow max-w-sm ml-auto">
-            <SearchBar isCompact />
-          </div>
-
-          {/* Mobile Search Toggle & Menu Button */}
-          <div className="flex md:hidden items-center gap-2">
-            <button
-              onClick={() => setIsStatsOpen(true)}
-              className="p-2.5 rounded-full bg-white/5 text-gray-300 border border-white/10"
-              title="Estatísticas"
-            >
-              <Trophy size={18} className="text-[#FF6B00]" />
-            </button>
-            <button
-              onClick={() => {
-                setIsMobileSearchOpen(!isMobileSearchOpen);
-                if (isMobileMenuOpen) setIsMobileMenuOpen(false);
-              }}
-              className={`p-2.5 rounded-full border transition-all ${
-                isMobileSearchOpen
-                  ? 'bg-[#FF6B00] text-white border-[#FF6B00]'
-                  : 'bg-white/5 text-gray-300 hover:text-white border-white/10'
-              }`}
-              aria-label="Abrir Pesquisa"
-            >
-              <Search size={18} />
-            </button>
-            <button
-              onClick={() => {
-                setIsMobileMenuOpen(!isMobileMenuOpen);
-                if (isMobileSearchOpen) setIsMobileSearchOpen(false);
-              }}
-              className={`p-2.5 rounded-full border transition-all ${
-                isMobileMenuOpen
-                  ? 'bg-[#FF6B00] text-white border-[#FF6B00]'
-                  : 'bg-white/5 text-gray-300 hover:text-white border-white/10'
-              }`}
-              aria-label="Menu"
-            >
-              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
-          </div>
+  return <>
+    <UserStatsModal isOpen={statsOpen} onClose={() => setStatsOpen(false)} />
+    <header className="sticky top-0 z-50 border-b border-[var(--border-subtle)] bg-[color:rgba(9,10,14,.9)] backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 md:h-18 md:px-8">
+        <Link href="/" prefetch={false} aria-label="AniStream — início" className="flex min-w-0 shrink-0 items-center gap-2">
+          <span className="grid size-10 place-items-center rounded-[var(--radius-control)] bg-[var(--accent)]"><Play size={19} className="ml-0.5 fill-current" /></span>
+          <span className="hidden font-black tracking-wider min-[350px]:block">ANI<span className="text-[var(--accent)]">STREAM</span></span>
+        </Link>
+        <nav aria-label="Navegação principal" className="hidden items-center gap-1 lg:flex">
+          {links.map(({ name, href, Icon }) => <Link key={href} href={href} prefetch={false} aria-current={isActive(href) ? 'page' : undefined} className={`flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] px-3 text-sm font-semibold transition-colors ${isActive(href) ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-white/6 hover:text-white'}`}><Icon size={17} />{name}{href === '/favoritos' && favorites.length > 0 && <span className="rounded-full bg-white/12 px-1.5 font-mono-data text-xs">{favorites.length}</span>}</Link>)}
+        </nav>
+        <div className="ml-auto hidden w-full max-w-sm md:block"><SearchBar isCompact /></div>
+        <div className="ml-auto flex items-center gap-1 md:ml-0">
+          <button onClick={() => setStatsOpen(true)} aria-label="Abrir estatísticas" className="grid size-11 place-items-center rounded-[var(--radius-control)] text-[var(--text-secondary)] hover:bg-white/7 hover:text-white"><Trophy size={19} /></button>
+          <button onClick={() => { setMobileSearchOpen((value) => !value); setMoreOpen(false); }} aria-label={mobileSearchOpen ? 'Fechar busca' : 'Abrir busca'} aria-expanded={mobileSearchOpen} className="grid size-11 place-items-center rounded-[var(--radius-control)] text-[var(--text-secondary)] hover:bg-white/7 hover:text-white md:hidden">{mobileSearchOpen ? <X size={20} /> : <Search size={20} />}</button>
+          <button onClick={() => { setMoreOpen((value) => !value); setMobileSearchOpen(false); }} aria-label={moreOpen ? 'Fechar menu Mais' : 'Abrir menu Mais'} aria-expanded={moreOpen} aria-controls="mobile-more-menu" className="grid size-11 place-items-center rounded-[var(--radius-control)] text-[var(--text-secondary)] hover:bg-white/7 hover:text-white lg:hidden">{moreOpen ? <X size={20} /> : <Menu size={20} />}</button>
         </div>
-
-        {/* Mobile Search Dropdown */}
-        {isMobileSearchOpen && (
-          <div className="md:hidden px-4 py-3 border-t border-white/10 bg-[#0B0B0F]/95 animate-fade-in">
-            <SearchBar placeholder="Buscar animes..." onNavigate={() => setIsMobileSearchOpen(false)} />
-          </div>
-        )}
-
-        {/* Mobile Menu Drawer */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden px-4 py-5 border-t border-white/10 bg-[#0B0B0F]/95 space-y-1.5 animate-fade-in shadow-2xl">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href;
-              const hasNew = link.newBadgeCount ? link.newBadgeCount > 0 : false;
-              return (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  prefetch={false}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all ${
-                    isActive
-                      ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/30'
-                      : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {link.icon}
-                    <span>{link.name}</span>
-                  </div>
-                  {hasNew ? (
-                    <span className="px-2 py-0.5 rounded-full text-xs font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-white animate-pulse">
-                      +{link.newBadgeCount} NOVO
-                    </span>
-                  ) : (
-                    link.badge !== undefined && (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-black bg-white text-[#FF6B00]">
-                        {link.badge}
-                      </span>
-                    )
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </header>
-
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#0B0B0F]/90 backdrop-blur-xl border-t border-white/10 px-2 py-2 flex items-center justify-around shadow-2xl safe-area-bottom">
-        {navLinks.map((link) => {
-          const isActive = pathname === link.href;
-          const hasNew = link.newBadgeCount ? link.newBadgeCount > 0 : false;
-          return (
-            <Link
-              key={`bottom-${link.name}`}
-              href={link.href}
-              prefetch={false}
-              className={`relative flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all ${
-                isActive ? 'text-[#FF6B00] font-bold' : 'text-gray-400 hover:text-white font-medium'
-              }`}
-            >
-              <div className="relative">
-                {link.icon}
-                {hasNew ? (
-                  <span className="absolute -top-1.5 -right-3 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-emerald-500 text-white border border-black shadow-sm animate-pulse">
-                    +{link.newBadgeCount}
-                  </span>
-                ) : (
-                  link.badge !== undefined && (
-                    <span className="absolute -top-1.5 -right-2.5 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-[#FF6B00] text-white border border-black shadow-sm">
-                      {link.badge}
-                    </span>
-                  )
-                )}
-              </div>
-              <span className="text-[10px] mt-1 tracking-tight whitespace-nowrap">{link.name}</span>
-              {isActive && (
-                <span className="absolute -bottom-1 w-5 h-0.5 bg-[#FF6B00] rounded-full shadow-sm shadow-[#FF6B00]" />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-    </>
-  );
+      </div>
+      {mobileSearchOpen && <div className="border-t border-[var(--border-subtle)] p-3 md:hidden"><SearchBar placeholder="Buscar animes..." onNavigate={() => setMobileSearchOpen(false)} /></div>}
+      {moreOpen && <nav id="mobile-more-menu" aria-label="Mais destinos" className="border-t border-[var(--border-subtle)] bg-[var(--surface-1)] p-3 lg:hidden"><div className="mx-auto grid max-w-7xl grid-cols-1 gap-1 sm:grid-cols-3">{secondary.map(({ name, href, Icon }) => <Link key={href} href={href} onClick={() => setMoreOpen(false)} className={`flex min-h-11 items-center gap-3 rounded-[var(--radius-control)] px-3 text-sm font-semibold ${isActive(href) ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-white/7 hover:text-white'}`}><Icon size={19} />{name}</Link>)}</div></nav>}
+    </header>
+    <nav aria-label="Navegação móvel" className="safe-area-bottom fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-[var(--border-subtle)] bg-[color:rgba(9,10,14,.94)] px-2 pt-1 backdrop-blur-xl lg:hidden">
+      {core.map(({ name, href, Icon }) => { const active = isActive(href) || (href === '/pesquisa' && mobileSearchOpen); return <Link key={href} href={href} prefetch={false} aria-current={active ? 'page' : undefined} className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-control)] text-xs font-medium ${active ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}><span className="relative"><Icon size={20} />{href === '/favoritos' && newEpisodesCount > 0 && <span className="absolute -right-3 -top-2 min-w-5 rounded-full bg-[var(--success)] px-1 text-center font-mono-data text-[10px] text-black">{newEpisodesCount}</span>}</span><span className="max-w-full truncate">{name}</span></Link>; })}
+    </nav>
+  </>;
 }

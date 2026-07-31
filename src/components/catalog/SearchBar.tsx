@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, X, Loader2, Star, Tv, Mic, MicOff } from 'lucide-react';
@@ -30,6 +30,8 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
   const containerRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const router = useRouter();
+  const inputId = useId();
+  const listboxId = useId();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -191,13 +193,20 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
           className="absolute left-3.5 text-gray-400 pointer-events-none group-focus-within:text-[#FF6B00] transition-colors"
         />
         <input
+          id={inputId}
           type="text"
+          role="combobox"
+          aria-label="Buscar animes"
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-controls={listboxId}
+          aria-activedescendant={selectedIndex >= 0 ? `${listboxId}-option-${selectedIndex}` : undefined}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.length >= 2 && setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={isListening ? 'Ouvindo sua voz...' : placeholder}
-          className={`w-full pl-10 pr-20 bg-white/5 border transition-all rounded-full text-white placeholder-gray-400 focus:outline-none ${
+          className={`min-h-11 w-full rounded-[var(--radius-control)] border bg-[var(--surface-2)] pl-10 pr-24 text-white transition-colors placeholder:text-[var(--text-muted)] ${
             isListening
               ? 'border-red-500 ring-2 ring-red-500/30 bg-red-500/5'
               : 'border-white/10 focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00]'
@@ -216,8 +225,9 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
             <Tooltip content={isListening ? 'Parar escuta' : 'Pesquisar por voz'} position="bottom">
               <button
                 type="button"
+                aria-label={isListening ? 'Parar pesquisa por voz' : 'Pesquisar por voz'}
                 onClick={toggleVoiceSearch}
-                className={`relative z-10 p-1.5 rounded-full transition-all flex items-center justify-center ${
+                className={`relative z-10 grid size-10 place-items-center rounded-[var(--radius-field)] transition-colors ${
                   isListening
                     ? 'bg-red-500 text-white shadow-lg shadow-red-500/50 scale-105'
                     : 'text-gray-400 hover:text-[#FF6B00] hover:bg-white/10'
@@ -235,13 +245,14 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
               <Tooltip content="Limpar busca" position="bottom">
                 <button
                   type="button"
+                  aria-label="Limpar busca"
                   onClick={() => {
                     setQuery('');
                     setResults([]);
                     setIsOpen(false);
                     setSelectedIndex(-1);
                   }}
-                  className="text-gray-400 hover:text-white p-1"
+                  className="grid size-10 place-items-center rounded-[var(--radius-field)] text-gray-400 hover:bg-white/7 hover:text-white"
                 >
                   <X size={16} />
                 </button>
@@ -260,7 +271,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
 
       {/* Instant Live Search Preview Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 glass-panel bg-[#0B0B0F]/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/15 divide-y divide-white/5 animate-fade-in">
+        <div id={listboxId} role="listbox" aria-label="Sugestões de animes" className="absolute top-full left-0 right-0 mt-2 z-50 glass-panel bg-[#0B0B0F]/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/15 divide-y divide-white/5 animate-fade-in">
           {isLoading && results.length === 0 ? (
             <div className="p-4 text-center text-sm text-gray-400 flex items-center justify-center gap-2">
               <Loader2 size={16} className="animate-spin text-[#FF6B00]" />
@@ -284,6 +295,9 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
 
                 return (
                   <Link
+                    id={`${listboxId}-option-${idx}`}
+                    role="option"
+                    aria-selected={isSelected}
                     key={anime.malId}
                     href={`/anime/${anime.malId}`}
                     onClick={() => { setIsOpen(false); onNavigate?.(); }}
