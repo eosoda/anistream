@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Flame, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
@@ -22,16 +22,11 @@ const TYPE_FILTERS = [
 export default function PopularPage() {
   const [activeType, setActiveType] = useState('all');
   const [page, setPage] = useState(1);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
-      if (stored === 'grid' || stored === 'list') {
-        setViewMode(stored);
-      }
-    }
-  }, []);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === 'undefined') return 'grid';
+    const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
+    return stored === 'grid' || stored === 'list' ? stored : 'grid';
+  });
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);

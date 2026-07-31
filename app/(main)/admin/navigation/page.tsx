@@ -18,7 +18,7 @@ import {
   ArrowLeft,
   SlidersHorizontal,
 } from 'lucide-react';
-import { NavItemConfig, PageFeatureConfig, HomeSectionConfig } from '@/app/api/settings/public/route';
+import type { HomeSectionConfig, NavItemConfig, PageFeatureConfig } from '@/types/navigation';
 
 export default function AdminNavigationPage() {
   const [activeTab, setActiveTab] = useState<'navbar' | 'pages' | 'home'>('navbar');
@@ -49,7 +49,8 @@ export default function AdminNavigationPage() {
   };
 
   useEffect(() => {
-    fetchSettings();
+    const timer = window.setTimeout(() => void fetchSettings(), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleSave = async () => {

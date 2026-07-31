@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Crop, Move, ZoomIn, ZoomOut, Check, X } from 'lucide-react';
 
 interface ImageCropModalProps {
@@ -45,9 +46,12 @@ export function ImageCropModal({ imageUrl, aspectRatio, isOpen, onClose, onSave 
               isPoster ? 'w-40 h-56' : 'w-full h-44 mx-4'
             }`}
           >
-            <img
+            <Image
               src={imageUrl || 'https://picsum.photos/600/400'}
               alt="Preview"
+              width={600}
+              height={400}
+              unoptimized
               className="max-w-none transition-transform duration-75 object-cover cursor-move"
               style={{
                 transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,

@@ -7,21 +7,17 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-
-  const [loading, setLoading] = useState(true);
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-
   const isLoginPage = pathname === '/admin/login';
 
+  const [loading, setLoading] = useState(!isLoginPage);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(
+    isLoginPage ? true : null
+  );
+
   useEffect(() => {
-    if (isLoginPage) {
-      setLoading(false);
-      setAuthenticated(true);
-      return;
-    }
+    if (isLoginPage) return;
 
     let isMounted = true;
-    setLoading(true);
 
     fetch('/api/admin/me', { cache: 'no-store' })
       .then((res) => {

@@ -42,17 +42,6 @@ export default function FilmesPage() {
   });
 
   const moviePageFeature = publicSettings?.pages?.find((p: any) => p.id === 'movies');
-  if (moviePageFeature && !moviePageFeature.enabled) {
-    return (
-      <DisabledPageNotice
-        pageName="Filmes de Anime"
-        title="Seção de Filmes Indisponível"
-        message={moviePageFeature.disabledMessage}
-      />
-    );
-  }
-
-  // Fetch only movies with filters & search query
   const { data: moviesData, isLoading, isError, refetch } = useQuery({
     queryKey: ['moviesList', searchQuery, page, statusFilter, orderBy, sortDir],
     queryFn: () =>
@@ -63,6 +52,16 @@ export default function FilmesPage() {
         sort: sortDir,
       }),
   });
+
+  if (moviePageFeature && !moviePageFeature.enabled) {
+    return (
+      <DisabledPageNotice
+        pageName="Filmes de Anime"
+        title="Seção de Filmes Indisponível"
+        message={moviePageFeature.disabledMessage}
+      />
+    );
+  }
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);

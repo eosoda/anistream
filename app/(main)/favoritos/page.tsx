@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Heart,
   Sparkles,
@@ -40,16 +40,11 @@ export default function FavoritesPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<'all' | 'new_episodes' | 'airing'>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
-      if (stored === 'grid' || stored === 'list') {
-        setViewMode(stored);
-      }
-    }
-  }, []);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === 'undefined') return 'grid';
+    const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
+    return stored === 'grid' || stored === 'list' ? stored : 'grid';
+  });
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);

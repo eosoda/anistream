@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ShieldCheck,
@@ -96,13 +96,13 @@ function SetupWizardForm() {
   const [testingSetupProviderId, setTestingSetupProviderId] = useState<string | null>(null);
   const [setupProviderTestResults, setSetupProviderTestResults] = useState<Record<string, any>>({});
 
-  const fetchSetupProviders = async () => {
+  const fetchSetupProviders = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/providers');
       const data = await res.json();
       if (data.providers) setSetupProviders(data.providers);
     } catch (e) {}
-  };
+  }, []);
 
   // Inicializar a chave de segurança a partir da URL (?key=...) se disponível
   useEffect(() => {
@@ -113,7 +113,7 @@ function SetupWizardForm() {
   }, [searchParams]);
 
   // Check initial system status & DB ping
-  const checkStatus = async () => {
+  const checkStatus = useCallback(async () => {
     setTestingDb(true);
     try {
       const keyQuery = setupKey ? `?key=${encodeURIComponent(setupKey)}` : '';
@@ -131,7 +131,7 @@ function SetupWizardForm() {
       if (setupKey) {
         setKeyValid(data.keyValid);
       }
-      fetchSetupProviders();
+      void fetchSetupProviders();
     } catch {
       setDbConnected(false);
       setPostgresPingMs(null);
@@ -139,11 +139,11 @@ function SetupWizardForm() {
       setTestingDb(false);
       setCheckingStatus(false);
     }
-  };
+  }, [fetchSetupProviders, router, setupKey]);
 
   useEffect(() => {
-    checkStatus();
-  }, [router, setupKey]);
+    void checkStatus();
+  }, [checkStatus]);
 
   // Testar Provedor no Setup
   const handleTestSetupProvider = async (p: any) => {

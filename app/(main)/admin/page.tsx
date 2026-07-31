@@ -127,9 +127,12 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    fetchMetrics();
-    fetchReports();
-    fetchCircuitStatuses();
+    const timer = window.setTimeout(() => {
+      void fetchMetrics();
+      void fetchReports();
+      void fetchCircuitStatuses();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Handlers

@@ -4,7 +4,7 @@ import {
   CreateWebhookSchema,
   CreateReleaseSchema,
   MaintenanceSettingSchema,
-} from '../../schemas/admin';
+} from '@/schemas/admin';
 
 describe('Admin Zod Schemas', () => {
   describe('CreateAnnouncementSchema', () => {

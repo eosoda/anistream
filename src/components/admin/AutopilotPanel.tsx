@@ -33,7 +33,8 @@ export function AutopilotPanel() {
   };
 
   useEffect(() => {
-    fetchStatus();
+    const timer = window.setTimeout(() => void fetchStatus(), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleToggleAutoMode = async (enabled: boolean) => {
@@ -163,7 +164,7 @@ export function AutopilotPanel() {
 
         {queue.length === 0 ? (
           <div className="p-6 text-center rounded-2xl bg-black/40 border border-white/10 text-xs text-gray-500">
-            Nenhum anime pendente na fila de revisão. Clique em "Varrer Provedores" para buscar novas mídias.
+            Nenhum anime pendente na fila de revisão. Clique em &quot;Varrer Provedores&quot; para buscar novas mídias.
           </div>
         ) : (
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   X,
   Plus,
@@ -94,7 +94,7 @@ export function EpisodeSourcesModal({
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
 
   // Carregar fontes cadastradas
-  const loadSources = async () => {
+  const loadSources = useCallback(async () => {
     setLoadingRegistered(true);
     try {
       const res = await fetch(`/api/admin/animes/${animeId}`);
@@ -120,13 +120,13 @@ export function EpisodeSourcesModal({
     } finally {
       setLoadingRegistered(false);
     }
-  };
+  }, [animeId, episodeId]);
 
   useEffect(() => {
-    if (isOpen) {
-      loadSources();
-    }
-  }, [isOpen, episodeId]);
+    if (!isOpen) return;
+    const timer = window.setTimeout(() => void loadSources(), 0);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, loadSources]);
 
   // Alternar Status Enabled de uma Fonte
   const handleToggleEnabled = async (sourceId: string, currentStatus: boolean) => {
@@ -367,7 +367,7 @@ export function EpisodeSourcesModal({
                 <AlertTriangle size={36} className="mx-auto text-amber-400 opacity-60" />
                 <h4 className="text-sm font-bold text-white">Nenhuma fonte cadastrada para este episódio</h4>
                 <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                  Utilize as abas "Buscar em Tempo Real" para varrer os servidores ou adicione um link manualmente.
+                  Utilize as abas &quot;Buscar em Tempo Real&quot; para varrer os servidores ou adicione um link manualmente.
                 </p>
               </div>
             ) : (

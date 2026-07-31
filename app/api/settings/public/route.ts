@@ -1,29 +1,9 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { apiSuccess } from '@/lib/api/response';
+import type { HomeSectionConfig, NavItemConfig, PageFeatureConfig } from '@/types/navigation';
 
-export interface NavItemConfig {
-  id: string;
-  label: string;
-  href: string;
-  enabled: boolean;
-  order: number;
-}
-
-export interface PageFeatureConfig {
-  id: string;
-  name: string;
-  href: string;
-  enabled: boolean;
-  disabledMessage: string;
-}
-
-export interface HomeSectionConfig {
-  id: string;
-  name: string;
-  enabled: boolean;
-  order: number;
-}
+export type { HomeSectionConfig, NavItemConfig, PageFeatureConfig } from '@/types/navigation';
 
 const DEFAULT_NAVIGATION: NavItemConfig[] = [
   { id: 'home', label: 'Início', href: '/', enabled: true, order: 1 },

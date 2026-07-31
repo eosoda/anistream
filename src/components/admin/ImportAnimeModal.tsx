@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
   Search,
   Download,
@@ -51,8 +52,6 @@ export function ImportAnimeModal({
   // Busca instantânea com debounce (350ms)
   useEffect(() => {
     if (!query.trim() || query.length < 2) {
-      setResults([]);
-      setErrorMsg(null);
       return;
     }
 
@@ -83,8 +82,17 @@ export function ImportAnimeModal({
     return () => clearTimeout(timer);
   }, [query]);
 
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    if (value.trim().length < 2) {
+      setResults([]);
+      setErrorMsg(null);
+      setLoading(false);
+    }
+  };
+
   const handleImport = async (item: JikanSearchResult) => {
-    const trackingId = item.malId || item.anilistId || Math.floor(Math.random() * 100000);
+    const trackingId = item.malId ?? item.anilistId ?? -1;
     setImportingId(trackingId);
     try {
       const res = await fetch('/api/admin/animes/import', {
@@ -153,7 +161,7 @@ export function ImportAnimeModal({
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             placeholder="Digite o nome do anime (ex: Frieren, Naruto, One Piece)..."
             autoFocus
             className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-black/50 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00] transition-all text-sm font-medium"
@@ -197,9 +205,11 @@ export function ImportAnimeModal({
               >
                 <div className="flex items-center gap-3.5 overflow-hidden">
                   {item.posterUrl ? (
-                    <img
+                    <Image
                       src={item.posterUrl}
                       alt={item.title}
+                      width={48}
+                      height={64}
                       className="w-12 h-16 object-cover rounded-xl shrink-0 shadow-md"
                     />
                   ) : (

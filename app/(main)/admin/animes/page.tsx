@@ -68,9 +68,12 @@ export default function AdminAnimesPage() {
   };
 
   useEffect(() => {
-    fetchAnimes(search, page);
-    fetchAutopilotStatus();
-  }, [page]);
+    const timer = window.setTimeout(() => {
+      void fetchAnimes(search, page);
+      void fetchAutopilotStatus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [page, search]);
 
   const handleToggleAutopilot = async () => {
     setTogglingAuto(true);
