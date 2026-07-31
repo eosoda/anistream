@@ -36,6 +36,7 @@
     "sharp": "^0.35.3"
   },
   "dependencies": {
+    "@consumet/extensions": "^1.8.8",
     "@prisma/client": "^6.3.0",
     "@tanstack/react-query": "^5.101.4",
     "anime-sdk": "^1.1.0",

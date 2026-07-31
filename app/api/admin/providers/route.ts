@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { autoAuthorizeHostnames, invalidateAuthorizedHostsCache } from '@/lib/security/allowed-hosts';
 import { ANIME_SDK_PROVIDERS } from '@/lib/providers/anime-sdk';
+import { CONSUMET_PROVIDERS } from '@/lib/providers/consumet';
 
 // 8 Provedores padrão pré-configurados inicializáveis
 const DEFAULT_PROVIDERS = [
@@ -9,6 +10,16 @@ const DEFAULT_PROVIDERS = [
     (provider) => ({
       name: provider.name,
       type: 'ANIME_SDK',
+      url: provider.url,
+      priority: provider.priority,
+      enabled: true,
+      autoIndex: false,
+    })
+  ),
+  ...CONSUMET_PROVIDERS.filter((provider) => provider.enabled).map(
+    (provider) => ({
+      name: provider.name,
+      type: 'CONSUMET',
       url: provider.url,
       priority: provider.priority,
       enabled: true,

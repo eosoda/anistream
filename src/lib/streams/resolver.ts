@@ -35,7 +35,7 @@ export class StreamResolver {
 
   async resolveEpisodeStream(
     input: EpisodeLookupInput,
-    timeoutPerProviderMs = 6500
+    timeoutPerProviderMs = 9000
   ): Promise<ResolveStreamResult> {
     const attempts: ProviderAttempt[] = [];
     const rawSourcesMap = new Map<string, StreamSource>();

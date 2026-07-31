@@ -5,6 +5,10 @@ import {
   getAnimeSdkProviderKey,
   testAnimeSdkProvider,
 } from '@/lib/providers/anime-sdk';
+import {
+  getConsumetProviderKey,
+  testConsumetProvider,
+} from '@/lib/providers/consumet';
 
 export async function POST(req: NextRequest) {
   const auth = await verifyAdminAuth(req);
@@ -38,6 +42,12 @@ export async function POST(req: NextRequest) {
         const key = getAnimeSdkProviderKey(provider.name);
         if (!key) throw new Error('Adaptador AnimeSDK não reconhecido.');
         const result = await testAnimeSdkProvider(key, controller.signal);
+        status = 200;
+        ok = result.sourceCount > 0;
+      } else if (provider?.type === 'CONSUMET') {
+        const key = getConsumetProviderKey(provider.name);
+        if (!key) throw new Error('Adaptador Consumet não reconhecido.');
+        const result = await testConsumetProvider(key, controller.signal);
         status = 200;
         ok = result.sourceCount > 0;
       } else {

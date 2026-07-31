@@ -21,7 +21,9 @@ export async function validateStreamSource(
   // 1. Defesa SSRF e Host Autorizado
   const isServerDiscoveredRelay =
     source.requiresProxy === true &&
-    (source.id.startsWith('xpass-') || source.id.startsWith('anime-sdk-'));
+    (source.id.startsWith('xpass-') ||
+      source.id.startsWith('anime-sdk-') ||
+      source.id.startsWith('consumet-'));
   const ssrfCheck = await validateUrlSsrf(source.url, {
     requireAuthorizedHost: !isServerDiscoveredRelay,
   });

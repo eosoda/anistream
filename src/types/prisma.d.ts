@@ -18,6 +18,7 @@ declare module '@prisma/client' {
     mediaProvider: any;
     autoIndexerQueue: any;
     $queryRaw: any;
+    $transaction: any;
     $connect(): Promise<void>;
     $disconnect(): Promise<void>;
   }

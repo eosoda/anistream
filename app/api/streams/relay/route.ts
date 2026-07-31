@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
     const upstream = await fetch(descriptor.url, {
       headers,
       cache: 'no-store',
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(30000),
     });
     if (!upstream.ok && upstream.status !== 206) {
       return NextResponse.json(

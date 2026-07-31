@@ -22,10 +22,7 @@ function buildPlaybackUrl(
   // Fontes descobertas sob demanda ainda não possuem EpisodeSource no banco.
   // O relay recebe um descritor autenticado/criptografado em vez de expor a
   // página do provedor no navegador.
-  if (
-    source.requiresProxy &&
-    (source.id.startsWith('xpass-') || source.id.startsWith('anime-sdk-'))
-  ) {
+  if (source.requiresProxy && (source.id.startsWith('xpass-') || source.id.startsWith('anime-sdk-') || source.id.startsWith('consumet-'))) {
     const payload = encryptData(
       JSON.stringify({
         sourceId: source.id,
@@ -49,14 +46,7 @@ export async function POST(request: NextRequest) {
     windowMs: 60000,
   });
   if (!rateLimit.allowed) {
-    return apiError(
-      'RATE_LIMITED',
-      'Limite de solicitações de stream atingido. Aguarde 1 minuto.',
-      429,
-      undefined,
-      undefined,
-      reqPath
-    );
+    return apiError('RATE_LIMITED', 'Limite de solicitações de stream atingido. Aguarde 1 minuto.', 429, undefined, undefined, reqPath);
   }
 
   try {
@@ -64,17 +54,45 @@ export async function POST(request: NextRequest) {
     const parseResult = EpisodeLookupInputSchema.safeParse(body);
 
     if (!parseResult.success) {
-      return apiError(
-        'INVALID_INPUT',
-        'Entrada de busca de episódio inválida.',
-        400,
-        parseResult.error.flatten(),
-        undefined,
-        reqPath
-      );
+      return apiError('INVALID_INPUT', 'Entrada de busca de episódio inválida.', 400, parseResult.error.flatten(), undefined, reqPath);
     }
 
     const input = parseResult.data;
+    let opening: {
+      startSeconds: number;
+      endSeconds: number;
+      source: 'episode' | 'anime';
+    } | null = null;
+
+    try {
+      const openingAnime = await prisma.anime.findFirst({
+        where: {
+          OR: [{ id: input.animeId }, { slug: input.animeId }, { identifiers: { some: { value: input.animeId } } }],
+        },
+        include: {
+          episodes: {
+            where: { season: input.season, number: input.episode },
+            take: 1,
+          },
+        },
+      });
+      const episodeOpening = openingAnime?.episodes[0];
+      if (episodeOpening?.openingStartSeconds != null && episodeOpening.openingEndSeconds != null) {
+        opening = {
+          startSeconds: episodeOpening.openingStartSeconds,
+          endSeconds: episodeOpening.openingEndSeconds,
+          source: 'episode',
+        };
+      } else if (openingAnime?.openingStartSeconds != null && openingAnime.openingEndSeconds != null) {
+        opening = {
+          startSeconds: openingAnime.openingStartSeconds,
+          endSeconds: openingAnime.openingEndSeconds,
+          source: 'anime',
+        };
+      }
+    } catch {
+      // O stream continua disponível mesmo se os metadados locais estiverem offline.
+    }
 
     // Enriquecer o input com o registro local. A URL pública usa normalmente o
     // MAL ID, enquanto Anime.id é um CUID; AnimeIdentifier faz essa ponte.
@@ -101,14 +119,9 @@ export async function POST(request: NextRequest) {
         if (dbAnime) {
           input.animeTitle = dbAnime.title;
           input.originalTitle = input.originalTitle || dbAnime.originalTitle || undefined;
-          input.aliases = Array.from(
-            new Set([
-              ...(input.aliases || []),
-              dbAnime.title,
-              dbAnime.originalTitle || '',
-              ...dbAnime.aliases.map((alias: { value: string }) => alias.value),
-            ])
-          ).filter(Boolean);
+          input.aliases = Array.from(new Set([...(input.aliases || []), dbAnime.title, dbAnime.originalTitle || '', ...dbAnime.aliases.map((alias: { value: string }) => alias.value)])).filter(
+            Boolean
+          );
         }
       } catch {
         // ignora se db offline
@@ -119,14 +132,7 @@ export async function POST(request: NextRequest) {
     const resolveResult = await defaultStreamResolver.resolveEpisodeStream(input);
 
     if (!resolveResult.selected) {
-      return apiError(
-        'NO_SOURCES_AVAILABLE',
-        'Nenhuma fonte autorizada disponível para este episódio no momento.',
-        444,
-        { attempts: resolveResult.attempts },
-        undefined,
-        reqPath
-      );
+      return apiError('NO_SOURCES_AVAILABLE', 'Nenhuma fonte autorizada disponível para este episódio no momento.', 444, { attempts: resolveResult.attempts }, undefined, reqPath);
     }
 
     const selected = resolveResult.selected;
@@ -160,6 +166,7 @@ export async function POST(request: NextRequest) {
       audioLanguage: selected.audioLanguage || 'ja',
       subtitles: selected.subtitles || [],
       alternatives: safeAlternatives,
+      opening,
     };
 
     return apiSuccess(streamData, {
@@ -168,13 +175,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err: any) {
-    return apiError(
-      'INTERNAL_RESOLVE_ERROR',
-      'Erro ao resolver fontes de streaming.',
-      500,
-      { message: err.message },
-      undefined,
-      reqPath
-    );
+    return apiError('INTERNAL_RESOLVE_ERROR', 'Erro ao resolver fontes de streaming.', 500, { message: err.message }, undefined, reqPath);
   }
 }

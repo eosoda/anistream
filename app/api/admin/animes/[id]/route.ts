@@ -4,10 +4,7 @@ import { UpdateAnimeSchema } from '@/schemas/anime';
 import { prisma } from '@/lib/db/prisma';
 import { normalizeAnimeTitle } from '@/lib/anime/normalize-title';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await verifyAdminAuth(request);
   if (!auth.authenticated) return auth.errorResponse!;
 
@@ -22,32 +19,25 @@ export async function GET(
         episodes: {
           orderBy: [{ season: 'asc' }, { number: 'asc' }],
           include: {
-            sources: true,
+            sources: {
+              select: { id: true },
+            },
           },
         },
       },
     });
 
     if (!anime) {
-      return NextResponse.json(
-        { error: 'Anime não encontrado' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Anime não encontrado' }, { status: 404 });
     }
 
     return NextResponse.json({ anime });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: 'Erro ao buscar anime', message: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao buscar anime', message: err.message }, { status: 500 });
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await verifyAdminAuth(request);
   if (!auth.authenticated) return auth.errorResponse!;
 
@@ -58,10 +48,7 @@ export async function PUT(
     const parseResult = UpdateAnimeSchema.safeParse(body);
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        { error: 'Dados inválidos para atualização', details: parseResult.error.flatten() },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Dados inválidos para atualização', details: parseResult.error.flatten() }, { status: 400 });
     }
 
     const data = parseResult.data;
@@ -78,22 +65,18 @@ export async function PUT(
         ...(data.bannerUrl !== undefined ? { bannerUrl: data.bannerUrl } : {}),
         ...(data.releaseYear !== undefined ? { releaseYear: data.releaseYear } : {}),
         ...(data.status !== undefined ? { status: data.status } : {}),
+        ...(data.openingStartSeconds !== undefined ? { openingStartSeconds: data.openingStartSeconds } : {}),
+        ...(data.openingEndSeconds !== undefined ? { openingEndSeconds: data.openingEndSeconds } : {}),
       },
     });
 
     return NextResponse.json({ anime: updatedAnime });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: 'Erro ao atualizar anime', message: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao atualizar anime', message: err.message }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await verifyAdminAuth(request);
   if (!auth.authenticated) return auth.errorResponse!;
 
@@ -106,9 +89,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: 'Anime excluído com sucesso' });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: 'Erro ao excluir anime', message: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao excluir anime', message: err.message }, { status: 500 });
   }
 }

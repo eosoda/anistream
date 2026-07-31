@@ -17,6 +17,17 @@ export interface EpisodeProgress {
 
 const STORAGE_KEY = 'anistream_watch_progress_v1';
 
+export function getSavedWatchProgress(animeId: number, episodeNum: number): EpisodeProgress | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const progress = stored ? JSON.parse(stored) : {};
+    return progress[`${animeId}_ep_${episodeNum}`] || null;
+  } catch {
+    return null;
+  }
+}
+
 export function useWatchProgress() {
   const [progressMap, setProgressMap] = useState<Record<string, EpisodeProgress>>(() => {
     if (typeof window === 'undefined') return {};
@@ -63,15 +74,7 @@ export function useWatchProgress() {
 
   const getKey = (animeId: number, episodeNum: number) => `${animeId}_ep_${episodeNum}`;
 
-  const saveProgress = useCallback((data: {
-    animeId: number;
-    animeTitle: string;
-    animeImage?: string;
-    episodeNum: number;
-    episodeTitle?: string;
-    currentTime: number;
-    duration: number;
-  }) => {
+  const saveProgress = useCallback((data: { animeId: number; animeTitle: string; animeImage?: string; episodeNum: number; episodeTitle?: string; currentTime: number; duration: number }) => {
     if (!data.animeId || !data.episodeNum || !data.duration || data.duration <= 0) return;
 
     const percentage = Math.min(100, Math.max(0, Math.round((data.currentTime / data.duration) * 100)));
@@ -92,14 +95,20 @@ export function useWatchProgress() {
     });
   }, []);
 
-  const getProgress = useCallback((animeId: number, episodeNum: number): EpisodeProgress | null => {
-    const key = getKey(animeId, episodeNum);
-    return progressMap[key] || null;
-  }, [progressMap]);
+  const getProgress = useCallback(
+    (animeId: number, episodeNum: number): EpisodeProgress | null => {
+      const key = getKey(animeId, episodeNum);
+      return progressMap[key] || null;
+    },
+    [progressMap]
+  );
 
-  const getAnimeProgress = useCallback((animeId: number): EpisodeProgress[] => {
-    return Object.values(progressMap).filter((item) => item.animeId === animeId);
-  }, [progressMap]);
+  const getAnimeProgress = useCallback(
+    (animeId: number): EpisodeProgress[] => {
+      return Object.values(progressMap).filter((item) => item.animeId === animeId);
+    },
+    [progressMap]
+  );
 
   const getContinueWatchingList = useCallback((): EpisodeProgress[] => {
     return Object.values(progressMap)

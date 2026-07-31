@@ -16,6 +16,10 @@ import {
   getAnimeSdkProviderKey,
   resolveAnimeSdkSources,
 } from './anime-sdk';
+import {
+  getConsumetProviderKey,
+  resolveConsumetSources,
+} from './consumet';
 
 async function resolveEmbedCatalogId(
   input: EpisodeLookupInput,
@@ -89,7 +93,7 @@ export class ExternalApisProvider implements AnimeProvider {
       const dbProviders = await prisma.mediaProvider.findMany({
         where: {
           enabled: true,
-          type: { in: ['ANIME_SDK', 'EXTERNAL_API', 'EMBED'] },
+          type: { in: ['ANIME_SDK', 'CONSUMET', 'EXTERNAL_API', 'EMBED'] },
         },
         orderBy: { priority: 'desc' },
       });
@@ -100,7 +104,11 @@ export class ExternalApisProvider implements AnimeProvider {
         b: { type: string; priority: number }
       ) => {
         const typeWeight = (provider: { type: string }) =>
-          provider.type === 'ANIME_SDK' ? 2 : provider.type === 'EMBED' ? 1 : 0;
+          ['ANIME_SDK', 'CONSUMET'].includes(provider.type)
+            ? 2
+            : provider.type === 'EMBED'
+              ? 1
+              : 0;
         return typeWeight(b) - typeWeight(a) || b.priority - a.priority;
       });
 
@@ -116,15 +124,24 @@ export class ExternalApisProvider implements AnimeProvider {
         : null;
 
       const sdkProviders = dbProviders.filter(
-        (provider: { type: string }) => provider.type === 'ANIME_SDK'
+        (provider: { type: string }) =>
+          provider.type === 'ANIME_SDK' || provider.type === 'CONSUMET'
       );
       const sdkResults = await Promise.allSettled(
-        sdkProviders.map(async (provider: { name: string; priority: number }) => {
-          const key = getAnimeSdkProviderKey(provider.name);
-          return key
-            ? resolveAnimeSdkSources(key, input, provider.priority, signal)
-            : [];
-        })
+        sdkProviders.map(
+          async (provider: { name: string; priority: number; type: string }) => {
+            if (provider.type === 'CONSUMET') {
+              const key = getConsumetProviderKey(provider.name);
+              return key
+                ? resolveConsumetSources(key, input, provider.priority, signal)
+                : [];
+            }
+            const key = getAnimeSdkProviderKey(provider.name);
+            return key
+              ? resolveAnimeSdkSources(key, input, provider.priority, signal)
+              : [];
+          }
+        )
       );
       for (const result of sdkResults) {
         if (result.status === 'fulfilled') sources.push(...result.value);
@@ -132,7 +149,7 @@ export class ExternalApisProvider implements AnimeProvider {
 
       for (const p of dbProviders) {
         if (signal?.aborted) break;
-        if (p.type === 'ANIME_SDK') continue;
+        if (p.type === 'ANIME_SDK' || p.type === 'CONSUMET') continue;
 
         try {
           const nameLower = p.name.toLowerCase();

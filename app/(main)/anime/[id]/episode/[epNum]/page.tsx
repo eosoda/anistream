@@ -4,24 +4,14 @@ import React, { use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  List,
-  CheckCircle2,
-  Clock,
-} from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, List, CheckCircle2, Clock } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
 import { DetailSkeleton } from '@/components/ui/LoadingSkeleton';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
+import { SafeImage } from '@/components/ui/SafeImage';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 
-export default function EpisodePlayerPage({
-  params,
-}: {
-  params: Promise<{ id: string; epNum: string }>;
-}) {
+export default function EpisodePlayerPage({ params }: { params: Promise<{ id: string; epNum: string }> }) {
   const router = useRouter();
   const resolvedParams = use(params);
   const animeId = parseInt(resolvedParams.id, 10);
@@ -44,7 +34,11 @@ export default function EpisodePlayerPage({
   });
 
   // Fetch Streams via API /api/streams/resolve
-  const { data: streamResult } = useQuery({
+  const {
+    data: streamResult,
+    isLoading: isResolvingStream,
+    isFetching: isRefreshingStream,
+  } = useQuery({
     queryKey: ['streamResolve', animeId, epNum],
     queryFn: async () => {
       try {
@@ -67,38 +61,57 @@ export default function EpisodePlayerPage({
             typeof data.error === 'object' && data.error !== null
               ? data.error.message || 'Sem fontes disponíveis no momento'
               : typeof data.error === 'string'
-              ? data.error
-              : 'Sem fontes disponíveis no momento';
+                ? data.error
+                : 'Sem fontes disponíveis no momento';
           return { data: null, status: res.status, error: errorMessage };
         }
         return { data: data.data || data, status: 200, error: null };
       } catch (err: any) {
-        return { data: null, status: 500, error: err.message || 'Erro de conexão ao buscar fontes' };
+        return {
+          data: null,
+          status: 500,
+          error: err.message || 'Erro de conexão ao buscar fontes',
+        };
       }
     },
     enabled: !isNaN(animeId) && !isNaN(epNum) && Boolean(anime),
   });
 
+  const episodeList = React.useMemo(() => {
+    const fetchedEpisodes = episodes || [];
+    const highestFetchedEpisode = fetchedEpisodes.reduce((highest, episode) => Math.max(highest, episode.mal_id), 0);
+    const totalEpisodes = Math.max(anime?.episodes || 0, highestFetchedEpisode);
+
+    if (totalEpisodes === 0) return fetchedEpisodes;
+
+    const episodesByNumber = new Map(fetchedEpisodes.map((episode) => [episode.mal_id, episode]));
+    return Array.from({ length: totalEpisodes }, (_, index) => {
+      const number = index + 1;
+      return (
+        episodesByNumber.get(number) || {
+          mal_id: number,
+          title: `Episódio ${number}`,
+        }
+      );
+    });
+  }, [anime?.episodes, episodes]);
+
   if (isLoadingAnime) {
     return <DetailSkeleton />;
   }
 
-  const currentEp = episodes?.find((e) => e.mal_id === epNum);
+  const currentEp = episodeList.find((episode) => episode.mal_id === epNum);
   const prevEp = epNum > 1 ? epNum - 1 : null;
   const nextEp = anime?.episodes ? (epNum < anime.episodes ? epNum + 1 : null) : epNum + 1;
 
   const mainTitle = anime?.title_english || anime?.title || 'Anime';
-  const posterUrl =
-    anime?.images?.webp?.large_image_url || anime?.images?.jpg?.large_image_url;
+  const posterUrl = anime?.images?.webp?.large_image_url || anime?.images?.jpg?.large_image_url;
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
       {/* Navigation Top Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-        <Link
-          href={`/anime/${animeId}`}
-          className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-[#FF6B00] transition-colors font-semibold"
-        >
+        <Link href={`/anime/${animeId}`} className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-[#FF6B00] transition-colors font-semibold">
           <ArrowLeft size={18} />
           Voltar para {mainTitle}
         </Link>
@@ -114,17 +127,12 @@ export default function EpisodePlayerPage({
               Episódio Anterior
             </Link>
           ) : (
-            <button
-              disabled
-              className="px-3 py-1.5 rounded-lg bg-white/5 text-gray-600 border border-white/5 text-xs font-bold cursor-not-allowed"
-            >
+            <button disabled className="px-3 py-1.5 rounded-lg bg-white/5 text-gray-600 border border-white/5 text-xs font-bold cursor-not-allowed">
               Anterior
             </button>
           )}
 
-          <span className="px-3 py-1.5 rounded-lg bg-[#FF6B00]/20 text-[#FF6B00] font-black text-xs border border-[#FF6B00]/30">
-            EP {epNum}
-          </span>
+          <span className="px-3 py-1.5 rounded-lg bg-[#FF6B00]/20 text-[#FF6B00] font-black text-xs border border-[#FF6B00]/30">EP {epNum}</span>
 
           {nextEp && (
             <Link
@@ -148,6 +156,7 @@ export default function EpisodePlayerPage({
         nextEpNum={nextEp}
         resolvedStream={streamResult?.data}
         streamStatusMessage={streamResult?.error}
+        isResolving={isResolvingStream || isRefreshingStream}
         onNextEpisode={() => {
           if (nextEp) {
             router.push(`/anime/${animeId}/episode/${nextEp}`);
@@ -162,14 +171,12 @@ export default function EpisodePlayerPage({
             <List size={20} className="text-[#FF6B00]" />
             <span>Episódios desta temporada</span>
           </h3>
-          <span className="text-xs text-gray-400 font-semibold">
-            {episodes?.length || 0} episódios disponíveis
-          </span>
+          <span className="text-xs text-gray-400 font-semibold">{episodeList.length} episódios disponíveis</span>
         </div>
 
         {/* Sliding Episode Row */}
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 select-none">
-          {episodes?.map((ep, index) => {
+          {episodeList.map((ep, index) => {
             const isCurrent = ep.mal_id === epNum;
             const progress = progressMap[`${animeId}_ep_${ep.mal_id}`];
 
@@ -178,23 +185,22 @@ export default function EpisodePlayerPage({
                 key={`${ep.mal_id}-${index}`}
                 href={`/anime/${animeId}/episode/${ep.mal_id}`}
                 className={`relative flex-shrink-0 w-44 sm:w-52 p-3 rounded-2xl border transition-all overflow-hidden space-y-2 ${
-                  isCurrent
-                    ? 'bg-[#FF6B00]/20 border-[#FF6B00] ring-2 ring-[#FF6B00]/40 shadow-xl shadow-[#FF6B00]/20'
-                    : 'glass-panel hover:bg-white/10 text-gray-300 border-white/10'
+                  isCurrent ? 'bg-[#FF6B00]/20 border-[#FF6B00] ring-2 ring-[#FF6B00]/40 shadow-xl shadow-[#FF6B00]/20' : 'glass-panel hover:bg-white/10 text-gray-300 border-white/10'
                 }`}
               >
                 {/* Poster Preview / Thumbnail Header */}
                 <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-neutral-900 border border-white/10">
                   {posterUrl ? (
-                    <img
+                    <SafeImage
                       src={posterUrl}
+                      animeId={animeId}
                       alt={ep.title || `Episódio ${ep.mal_id}`}
+                      fill
+                      sizes="(max-width: 640px) 176px, 208px"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-neutral-800 text-gray-500 font-bold text-xs">
-                      EP {ep.mal_id}
-                    </div>
+                    <div className="w-full h-full flex items-center justify-center bg-neutral-800 text-gray-500 font-bold text-xs">EP {ep.mal_id}</div>
                   )}
 
                   {isCurrent && (
@@ -214,27 +220,16 @@ export default function EpisodePlayerPage({
                 {/* Title & Info */}
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-black ${isCurrent ? 'text-[#FF6B00]' : 'text-white'}`}>
-                      EP {ep.mal_id}
-                    </span>
-                    {progress && !progress.completed && progress.percentage > 0 && (
-                      <span className="text-[10px] text-gray-400 font-mono">
-                        {progress.percentage}%
-                      </span>
-                    )}
+                    <span className={`text-xs font-black ${isCurrent ? 'text-[#FF6B00]' : 'text-white'}`}>EP {ep.mal_id}</span>
+                    {progress && !progress.completed && progress.percentage > 0 && <span className="text-[10px] text-gray-400 font-mono">{progress.percentage}%</span>}
                   </div>
-                  <p className="text-[11px] text-gray-300 truncate font-semibold mt-0.5">
-                    {ep.title || `Episódio ${ep.mal_id}`}
-                  </p>
+                  <p className="text-[11px] text-gray-300 truncate font-semibold mt-0.5">{ep.title || `Episódio ${ep.mal_id}`}</p>
                 </div>
 
                 {/* Bottom Watch Progress Line */}
                 {progress && !progress.completed && progress.percentage > 0 && (
                   <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${isCurrent ? 'bg-[#FF6B00]' : 'bg-white/80'}`}
-                      style={{ width: `${progress.percentage}%` }}
-                    />
+                    <div className={`h-full ${isCurrent ? 'bg-[#FF6B00]' : 'bg-white/80'}`} style={{ width: `${progress.percentage}%` }} />
                   </div>
                 )}
               </Link>

@@ -3,28 +3,14 @@
 import React, { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  ChevronLeft,
-  Loader2,
-  Save,
-  Plus,
-  Tv,
-  Film,
-  CheckCircle2,
-  Edit,
-  Trash2,
-  RefreshCw,
-  Sparkles,
-} from 'lucide-react';
+import { ChevronLeft, Loader2, Save, Plus, Tv, Film, CheckCircle2, Edit, Trash2, RefreshCw, Sparkles } from 'lucide-react';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { EpisodeSourcesModal } from '@/components/admin/EpisodeSourcesModal';
+import { OpeningImportModal } from '@/components/admin/OpeningImportModal';
+import { formatOpeningTime, parseOpeningTime } from '@/lib/openings/time';
 import { useConfirmation } from '@/context/ConfirmationContext';
 
-export default function AdminEditAnimePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function AdminEditAnimePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const { confirm } = useConfirmation();
@@ -41,6 +27,13 @@ export default function AdminEditAnimePage({
   const [posterUrl, setPosterUrl] = useState('');
   const [description, setDescription] = useState('');
   const [episodes, setEpisodes] = useState<any[]>([]);
+  const [openingStart, setOpeningStart] = useState('');
+  const [openingEnd, setOpeningEnd] = useState('');
+  const [isOpeningImportOpen, setIsOpeningImportOpen] = useState(false);
+  const [selectedEpForOpening, setSelectedEpForOpening] = useState<any | null>(null);
+  const [episodeOpeningStart, setEpisodeOpeningStart] = useState('');
+  const [episodeOpeningEnd, setEpisodeOpeningEnd] = useState('');
+  const [savingEpisodeOpening, setSavingEpisodeOpening] = useState(false);
 
   // Form Novo Episódio
   const [epSeason, setEpSeason] = useState(1);
@@ -73,6 +66,8 @@ export default function AdminEditAnimePage({
         setStatus(a.status || 'Em Lançamento');
         setPosterUrl(a.posterUrl || '');
         setDescription(a.description || '');
+        setOpeningStart(formatOpeningTime(a.openingStartSeconds));
+        setOpeningEnd(formatOpeningTime(a.openingEndSeconds));
         setEpisodes(a.episodes || []);
         if (a.episodes?.length > 0) {
           setEpNumber(a.episodes.length + 1);
@@ -88,7 +83,10 @@ export default function AdminEditAnimePage({
   };
 
   useEffect(() => {
+    // A página administrativa sincroniza seu formulário com o registro solicitado.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAnime();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Atualizar Anime
@@ -99,6 +97,11 @@ export default function AdminEditAnimePage({
     setSuccess(null);
 
     try {
+      const openingStartSeconds = openingStart.trim() ? parseOpeningTime(openingStart) : null;
+      const openingEndSeconds = openingEnd.trim() ? parseOpeningTime(openingEnd) : null;
+      if ((openingStartSeconds == null) !== (openingEndSeconds == null) || (openingStartSeconds != null && openingEndSeconds != null && openingEndSeconds <= openingStartSeconds)) {
+        throw new Error('Informe início e fim válidos para a abertura padrão.');
+      }
       const res = await fetch(`/api/admin/animes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -110,6 +113,8 @@ export default function AdminEditAnimePage({
           status,
           posterUrl,
           description,
+          openingStartSeconds,
+          openingEndSeconds,
         }),
       });
 
@@ -123,6 +128,41 @@ export default function AdminEditAnimePage({
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openEpisodeOpening = (episode: any) => {
+    setSelectedEpForOpening(episode);
+    setEpisodeOpeningStart(formatOpeningTime(episode.openingStartSeconds));
+    setEpisodeOpeningEnd(formatOpeningTime(episode.openingEndSeconds));
+  };
+
+  const handleSaveEpisodeOpening = async () => {
+    if (!selectedEpForOpening) return;
+    const openingStartSeconds = episodeOpeningStart.trim() ? parseOpeningTime(episodeOpeningStart) : null;
+    const openingEndSeconds = episodeOpeningEnd.trim() ? parseOpeningTime(episodeOpeningEnd) : null;
+    if ((openingStartSeconds == null) !== (openingEndSeconds == null) || (openingStartSeconds != null && openingEndSeconds != null && openingEndSeconds <= openingStartSeconds)) {
+      setError('Informe início e fim válidos para a abertura do episódio.');
+      return;
+    }
+
+    setSavingEpisodeOpening(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/animes/${id}/episodes/${selectedEpForOpening.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ openingStartSeconds, openingEndSeconds }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Falha ao salvar abertura do episódio.');
+      setSuccess(openingStartSeconds == null ? `Episódio ${selectedEpForOpening.number} voltou a herdar a abertura do anime.` : `Abertura do episódio ${selectedEpForOpening.number} atualizada.`);
+      setSelectedEpForOpening(null);
+      await loadAnime();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingEpisodeOpening(false);
     }
   };
 
@@ -215,10 +255,7 @@ export default function AdminEditAnimePage({
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link
-            href="/admin/animes"
-            className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/10"
-          >
+          <Link href="/admin/animes" className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/10">
             <ChevronLeft size={20} />
           </Link>
           <div>
@@ -238,56 +275,28 @@ export default function AdminEditAnimePage({
       </div>
 
       {/* Alertas */}
-      {error && (
-        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium">
-          {success}
-        </div>
-      )}
+      {error && <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium">{error}</div>}
+      {success && <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium">{success}</div>}
 
       {/* Grid Principal */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Form Dados do Anime */}
-        <form
-          onSubmit={handleUpdate}
-          className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-6"
-        >
+        <form onSubmit={handleUpdate} className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">Título Principal</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-              />
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">Título Original / Japonês</label>
-              <input
-                type="text"
-                value={originalTitle}
-                onChange={(e) => setOriginalTitle(e.target.value)}
-                className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-              />
+              <input type="text" value={originalTitle} onChange={(e) => setOriginalTitle(e.target.value)} className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">Slug URL</label>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                required
-                className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white font-mono"
-              />
+              <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} required className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white font-mono" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">Ano de Lançamento</label>
@@ -300,11 +309,7 @@ export default function AdminEditAnimePage({
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-              >
+              <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white">
                 <option value="Em Lançamento">Em Lançamento</option>
                 <option value="Concluído">Concluído</option>
                 <option value="Pausado">Pausado</option>
@@ -314,23 +319,68 @@ export default function AdminEditAnimePage({
 
           <div>
             <label className="block text-xs font-bold text-gray-300 mb-1">URL do Poster / Capa</label>
-            <input
-              type="url"
-              value={posterUrl}
-              onChange={(e) => setPosterUrl(e.target.value)}
-              className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-            />
+            <input type="url" value={posterUrl} onChange={(e) => setPosterUrl(e.target.value)} className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-300 mb-1">Sinopse</label>
-            <textarea
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-4 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-            />
+            <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-4 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
           </div>
+
+          <section className="space-y-4 border-t border-white/10 pt-5" aria-labelledby="default-opening-title">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <div>
+                <h2 id="default-opening-title" className="flex items-center gap-2 text-sm font-bold text-white">
+                  <Film size={17} className="text-[#FF6B00]" />
+                  Abertura padrão
+                </h2>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-400">Aplicada aos episódios que não possuem um intervalo próprio.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpeningImportOpen(true)}
+                disabled={episodes.length === 0}
+                className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-white/[0.07] px-4 text-xs font-semibold text-white transition-colors hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Sparkles size={15} className="text-[#FF7A1A]" />
+                Buscar horários na AniSkip
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-zinc-300">
+                Início (MM:SS)
+                <input
+                  value={openingStart}
+                  onChange={(event) => setOpeningStart(event.target.value)}
+                  placeholder="00:35"
+                  inputMode="decimal"
+                  className="mt-1.5 w-full rounded-xl bg-black/50 p-3 font-mono text-xs text-white outline-none ring-1 ring-white/10 transition-shadow focus:ring-[#FF6B00]"
+                />
+              </label>
+              <label className="text-xs font-semibold text-zinc-300">
+                Fim (MM:SS)
+                <input
+                  value={openingEnd}
+                  onChange={(event) => setOpeningEnd(event.target.value)}
+                  placeholder="02:05"
+                  inputMode="decimal"
+                  className="mt-1.5 w-full rounded-xl bg-black/50 p-3 font-mono text-xs text-white outline-none ring-1 ring-white/10 transition-shadow focus:ring-[#FF6B00]"
+                />
+              </label>
+            </div>
+            {(openingStart || openingEnd) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpeningStart('');
+                  setOpeningEnd('');
+                }}
+                className="text-xs font-semibold text-zinc-400 underline-offset-4 transition-colors hover:text-white hover:underline"
+              >
+                Desativar padrão
+              </button>
+            )}
+          </section>
 
           <button
             type="submit"
@@ -407,16 +457,30 @@ export default function AdminEditAnimePage({
                 <p className="text-xs text-gray-500 text-center py-4">Nenhum episódio adicionado.</p>
               ) : (
                 episodes.map((ep) => (
-                  <div
-                    key={ep.id}
-                    className="p-3 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between text-xs gap-3"
-                  >
+                  <div key={ep.id} className="p-3 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between text-xs gap-3">
                     <div className="min-w-0 flex-1">
-                      <span className="font-bold text-white">S{ep.season}E{ep.number}</span>
+                      <span className="font-bold text-white">
+                        S{ep.season}E{ep.number}
+                      </span>
                       <p className="text-[11px] text-gray-400 truncate">{ep.title || `Episódio ${ep.number}`}</p>
+                      <p className="mt-1 text-[10px] text-zinc-500">
+                        {ep.openingStartSeconds != null && ep.openingEndSeconds != null
+                          ? `Abertura própria · ${formatOpeningTime(ep.openingStartSeconds)}–${formatOpeningTime(ep.openingEndSeconds)}`
+                          : openingStart && openingEnd
+                            ? 'Herda a abertura padrão'
+                            : 'Sem abertura configurada'}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openEpisodeOpening(ep)}
+                        className="px-2.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white font-bold text-[10px] transition-colors flex items-center gap-1"
+                      >
+                        <Film size={12} />
+                        <span>Abertura</span>
+                      </button>
                       {/* Botão para Abrir Modal de Gerenciamento de Fontes */}
                       <button
                         type="button"
@@ -464,6 +528,66 @@ export default function AdminEditAnimePage({
           onClose={() => setSelectedEpForSources(null)}
           onSuccess={loadAnime}
         />
+      )}
+
+      <OpeningImportModal
+        animeId={id}
+        isOpen={isOpeningImportOpen}
+        onClose={() => setIsOpeningImportOpen(false)}
+        onSaved={loadAnime}
+        onMessage={(type, message) => {
+          if (type === 'success') {
+            setSuccess(message);
+            setError(null);
+          } else {
+            setError(message);
+          }
+        }}
+      />
+
+      {selectedEpForOpening && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-labelledby="episode-opening-title">
+          <div className="w-full max-w-md rounded-2xl bg-[#121219] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.6)]">
+            <h2 id="episode-opening-title" className="text-base font-bold text-white">
+              Abertura do episódio {selectedEpForOpening.number}
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-400">Um intervalo próprio substitui o padrão do anime. Deixe ambos vazios para voltar a herdar.</p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <label className="text-xs font-semibold text-zinc-300">
+                Início
+                <input
+                  value={episodeOpeningStart}
+                  onChange={(event) => setEpisodeOpeningStart(event.target.value)}
+                  placeholder="00:35"
+                  className="mt-1.5 w-full rounded-xl bg-black/50 p-3 font-mono text-xs text-white outline-none ring-1 ring-white/10 focus:ring-[#FF6B00]"
+                />
+              </label>
+              <label className="text-xs font-semibold text-zinc-300">
+                Fim
+                <input
+                  value={episodeOpeningEnd}
+                  onChange={(event) => setEpisodeOpeningEnd(event.target.value)}
+                  placeholder="02:05"
+                  className="mt-1.5 w-full rounded-xl bg-black/50 p-3 font-mono text-xs text-white outline-none ring-1 ring-white/10 focus:ring-[#FF6B00]"
+                />
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setSelectedEpForOpening(null)} className="min-h-10 rounded-lg px-4 text-xs font-semibold text-zinc-300 hover:bg-white/10">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEpisodeOpening}
+                disabled={savingEpisodeOpening}
+                className="flex min-h-10 items-center gap-2 rounded-lg bg-[#FF6B00] px-4 text-xs font-semibold text-white hover:bg-[#FF7A1A] disabled:opacity-50"
+              >
+                {savingEpisodeOpening ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                Salvar intervalo
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
