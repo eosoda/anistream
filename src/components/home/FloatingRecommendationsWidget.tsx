@@ -122,7 +122,7 @@ export function FloatingRecommendationsWidget({ initialOpen = false }: { initial
         <button
           onClick={() => setIsOpen(true)}
           aria-label="Abrir recomendações para você"
-          className="group relative flex size-11 items-center justify-center rounded-full border border-white/15 bg-[#FF6B00] text-xs font-black text-white shadow-[0_10px_30px_rgba(255,107,0,0.3)] transition-[transform,background-color,box-shadow] hover:bg-[#FF8533] hover:shadow-[0_12px_34px_rgba(255,107,0,0.4)] active:scale-95 lg:size-auto lg:min-h-11 lg:gap-2.5 lg:px-4 lg:py-2.5 lg:text-sm"
+          className="group relative flex size-11 items-center justify-center rounded-full border border-black/20 bg-[#FF6B00] text-xs font-black text-black shadow-[0_10px_30px_rgba(255,107,0,0.3)] transition-[transform,background-color,box-shadow] hover:bg-[#FF8533] hover:shadow-[0_12px_34px_rgba(255,107,0,0.4)] active:scale-95 lg:size-auto lg:min-h-11 lg:gap-2.5 lg:px-4 lg:py-2.5 lg:text-sm"
         >
           <span className="relative flex items-center justify-center">
             <Sparkles size={18} className="text-white" />

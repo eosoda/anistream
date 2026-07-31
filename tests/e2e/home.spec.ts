@@ -6,12 +6,12 @@ test.describe('AniStream - Home Page & Navigation', () => {
 
     // Verificar se o título ou a marca AniStream estão presentes
     await expect(page).toHaveTitle(/AniStream/i);
-    await expect(page.locator('text=ANISTREAM')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'AniStream — início' })).toBeVisible();
 
     // Verificar links da Navbar
-    await expect(page.locator('a:has-text("Populares")')).toBeVisible();
-    await expect(page.locator('a:has-text("Temporadas")')).toBeVisible();
-    await expect(page.locator('a:has-text("Filmes")')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Populares', exact: true })).toBeVisible();
+    await expect(page.locator('a:has-text("Catálogo")').first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Filmes', exact: true })).toBeVisible();
   });
 
   test('deve navegar para a página de animes populares', async ({ page }) => {

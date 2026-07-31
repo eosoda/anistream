@@ -35,7 +35,7 @@ export function DeferredFloatingRecommendationsWidget() {
           <Sparkles size={18} />
           <span className="absolute -right-1 -top-1 size-2 rounded-full bg-emerald-400 ring-2 ring-[#FF6B00]" />
         </span>
-        <span className="hidden text-sm font-black tracking-tight lg:inline">Para Você</span>
+        <span className="hidden text-sm font-black tracking-tight text-black lg:inline">Para Você</span>
       </button>
     </div>
   );

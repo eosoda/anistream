@@ -21,16 +21,16 @@ export function Footer() {
               Plataforma moderna de exploração, catálogo e streaming de animes com suporte offline PWA,
               assistente de instalação e atalhos avançados de player.
             </p>
-            <div className="flex items-center gap-1 text-xs text-gray-500 md:pt-1">
+          <div className="flex items-center gap-1 text-xs text-gray-400 md:pt-1">
               Desenvolvido com <Heart size={12} className="text-[#FF6B00] fill-current" /> para a comunidade otaku.
             </div>
           </div>
 
           {/* Column 2: Navigation */}
           <div>
-            <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
               Navegação
-            </h4>
+            </h2>
             <ul className="space-y-2 text-xs font-semibold">
               <li>
                 <Link href="/" className="hover:text-[#FF6B00] transition-colors">
@@ -67,9 +67,9 @@ export function Footer() {
 
           {/* Column 3: API Credits & Admin */}
           <div>
-            <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
               Fontes & Administração
-            </h4>
+            </h2>
             <ul className="space-y-2 text-xs font-semibold">
               <li>
                 <a
@@ -107,7 +107,7 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="flex flex-col items-start justify-between gap-2 border-t border-white/5 pt-5 text-[11px] text-gray-500 sm:flex-row sm:items-center">
+        <div className="flex flex-col items-start justify-between gap-2 border-t border-white/5 pt-5 text-xs text-gray-400 sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} AniStream. Todos os direitos reservados.</p>
           <div className="flex items-center gap-4">
             <Link

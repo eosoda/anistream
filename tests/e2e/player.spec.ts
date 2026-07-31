@@ -13,6 +13,7 @@ test.describe('Catálogo e Reprodução de Streaming', () => {
     expect(searchResponse.ok()).toBeTruthy();
 
     const searchData = await searchResponse.json();
-    expect(searchData.results).toBeDefined();
+    expect(searchData.data).toBeDefined();
+    expect(searchData.pagination).toBeDefined();
   });
 });
