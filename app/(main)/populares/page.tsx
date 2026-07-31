@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Flame, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Flame, ChevronLeft, ChevronRight } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
 import { AnimeCard } from '@/components/anime/AnimeCard';
 import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
@@ -10,17 +10,7 @@ import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
 import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 
-const TYPE_FILTERS = [
-  { id: 'all', label: 'Todos' },
-  { id: 'tv', label: 'Séries TV' },
-  { id: 'movie', label: 'Filmes' },
-  { id: 'ova', label: 'OVAs' },
-  { id: 'ona', label: 'ONAs' },
-  { id: 'special', label: 'Especiais' },
-];
-
 export default function PopularPage() {
-  const [activeType, setActiveType] = useState('all');
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === 'undefined') return 'grid';
@@ -35,16 +25,10 @@ export default function PopularPage() {
     }
   };
 
-  // Query Top Anime with type filter
   const { data: topData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['topAnimeList', activeType, page],
-    queryFn: () => jikanService.getTopAnime(activeType, undefined, page, 24),
+    queryKey: ['topAnimeList', page],
+    queryFn: () => jikanService.getTopAnime('all', undefined, page, 24),
   });
-
-  const handleFilterChange = (typeId: string) => {
-    setActiveType(typeId);
-    setPage(1);
-  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
@@ -63,29 +47,6 @@ export default function PopularPage() {
         </div>
 
         <ViewToggle mode={viewMode} onChange={handleViewModeChange} />
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar p-2 rounded-2xl glass-panel border border-white/10">
-        <span className="text-xs font-bold text-gray-400 px-3 flex items-center gap-1.5 whitespace-nowrap">
-          <Filter size={14} className="text-[#FF6B00]" /> Formato:
-        </span>
-        {TYPE_FILTERS.map((f) => {
-          const isActive = activeType === f.id;
-          return (
-            <button
-              key={f.id}
-              onClick={() => handleFilterChange(f.id)}
-              className={`px-4 py-2 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
-                isActive
-                  ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/30 border border-[#FF6B00]'
-                  : 'bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5'
-              }`}
-            >
-              {f.label}
-            </button>
-          );
-        })}
       </div>
 
       {/* Error state */}
@@ -123,10 +84,8 @@ export default function PopularPage() {
 
       {!isLoading && !isError && topData?.data?.length === 0 && (
         <EmptyState
-          title="Nenhum anime neste formato"
-          description="Selecione outro filtro para visualizar o ranking de animes."
-          onAction={() => handleFilterChange('all')}
-          actionText="Ver Todos os Formatos"
+          title="Nenhum anime encontrado"
+          description="O ranking não possui resultados disponíveis nesta página."
         />
       )}
 
