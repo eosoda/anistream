@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Play, Flame, Calendar, Film, ListFilter, Heart, Menu, X, Search, Trophy, Home } from 'lucide-react';
+import { Play, Flame, Calendar, Film, ListFilter, Heart, Menu, X, Search, Home } from 'lucide-react';
 import { SearchBar } from '@/components/catalog/SearchBar';
 import { useFavorites } from '@/hooks/useFavorites';
-import { UserStatsModal } from '@/components/user/UserStatsModal';
 
 const links = [
   { name: 'Início', href: '/', Icon: Home },
@@ -21,14 +20,12 @@ export function Navbar() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [statsOpen, setStatsOpen] = useState(false);
   const { favorites, newEpisodesCount } = useFavorites();
   const isActive = (href: string) => pathname === href;
   const secondary = links.filter((link) => ['/populares', '/calendario', '/filmes'].includes(link.href));
   const core = [links[0], { name: 'Buscar', href: '/pesquisa', Icon: Search }, links[4], links[5]];
 
   return <>
-    <UserStatsModal isOpen={statsOpen} onClose={() => setStatsOpen(false)} />
     <header className="sticky top-0 z-50 border-b border-[var(--border-subtle)] bg-[color:rgba(9,10,14,.9)] backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 md:h-18 md:px-8">
         <Link href="/" prefetch={false} aria-label="AniStream — início" className="flex min-w-0 shrink-0 items-center gap-2">
@@ -40,7 +37,6 @@ export function Navbar() {
         </nav>
         <div className="ml-auto hidden w-full max-w-sm md:block"><SearchBar isCompact /></div>
         <div className="ml-auto flex items-center gap-1 md:ml-0">
-          <button onClick={() => setStatsOpen(true)} aria-label="Abrir estatísticas" className="grid size-11 place-items-center rounded-[var(--radius-control)] text-[var(--text-secondary)] hover:bg-white/7 hover:text-white"><Trophy size={19} /></button>
           <button onClick={() => { setMobileSearchOpen((value) => !value); setMoreOpen(false); }} aria-label={mobileSearchOpen ? 'Fechar busca' : 'Abrir busca'} aria-expanded={mobileSearchOpen} className="grid size-11 place-items-center rounded-[var(--radius-control)] text-[var(--text-secondary)] hover:bg-white/7 hover:text-white md:hidden">{mobileSearchOpen ? <X size={20} /> : <Search size={20} />}</button>
           <button onClick={() => { setMoreOpen((value) => !value); setMobileSearchOpen(false); }} aria-label={moreOpen ? 'Fechar menu Mais' : 'Abrir menu Mais'} aria-expanded={moreOpen} aria-controls="mobile-more-menu" className="grid size-11 place-items-center rounded-[var(--radius-control)] text-[var(--text-secondary)] hover:bg-white/7 hover:text-white lg:hidden">{moreOpen ? <X size={20} /> : <Menu size={20} />}</button>
         </div>

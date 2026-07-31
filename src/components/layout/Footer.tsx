@@ -4,7 +4,7 @@ import { Play, Heart, ExternalLink, ShieldCheck } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="mb-16 mt-10 w-full border-t border-white/10 bg-[#07070A] text-gray-400 md:mt-16 lg:mb-0">
+    <footer className="mt-10 w-full border-t border-white/10 bg-[#07070A] text-gray-400 md:mt-16">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-10">
         <div className="mb-8 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4 md:gap-8">
           {/* Column 1: Brand */}

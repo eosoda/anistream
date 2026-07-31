@@ -271,7 +271,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
 
       {/* Instant Live Search Preview Dropdown */}
       {isOpen && (
-        <div id={listboxId} role="listbox" aria-label="Sugestões de animes" className="absolute top-full left-0 right-0 mt-2 z-50 glass-panel bg-[#0B0B0F]/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/15 divide-y divide-white/5 animate-fade-in">
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 glass-panel bg-[#0B0B0F]/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/15 divide-y divide-white/5 animate-fade-in">
           {isLoading && results.length === 0 ? (
             <div className="p-4 text-center text-sm text-gray-400 flex items-center justify-center gap-2">
               <Loader2 size={16} className="animate-spin text-[#FF6B00]" />
@@ -286,6 +286,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
                 <span className="text-gray-400 font-normal">Use ↑ ↓ e Enter</span>
               </div>
 
+              <div id={listboxId} role="listbox" aria-label="Sugestões de animes">
               {results.map((anime, idx) => {
                 const imageUrl =
                   anime.posterUrl || undefined;
@@ -303,7 +304,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
                     onClick={() => { setIsOpen(false); onNavigate?.(); }}
                     onMouseEnter={() => setSelectedIndex(idx)}
                     className={`flex items-center gap-3 p-2.5 transition-colors group ${
-                      isSelected ? 'bg-[#FF6B00]/20 border-l-4 border-[#FF6B00]' : 'hover:bg-white/5'
+                      isSelected ? 'bg-[#FF6B00]/20 ring-1 ring-inset ring-[#FF6B00]/50' : 'hover:bg-white/5'
                     }`}
                   >
                     <div className="relative w-11 h-15 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-800 border border-white/10 shadow-sm">
@@ -346,6 +347,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
                   </Link>
                 );
               })}
+              </div>
 
               <Link
                 href={`/pesquisa?q=${encodeURIComponent(query.trim())}`}

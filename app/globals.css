@@ -40,7 +40,7 @@
   ::selection { background: var(--accent); color: white; }
 
   @media (max-width: 1023px) {
-    body { padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom)); }
+    body { padding-bottom: env(safe-area-inset-bottom); }
   }
 }
 
@@ -95,12 +95,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: .01ms !important;
-  }
+  html { scroll-behavior: auto; }
+  .animate-bounce, .animate-ping, .animate-pulse { animation: none !important; }
+  .animate-spin { animation-duration: 1.8s !important; }
 }
 
 /* Episode carousel position indicator */
