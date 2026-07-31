@@ -40,6 +40,17 @@ interface EpisodeRemindersPanelProps {
   favorites: JikanAnime[];
 }
 
+export function isFinishedAnime(anime: JikanAnime) {
+  const status = anime.status?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() ?? '';
+  return (
+    status.includes('finished airing') ||
+    status.includes('finished') ||
+    status.includes('completed') ||
+    status.includes('concluido') ||
+    status.includes('finalizado')
+  );
+}
+
 export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps) {
   const { newEpisodesMap } = useFavorites();
   const [isOpen, setIsOpen] = useState(false);
@@ -139,7 +150,8 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
     saveConfig({ ...config, disabledAnimeIds: updatedDisabled });
   };
 
-  const airingFavorites = favorites.filter((a) => a.airing);
+  const reminderFavorites = favorites.filter((anime) => !isFinishedAnime(anime));
+  const airingFavorites = reminderFavorites.filter((anime) => anime.airing);
 
   return (
     <div className="w-full space-y-4">
@@ -314,7 +326,7 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
             <div className="flex items-center justify-between border-b border-white/10 pb-2">
               <h4 className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider flex items-center gap-1.5">
                 <Tv size={14} />
-                <span>Lembretes Individuais por Anime ({favorites.length})</span>
+                <span>Lembretes Individuais por Anime ({reminderFavorites.length})</span>
               </h4>
 
               {airingFavorites.length > 0 && (
@@ -324,13 +336,15 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
               )}
             </div>
 
-            {favorites.length === 0 ? (
+            {reminderFavorites.length === 0 ? (
               <p className="text-xs text-gray-400 italic py-2">
-                Você ainda não possui animes favoritados para configurar lembretes.
+                {favorites.length === 0
+                  ? 'Você ainda não possui animes favoritados para configurar lembretes.'
+                  : 'Seus animes favoritos já foram concluídos e não precisam de lembretes.'}
               </p>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {favorites.map((anime) => {
+                {reminderFavorites.map((anime) => {
                   const isDisabled = config.disabledAnimeIds.includes(anime.mal_id);
                   const isAiring = anime.airing;
                   const epInfo = newEpisodesMap[anime.mal_id];
@@ -374,7 +388,7 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
                                   : 'bg-gray-800 text-gray-400'
                               }`}
                             >
-                              {isAiring ? 'Em Exibição' : 'Concluído'}
+                              {isAiring ? 'Em Exibição' : 'Em Breve'}
                             </span>
                             {anime.broadcast?.string && (
                               <span className="truncate hidden sm:inline">
