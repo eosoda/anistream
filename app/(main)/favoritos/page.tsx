@@ -1,14 +1,10 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import {
   Heart,
-  Sparkles,
-  RefreshCw,
   CheckCheck,
-  Tv,
   BellRing,
-  Filter,
   HeartOff,
   Download,
   Upload,
@@ -16,8 +12,6 @@ import {
 import { useFavorites } from '@/hooks/useFavorites';
 import { useToast } from '@/context/ToastContext';
 import { AnimeCard } from '@/components/anime/AnimeCard';
-import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
-import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { EpisodeRemindersPanel } from '@/components/home/EpisodeRemindersPanel';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -25,30 +19,12 @@ import { Tooltip } from '@/components/ui/Tooltip';
 export default function FavoritesPage() {
   const {
     favorites,
-    newEpisodesMap,
     newEpisodesCount,
-    isCheckingNewEpisodes,
-    lastCheckTime,
-    checkNewEpisodes,
     markAllAsSeen,
   } = useFavorites();
 
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const [activeTab, setActiveTab] = useState<'all' | 'new_episodes' | 'airing'>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === 'undefined') return 'grid';
-    const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
-    return stored === 'grid' || stored === 'list' ? stored : 'grid';
-  });
-
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('anistream_view_mode', mode);
-    }
-  };
 
   const handleExportBackup = () => {
     try {
@@ -130,21 +106,6 @@ export default function FavoritesPage() {
     e.target.value = '';
   };
 
-  const airingFavorites = favorites.filter(
-    (a) => a.airing || a.status === 'Currently Airing' || a.status === 'Airing'
-  );
-
-  const favoritesWithNewEp = favorites.filter(
-    (a) => newEpisodesMap[a.mal_id]?.hasNewEpisode
-  );
-
-  const displayedFavorites =
-    activeTab === 'new_episodes'
-      ? favoritesWithNewEp
-      : activeTab === 'airing'
-      ? airingFavorites
-      : favorites;
-
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
       {/* Header */}
@@ -210,7 +171,7 @@ export default function FavoritesPage() {
 
       {/* New Episodes Highlight Banner */}
       {newEpisodesCount > 0 && (
-        <div className="p-4 rounded-3xl bg-gradient-to-r from-emerald-900/40 via-teal-900/30 to-neutral-900 border border-emerald-500/40 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-emerald-900/40 via-teal-900/30 to-neutral-900 border border-emerald-500/40 shadow-2xl flex items-center gap-3 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-emerald-500 text-black shadow-lg shadow-emerald-500/30 flex-shrink-0">
               <BellRing size={20} />
@@ -229,100 +190,18 @@ export default function FavoritesPage() {
               </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              onClick={() => setActiveTab('new_episodes')}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-black transition-all shadow-md shadow-emerald-500/30 flex items-center gap-1.5"
-            >
-              <Sparkles size={14} />
-              <span>Ver {newEpisodesCount} Com Novo Episódio</span>
-            </button>
-          </div>
         </div>
       )}
 
       {/* Episode Reminders Panel */}
       <EpisodeRemindersPanel favorites={favorites} />
 
-      {/* Filter Tabs */}
-      {favorites.length > 0 && (
-        <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-2 overflow-x-auto">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
-                activeTab === 'all'
-                  ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-md shadow-[#FF6B00]/30'
-                  : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/5'
-              }`}
-            >
-              <Filter size={13} />
-              <span>Todos ({favorites.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('new_episodes')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
-                activeTab === 'new_episodes'
-                  ? 'bg-emerald-500 text-black border-emerald-500 shadow-md shadow-emerald-500/30'
-                  : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/5'
-              }`}
-            >
-              <Sparkles size={13} className={newEpisodesCount > 0 ? 'text-emerald-400 fill-current' : ''} />
-              <span>Novos Episódios ({newEpisodesCount})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('airing')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
-                activeTab === 'airing'
-                  ? 'bg-amber-500 text-black border-amber-500 shadow-md shadow-amber-500/30'
-                  : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/5'
-              }`}
-            >
-              <Tv size={13} />
-              <span>Em Exibição ({airingFavorites.length})</span>
-            </button>
-          </div>
-
-          {lastCheckTime && (
-            <span className="text-[11px] text-gray-500 hidden md:inline">
-              Última verificação API: {lastCheckTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
+      {favorites.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {favorites.map((anime, index) => (
+            <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
+          ))}
         </div>
-      )}
-
-      {/* Grid or Compact List */}
-      {displayedFavorites.length > 0 ? (
-        viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {displayedFavorites.map((anime, index) => (
-              <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {displayedFavorites.map((anime, index) => (
-              <CompactAnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
-            ))}
-          </div>
-        )
-      ) : activeTab === 'new_episodes' ? (
-        <EmptyState
-          title="Nenhum anime com novos episódios no momento"
-          description="Quando um anime da sua lista de favoritos lançar um novo episódio via Jikan API, ele aparecerá com destaque aqui."
-          actionHref="/temporadas"
-          actionText="Ver Animes da Temporada"
-        />
-      ) : activeTab === 'airing' ? (
-        <EmptyState
-          title="Nenhum anime em exibição na sua lista"
-          description="Adicione animes da temporada atual aos seus favoritos para acompanhar episódios semanais."
-          actionHref="/temporadas"
-          actionText="Explorar Temporada Atual"
-        />
       ) : (
         <EmptyState
           icon={<HeartOff size={32} />}
