@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
-import { Play, Heart, Tv, Sparkles, CheckCircle, PlayCircle, Mic, MessageSquare, Eye } from 'lucide-react';
+import { Play, Heart, Tv, Sparkles, CheckCircle, PlayCircle, Mic, MessageSquare } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
 import { RatingBadge } from '@/components/ui/RatingBadge';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -12,7 +12,6 @@ import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { checkPtBrAvailability } from '@/utils/audioFilter';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { QuickViewModal } from './QuickViewModal';
 
 interface AnimeCardProps {
   anime: JikanAnime;
@@ -23,7 +22,6 @@ interface AnimeCardProps {
 
 export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, index }: AnimeCardProps) {
   const router = useRouter();
-  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const { isFavorite, toggleFavoriteWithConfirm, newEpisodesMap, markAsSeen } = useFavorites();
   const { getAnimeOverallProgress } = useWatchProgress();
 
@@ -101,24 +99,11 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, i
           )}
         </div>
 
-        {/* Hover Play Button & Quick View Button Overlay */}
-        <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px]">
+        {/* Hover play affordance */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px]">
           <div className="w-12 h-12 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shadow-lg shadow-[#FF6B00]/50 transform scale-75 group-hover:scale-100 transition-transform">
             <Play size={22} className="fill-current ml-1" />
           </div>
-
-          <Tooltip content="Prévia Rápida" position="top">
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsQuickViewOpen(true);
-              }}
-              className="w-10 h-10 rounded-full bg-black/70 hover:bg-black text-white border border-white/20 flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform backdrop-blur-md"
-            >
-              <Eye size={18} />
-            </button>
-          </Tooltip>
         </div>
 
         {/* Type & Season Overlay at bottom of poster */}
@@ -259,12 +244,6 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, i
         </div>
       </div>
 
-      {/* Quick View Modal */}
-      <QuickViewModal
-        anime={anime}
-        isOpen={isQuickViewOpen}
-        onClose={() => setIsQuickViewOpen(false)}
-      />
     </motion.div>
   );
 }

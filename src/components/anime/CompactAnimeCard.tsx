@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
-import { Play, Heart, Star, Tv, Eye, Mic, MessageSquare, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Play, Heart, Star, Tv, Mic, MessageSquare, Sparkles, CheckCircle2 } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
 import { RatingBadge } from '@/components/ui/RatingBadge';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -11,7 +11,6 @@ import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { checkPtBrAvailability } from '@/utils/audioFilter';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { QuickViewModal } from './QuickViewModal';
 import { formatStatus } from '@/utils/formatters';
 
 interface CompactAnimeCardProps {
@@ -20,7 +19,6 @@ interface CompactAnimeCardProps {
 }
 
 export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
-  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const { isFavorite, toggleFavoriteWithConfirm, newEpisodesMap, markAsSeen } = useFavorites();
   const { getAnimeOverallProgress } = useWatchProgress();
 
@@ -172,15 +170,6 @@ export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
           </Tooltip>
         )}
 
-        <Tooltip content="Prévia Rápida" position="top">
-          <button
-            onClick={() => setIsQuickViewOpen(true)}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 transition-colors"
-          >
-            <Eye size={15} />
-          </button>
-        </Tooltip>
-
         <Tooltip content={favorited ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'} position="top">
           <button
             onClick={() => toggleFavoriteWithConfirm(anime)}
@@ -203,12 +192,6 @@ export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
         </Link>
       </div>
 
-      {/* Quick View Modal */}
-      <QuickViewModal
-        anime={anime}
-        isOpen={isQuickViewOpen}
-        onClose={() => setIsQuickViewOpen(false)}
-      />
     </motion.div>
   );
 }

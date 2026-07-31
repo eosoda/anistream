@@ -134,10 +134,17 @@ export function useDraggableScroll<T extends HTMLElement = HTMLDivElement>() {
       }
     };
 
+    // Links e imagens são arrastáveis por padrão no desktop. Esse gesto nativo
+    // compete com o carrossel e exibe a miniatura "fantasma" do navegador.
+    const handleNativeDragStart = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
     slider.addEventListener('pointerdown', handlePointerDown);
     slider.addEventListener('pointerup', finishDragging);
     slider.addEventListener('pointercancel', finishDragging);
     slider.addEventListener('pointermove', handlePointerMove);
+    slider.addEventListener('dragstart', handleNativeDragStart);
     slider.addEventListener('click', handleClickCapture, true);
 
     return () => {
@@ -146,6 +153,7 @@ export function useDraggableScroll<T extends HTMLElement = HTMLDivElement>() {
       slider.removeEventListener('pointerup', finishDragging);
       slider.removeEventListener('pointercancel', finishDragging);
       slider.removeEventListener('pointermove', handlePointerMove);
+      slider.removeEventListener('dragstart', handleNativeDragStart);
       slider.removeEventListener('click', handleClickCapture, true);
     };
   }, [slider]);

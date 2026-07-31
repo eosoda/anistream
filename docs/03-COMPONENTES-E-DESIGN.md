@@ -24,7 +24,6 @@ components/
 - [`AnimeCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/AnimeCard.tsx): Card visual em formato portrait/wide com poster, badge de nota, botão rápido de favorito e pré-visualização.
 - [`CompactAnimeCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/CompactAnimeCard.tsx): Card compacto em linha para exibição densa de listas e busca rápida com botão "Marcar Visto".
 - [`AnimeCarousel.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/AnimeCarousel.tsx): Carrossel horizontal responsivo com controle por setas e suporte a arraste por mouse/touch (`useDraggableScroll`).
-- [`QuickViewModal.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/QuickViewModal.tsx): Modal flutuante para ver sinopse, trailer e detalhes de um anime sem sair da página atual.
 - [`CharacterCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/CharacterCard.tsx) & [`RecommendationCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/RecommendationCard.tsx): Cards de personagens/dubladores e animes sugeridos.
 
 ### 🎬 Domínio Player (`components/player/`)

@@ -122,7 +122,7 @@ export function AnimeCarousel({
       {/* Track */}
       <div
         ref={scrollContainerRef}
-        className={`flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar touch-pan-x py-2 px-1 cursor-grab active:cursor-grabbing select-none ${
+        className={`flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar touch-pan-y py-2 px-1 cursor-grab active:cursor-grabbing select-none overscroll-x-contain ${
           isDragging ? 'scroll-auto snap-none' : 'scroll-smooth snap-x snap-mandatory'
         }`}
       >

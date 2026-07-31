@@ -95,7 +95,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
           <div className="absolute inset-0 bg-gradient-to-r from-[#0B0B0F] via-[#0B0B0F]/80 to-transparent" />
 
           {/* Hero Content Container */}
-          <div className="relative z-10 w-full h-full max-w-7xl mx-auto px-4 sm:px-6 md:px-12 flex items-end pb-8 sm:pb-10 md:pb-12">
+          <div className="relative z-10 flex h-full w-full max-w-7xl items-end mx-auto px-4 pb-16 sm:px-6 sm:pb-14 md:px-12 md:pb-12">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-8 items-end w-full">
               {/* Text Info Column */}
               <div className="md:col-span-8 lg:col-span-7 space-y-2.5 sm:space-y-3">
@@ -183,7 +183,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
       {/* Smooth Scroll Button to Main Content below */}
       <button
         onClick={scrollToContent}
-        className="absolute bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/60 hover:bg-[#FF6B00] border border-white/15 hover:border-[#FF6B00] text-gray-300 hover:text-white text-[11px] sm:text-xs font-bold backdrop-blur-md transition-all shadow-xl group cursor-pointer"
+        className="absolute bottom-3 left-1/2 z-20 flex min-h-9 -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-black/75 px-3.5 text-[11px] font-bold text-gray-200 shadow-xl backdrop-blur-md transition-colors hover:border-[#FF6B00] hover:bg-[#FF6B00] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00] sm:bottom-4 sm:text-xs"
         title="Explorar o catálogo completo abaixo"
       >
         <span>Ver Catálogo</span>
