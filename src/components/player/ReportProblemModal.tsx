@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, Send, X } from 'lucide-react';
 import { useConfirmation } from '@/context/ConfirmationContext';
+import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
 
 interface ReportProblemModalProps {
   episodeId: string;
@@ -11,6 +12,7 @@ interface ReportProblemModalProps {
 }
 
 export function ReportProblemModal({ episodeId, isOpen, onClose }: ReportProblemModalProps) {
+  const { panelRef, titleId } = useDialogAccessibility(isOpen, onClose);
   const { alert } = useConfirmation();
   const [type, setType] = useState('BROKEN_LINK');
   const [description, setDescription] = useState('');
@@ -58,14 +60,15 @@ export function ReportProblemModal({ episodeId, isOpen, onClose }: ReportProblem
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md p-6 rounded-3xl bg-[#12121A] border border-white/10 space-y-4 shadow-2xl text-white">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md p-6 rounded-3xl bg-[#12121A] border border-white/10 space-y-4 shadow-2xl text-white">
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
             <AlertTriangle size={18} />
-            <span>Reportar Problema neste Vídeo</span>
+            <span id={titleId}>Reportar problema neste vídeo</span>
           </div>
           <button
             onClick={onClose}
+            aria-label="Fechar relato de problema"
             className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
           >
             <X size={16} />
@@ -80,8 +83,9 @@ export function ReportProblemModal({ episodeId, isOpen, onClose }: ReportProblem
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Qual o tipo de problema?</label>
+              <label htmlFor="report-type" className="block text-sm font-bold text-gray-300 mb-1">Qual o tipo de problema?</label>
               <select
+                id="report-type"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white focus:outline-none focus:border-[#FF6B00]"
@@ -94,8 +98,9 @@ export function ReportProblemModal({ episodeId, isOpen, onClose }: ReportProblem
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Detalhes (Opcional)</label>
+              <label htmlFor="report-details" className="block text-sm font-bold text-gray-300 mb-1">Detalhes (opcional)</label>
               <textarea
+                id="report-details"
                 rows={3}
                 placeholder="Ex: O áudio trava no minuto 04:30..."
                 value={description}

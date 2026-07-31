@@ -15,6 +15,7 @@ import {
   Tv,
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
+import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
 
 interface ImportAnimeModalProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export function ImportAnimeModal({
   onClose,
   onSuccess,
 }: ImportAnimeModalProps) {
+  const { panelRef, titleId } = useDialogAccessibility(isOpen, onClose);
   const { showToast } = useToast();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -133,7 +135,7 @@ export function ImportAnimeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-3xl glass-panel border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl bg-[#0F0F17] space-y-6 max-h-[90vh] flex flex-col">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-3xl glass-panel border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl bg-[#0F0F17] space-y-6 max-h-[90vh] flex flex-col">
         {/* Cabeçalho */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -141,7 +143,7 @@ export function ImportAnimeModal({
               <Sparkles size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-white">Importar Anime (AniList / MAL)</h3>
+              <h3 id={titleId} className="text-xl font-black text-white">Importar Anime (AniList / MAL)</h3>
               <p className="text-xs text-gray-400">
                 Selecione um anime para importar metadados, capas e episódios para o PostgreSQL
               </p>
@@ -149,6 +151,7 @@ export function ImportAnimeModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Fechar importação de anime"
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
           >
             <X size={20} />

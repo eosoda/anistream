@@ -426,7 +426,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Seção 1: Notificações em Lote & Modo Manutenção */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="hidden">
         {/* Notificações em Lote */}
         <form onSubmit={handleCreateAnnouncement} className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-4">
           <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-white/10 pb-3">
@@ -553,7 +553,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Seção 2: Dead Link Finder & Reports de Erro do Usuário */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Dead Link Finder */}
         <div className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-4">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
@@ -628,7 +628,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Seção 3: Webhooks & Changelog Release Builder */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="hidden">
         {/* Webhooks Discord / Telegram */}
         <form onSubmit={handleAddWebhook} className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-4">
           <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-white/10 pb-3">
@@ -732,7 +732,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Editor de Cortar Capas Modal Demo Button */}
-      <div className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel flex items-center justify-between">
+      <div className="hidden">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-purple-500/20 text-purple-400">
             <Crop size={24} />

@@ -20,6 +20,7 @@ import {
 import { useToast } from '@/context/ToastContext';
 import { useConfirmation } from '@/context/ConfirmationContext';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
+import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
 
 interface EpisodeSourcesModalProps {
   isOpen: boolean;
@@ -61,6 +62,7 @@ export function EpisodeSourcesModal({
   onClose,
   onSuccess,
 }: EpisodeSourcesModalProps) {
+  const { panelRef, titleId } = useDialogAccessibility(isOpen, onClose);
   const { showToast } = useToast();
   const { confirm } = useConfirmation();
   const [activeTab, setActiveTab] = useState<'registered' | 'discover' | 'manual'>('registered');
@@ -288,7 +290,7 @@ export function EpisodeSourcesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-4xl glass-panel border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl bg-[#0F0F17] space-y-6 max-h-[90vh] flex flex-col">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-4xl glass-panel border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl bg-[#0F0F17] space-y-6 max-h-[90vh] flex flex-col">
         {/* Cabeçalho */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -296,7 +298,7 @@ export function EpisodeSourcesModal({
               <Tv size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-white">
+              <h3 id={titleId} className="text-xl font-black text-white">
                 Fontes: Temp {seasonNumber} Ep {episodeNumber}
               </h3>
               <p className="text-xs text-gray-400">
@@ -306,6 +308,7 @@ export function EpisodeSourcesModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Fechar fontes do episódio"
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
           >
             <X size={20} />

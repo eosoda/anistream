@@ -1,2 +1,3 @@
 import { RadioTower } from 'lucide-react'; import { OperationalPage } from '@/components/admin/OperationalPage';
-export default function Page() { return <OperationalPage title="Comunicados" description="Mensagens operacionais exibidas aos usuários." icon={RadioTower} items={[{ title: 'Gerenciar comunicados', description: 'Use os controles existentes no dashboard.', href: '/admin' }]} />; }
+import { BroadcastOperation } from '@/components/admin/AdminOperations';
+export default function Page() { return <div className="space-y-6"><OperationalPage title="Comunicados" description="Mensagens operacionais exibidas aos usuários." icon={RadioTower} items={[{ title: 'Canal público', description: 'Comunicados são anunciados na interface.', status: 'ok' }]} /><BroadcastOperation /></div>; }

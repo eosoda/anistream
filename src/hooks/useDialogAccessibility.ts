@@ -1,0 +1,8 @@
+'use client';
+import { useEffect, useId, useRef } from 'react';
+const selector = 'button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+export function useDialogAccessibility(open: boolean, onClose: () => void) {
+  const panelRef = useRef<HTMLDivElement>(null); const titleId = useId(); const returnFocus = useRef<HTMLElement | null>(null);
+  useEffect(() => { if (!open) return; returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; const overflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; const timer = window.setTimeout(() => panelRef.current?.querySelector<HTMLElement>(selector)?.focus(), 0); const handleKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); onClose(); return; } if (event.key !== 'Tab' || !panelRef.current) return; const nodes = Array.from(panelRef.current.querySelectorAll<HTMLElement>(selector)); if (!nodes.length) return; if (event.shiftKey && document.activeElement === nodes[0]) { event.preventDefault(); nodes.at(-1)?.focus(); } else if (!event.shiftKey && document.activeElement === nodes.at(-1)) { event.preventDefault(); nodes[0].focus(); } }; document.addEventListener('keydown', handleKey); return () => { window.clearTimeout(timer); document.body.style.overflow = overflow; document.removeEventListener('keydown', handleKey); returnFocus.current?.focus(); }; }, [onClose, open]);
+  return { panelRef, titleId };
+}

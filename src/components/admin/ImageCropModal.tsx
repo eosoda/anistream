@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { Crop, Move, ZoomIn, ZoomOut, Check, X } from 'lucide-react';
+import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
 
 interface ImageCropModalProps {
   imageUrl: string;
@@ -13,6 +14,7 @@ interface ImageCropModalProps {
 }
 
 export function ImageCropModal({ imageUrl, aspectRatio, isOpen, onClose, onSave }: ImageCropModalProps) {
+  const { panelRef, titleId } = useDialogAccessibility(isOpen, onClose);
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -28,13 +30,13 @@ export function ImageCropModal({ imageUrl, aspectRatio, isOpen, onClose, onSave 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-xl p-6 rounded-3xl bg-[#12121A] border border-white/10 space-y-4 shadow-2xl text-white">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-xl p-6 rounded-3xl bg-[#12121A] border border-white/10 space-y-4 shadow-2xl text-white">
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2 text-[#FF6B00] font-bold text-sm">
             <Crop size={18} />
-            <span>Ajustar Recorte ({isPoster ? 'Pôster 3:4' : 'Banner 16:9'})</span>
+            <span id={titleId}>Ajustar Recorte ({isPoster ? 'Pôster 3:4' : 'Banner 16:9'})</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white">
+          <button onClick={onClose} aria-label="Fechar ajuste de imagem" className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white">
             <X size={16} />
           </button>
         </div>
