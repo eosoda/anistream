@@ -84,7 +84,6 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
             fill
             priority
             fetchPriority="high"
-            decoding="sync"
             unoptimized={backdropImage.startsWith('/')}
             sizes="100vw"
             className="object-cover object-center"
