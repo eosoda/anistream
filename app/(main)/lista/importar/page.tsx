@@ -125,8 +125,8 @@ export default function ImportWatchlistPage() {
         </h2>
 
         <div>
-          <label className="block text-xs font-bold text-gray-300 mb-1">Nome de Usuário MAL</label>
-          <input
+          <label htmlFor="mal-username" className="block text-xs font-bold text-gray-300 mb-1">Nome de Usuário MAL</label>
+          <input id="mal-username"
             type="text"
             required
             placeholder="Ex: otaku_username"

@@ -141,8 +141,8 @@ export default function FilmesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Status Filter */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status</label>
-                <select
+                <label htmlFor="movie-status" className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status</label>
+                <select id="movie-status"
                   value={statusFilter}
                   onChange={(e) => {
                     setStatusFilter(e.target.value as any);
@@ -159,8 +159,8 @@ export default function FilmesPage() {
 
               {/* Order By */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ordenar Por</label>
-                <select
+                <label htmlFor="movie-sort" className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ordenar Por</label>
+                <select id="movie-sort"
                   value={orderBy}
                   onChange={(e) => {
                     setOrderBy(e.target.value as any);
@@ -177,8 +177,8 @@ export default function FilmesPage() {
 
               {/* Direction */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ordem</label>
-                <select
+                <label htmlFor="movie-order" className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ordem</label>
+                <select id="movie-order"
                   value={sortDir}
                   onChange={(e) => {
                     setSortDir(e.target.value as any);

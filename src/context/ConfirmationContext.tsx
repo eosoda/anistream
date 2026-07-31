@@ -6,11 +6,11 @@ import React, {
   useState,
   useRef,
   useCallback,
-  useEffect,
   useId,
 } from 'react';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { AlertTriangle, Trash2, Check, X } from 'lucide-react';
+import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
 
 export interface ConfirmationOptions {
   title: string;
@@ -42,7 +42,6 @@ export function ConfirmationProvider({ children }: { children: React.ReactNode }
   const [options, setOptions] = useState<ConfirmationOptions | null>(null);
   const [mode, setMode] = useState<'confirm' | 'alert'>('confirm');
   const resolveRef = useRef<((value: boolean) => void) | null>(null);
-  const primaryButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const descriptionId = useId();
 
@@ -80,22 +79,8 @@ export function ConfirmationProvider({ children }: { children: React.ReactNode }
       resolveRef.current = null;
     }
   }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const focusTimer = window.setTimeout(() => primaryButtonRef.current?.focus(), 0);
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeDialog(false);
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.clearTimeout(focusTimer);
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [closeDialog, isOpen]);
+  const closeWithoutConfirmation = useCallback(() => closeDialog(false), [closeDialog]);
+  const { panelRef } = useDialogAccessibility(isOpen, closeWithoutConfirmation);
 
   return (
     <ConfirmationContext.Provider value={{ confirm, alert }}>
@@ -110,6 +95,8 @@ export function ConfirmationProvider({ children }: { children: React.ReactNode }
           }}
         >
           <div
+            ref={panelRef}
+            tabIndex={-1}
             role={mode === 'confirm' ? 'alertdialog' : 'dialog'}
             aria-modal="true"
             aria-labelledby={titleId}
@@ -194,7 +181,6 @@ export function ConfirmationProvider({ children }: { children: React.ReactNode }
               )}
 
               <button
-                ref={primaryButtonRef}
                 onClick={() => closeDialog(true)}
                 className={`px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-lg flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#12131C] ${
                   options.variant === 'danger'

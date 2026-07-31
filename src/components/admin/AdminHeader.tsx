@@ -33,7 +33,7 @@ export function AdminHeader({ onOpenMobileSidebar }: AdminHeaderProps) {
         </button>
 
         <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           <span className="text-xs font-bold text-gray-300 hidden sm:inline">
             Sistema Operacional • Conectado
           </span>
