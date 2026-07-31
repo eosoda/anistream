@@ -25,20 +25,24 @@ export function AnimeCarousel({
   viewAllHref,
   subtitle,
 }: AnimeCarouselProps) {
-  const { ref: scrollContainerRef, isDragging } = useDraggableScroll<HTMLDivElement>();
+  const {
+    ref: scrollContainerRef,
+    elementRef: scrollContainerElementRef,
+    isDragging,
+  } = useDraggableScroll<HTMLDivElement>();
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
   useEffect(() => {
     const checkScroll = () => {
-      if (!scrollContainerRef.current) return;
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      if (!scrollContainerElementRef.current) return;
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerElementRef.current;
       setCanScrollLeft(scrollLeft > 10);
       setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
     };
 
     checkScroll();
-    const currentRef = scrollContainerRef.current;
+    const currentRef = scrollContainerElementRef.current;
     if (currentRef) {
       currentRef.addEventListener('scroll', checkScroll);
       window.addEventListener('resize', checkScroll);
@@ -49,13 +53,13 @@ export function AnimeCarousel({
       }
       window.removeEventListener('resize', checkScroll);
     };
-  }, [animes, isLoading, scrollContainerRef]);
+  }, [animes, isLoading, scrollContainerElementRef]);
 
   const scroll = (direction: 'left' | 'right') => {
-    if (!scrollContainerRef.current) return;
-    const { clientWidth } = scrollContainerRef.current;
+    if (!scrollContainerElementRef.current) return;
+    const { clientWidth } = scrollContainerElementRef.current;
     const scrollAmount = clientWidth * 0.75;
-    scrollContainerRef.current.scrollBy({
+    scrollContainerElementRef.current.scrollBy({
       left: direction === 'left' ? -scrollAmount : scrollAmount,
       behavior: 'smooth',
     });

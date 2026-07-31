@@ -29,6 +29,7 @@ import {
   Sun,
   AlertTriangle,
   Loader2,
+  Flag,
 } from 'lucide-react';
 import { getSavedWatchProgress, useWatchProgress } from '@/hooks/useWatchProgress';
 import { useToast } from '@/context/ToastContext';
@@ -67,6 +68,7 @@ interface ResolvedStream {
   audioLanguage?: string;
   subtitles?: ResolvedSubTrack[];
   alternatives?: ResolvedAlternative[];
+  availableProviders?: string[];
   opening?: {
     startSeconds: number;
     endSeconds: number;
@@ -86,6 +88,7 @@ export interface VideoPlayerProps {
   streamStatusMessage?: string | null;
   isResolving?: boolean;
   onNextEpisode?: () => void;
+  onProviderChange?: (provider: string) => void;
 }
 
 const AUDIO_LANGUAGES = [
@@ -131,9 +134,11 @@ export function VideoPlayer({
   streamStatusMessage,
   isResolving = false,
   onNextEpisode,
+  onProviderChange,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const hlsRef = useRef<InstanceType<typeof Hls> | null>(null);
   const retryCountRef = useRef<number>(0);
 
@@ -150,7 +155,7 @@ export function VideoPlayer({
     latestPlaybackRef.current = { currentTime: 0, duration: 0 };
   }, [animeId, episodeNum]);
 
-  // Construir a lista de servidores combinando resolvedStream/playbackUrl e alternativas
+  // Construir variantes de reprodução e agrupar qualidades do mesmo provedor.
   const serverList = React.useMemo(() => {
     const effectiveStream =
       resolvedStream ||
@@ -165,14 +170,16 @@ export function VideoPlayer({
     if (effectiveStream?.playbackUrl) {
       const mainServer = {
         id: 'main-stream',
-        name: `${effectiveStream.provider || 'Fonte 1'} (${effectiveStream.quality || 'Auto'})`,
+        provider: effectiveStream.provider || 'Fonte 1',
+        quality: effectiveStream.quality || 'Auto',
         type: effectiveStream.type || 'hls',
         src: effectiveStream.playbackUrl,
       };
 
       const altServers = (effectiveStream.alternatives || []).map((alt, idx) => ({
         id: alt.sourceId || `alt-${idx}`,
-        name: `${alt.provider || 'Fonte ' + (idx + 2)} (${alt.quality || 'Auto'})`,
+        provider: alt.provider || `Fonte ${idx + 2}`,
+        quality: alt.quality || 'Auto',
         type: alt.type || effectiveStream.type || 'hls',
         src: alt.playbackUrl,
       }));
@@ -183,8 +190,50 @@ export function VideoPlayer({
     return [];
   }, [resolvedStream, playbackUrl]);
 
+  const sourceGroups = React.useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        variants: typeof serverList;
+      }
+    >();
+
+    serverList.forEach((server) => {
+      const groupId = server.provider.trim().toLocaleLowerCase('pt-BR');
+      const existing = groups.get(groupId);
+
+      if (existing) {
+        const qualityAlreadyAvailable = existing.variants.some(
+          (variant) => variant.quality.toLocaleLowerCase('pt-BR') === server.quality.toLocaleLowerCase('pt-BR')
+        );
+        if (!qualityAlreadyAvailable) existing.variants.push(server);
+      } else {
+        groups.set(groupId, {
+          id: groupId,
+          name: server.provider,
+          variants: [server],
+        });
+      }
+    });
+
+    return Array.from(groups.values());
+  }, [serverList]);
+
   const [activeServerId, setActiveServerId] = useState<string | null>(null);
   const activeServer = React.useMemo(() => serverList.find((server) => server.id === activeServerId) ?? serverList[0], [activeServerId, serverList]);
+  const activeSourceGroup = React.useMemo(
+    () => sourceGroups.find((group) => group.variants.some((variant) => variant.id === activeServer?.id)) ?? sourceGroups[0],
+    [activeServer?.id, sourceGroups]
+  );
+  const availableProviderNames = React.useMemo(
+    () =>
+      resolvedStream?.availableProviders?.length
+        ? resolvedStream.availableProviders
+        : sourceGroups.map((group) => group.name),
+    [resolvedStream, sourceGroups]
+  );
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -201,10 +250,11 @@ export function VideoPlayer({
   // Settings Popover State
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showServerPicker, setShowServerPicker] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'main' | 'audio-sub' | 'speed'>('main');
+  const [settingsTab, setSettingsTab] = useState<'main' | 'audio-sub' | 'quality' | 'speed'>('main');
 
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   // Subtitles extraídas da API ou vazias
   const availableSubtitles = React.useMemo(() => {
@@ -246,7 +296,7 @@ export function VideoPlayer({
         showToast({
           type: 'warning',
           title: 'Alternando Servidor (Fallback)',
-          message: `${errorDetail}. Carregando ${unfailedServer.name}...`,
+          message: `${errorDetail}. Carregando ${unfailedServer.provider} em ${unfailedServer.quality}...`,
         });
       } else {
         showToast({
@@ -680,6 +730,62 @@ export function VideoPlayer({
     }
   }, []);
 
+  const openContextMenu = useCallback((clientX: number, clientY: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const bounds = container.getBoundingClientRect();
+    const menuWidth = Math.min(248, Math.max(0, bounds.width - 16));
+    const menuHeight = Math.min(318, Math.max(0, bounds.height - 16));
+    const x = Math.min(Math.max(8, clientX - bounds.left), Math.max(8, bounds.width - menuWidth - 8));
+    const y = Math.min(Math.max(8, clientY - bounds.top), Math.max(8, bounds.height - menuHeight - 8));
+
+    setShowSettingsMenu(false);
+    setShowServerPicker(false);
+    setShowControls(true);
+    setContextMenu({ x, y });
+  }, []);
+
+  const handleContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      openContextMenu(event.clientX, event.clientY);
+    },
+    [openContextMenu]
+  );
+
+  const runContextAction = (action: () => void | Promise<void>) => {
+    setContextMenu(null);
+    void action();
+  };
+
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const closeMenu = (event: PointerEvent) => {
+      if (!contextMenuRef.current?.contains(event.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+    const closeOnViewportChange = () => setContextMenu(null);
+    const focusTimer = window.setTimeout(() => {
+      contextMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    }, 0);
+
+    document.addEventListener('pointerdown', closeMenu);
+    window.addEventListener('blur', closeOnViewportChange);
+    window.addEventListener('resize', closeOnViewportChange);
+    window.addEventListener('scroll', closeOnViewportChange, true);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener('pointerdown', closeMenu);
+      window.removeEventListener('blur', closeOnViewportChange);
+      window.removeEventListener('resize', closeOnViewportChange);
+      window.removeEventListener('scroll', closeOnViewportChange, true);
+    };
+  }, [contextMenu]);
+
   const handleMouseMove = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -699,7 +805,10 @@ export function VideoPlayer({
       }
 
       if (e.key === 'Escape') {
-        if (showSettingsMenu) {
+        if (contextMenu) {
+          setContextMenu(null);
+          e.preventDefault();
+        } else if (showSettingsMenu) {
           setShowSettingsMenu(false);
           e.preventDefault();
         } else if (showShortcutsModal) {
@@ -763,7 +872,7 @@ export function VideoPlayer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isTheaterMode, isLightDimmed, showSettingsMenu, showShortcutsModal, volume, isPlaying, duration, togglePlay, toggleFullscreen, toggleMute, skipTime, skipIntro, isInOpening]);
+  }, [contextMenu, isTheaterMode, isLightDimmed, showSettingsMenu, showShortcutsModal, volume, isPlaying, duration, togglePlay, toggleFullscreen, toggleMute, skipTime, skipIntro, isInOpening]);
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -776,11 +885,13 @@ export function VideoPlayer({
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-medium text-zinc-400">{isResolving ? 'Buscando fontes' : 'Fonte atual'}</p>
-              <p className="truncate text-sm font-semibold text-white">{activeServer?.name || (isResolving ? 'Aguarde um instante' : 'Indisponível')}</p>
+              <p className="truncate text-sm font-semibold text-white">
+                {activeServer ? `${activeServer.provider} · ${activeServer.quality}` : isResolving ? 'Aguarde um instante' : 'Indisponível'}
+              </p>
             </div>
           </div>
 
-          {serverList.length > 0 && (
+          {availableProviderNames.length > 0 && (
             <button
               type="button"
               aria-expanded={showServerPicker}
@@ -789,7 +900,7 @@ export function VideoPlayer({
               className="flex min-h-10 shrink-0 items-center gap-2 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-zinc-200 transition-colors hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
             >
               <span className="hidden sm:inline">
-                {serverList.length} {serverList.length === 1 ? 'fonte' : 'fontes'}
+                {availableProviderNames.length} {availableProviderNames.length === 1 ? 'fonte' : 'fontes'}
               </span>
               <span className="sm:hidden">Trocar</span>
               <ChevronDown size={15} className={`transition-transform ${showServerPicker ? 'rotate-180' : ''}`} />
@@ -797,25 +908,33 @@ export function VideoPlayer({
           )}
         </div>
 
-        {showServerPicker && serverList.length > 0 && (
+        {showServerPicker && availableProviderNames.length > 0 && (
           <div
             id="player-server-picker"
             className="absolute inset-x-0 top-[calc(100%+8px)] overflow-hidden rounded-[14px] border border-white/10 bg-[#14141C] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.55)]"
           >
             <div className="flex items-center justify-between px-2 pb-2 pt-1">
               <p className="text-xs font-semibold text-white">Escolha uma fonte</p>
-              <p className="text-[11px] text-zinc-500">Qualidade disponível</p>
+              <p className="text-[11px] text-zinc-500">Qualidade nas configurações</p>
             </div>
             <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
-              {serverList.map((server) => {
-                const isActive = activeServer?.id === server.id;
+              {availableProviderNames.map((providerName) => {
+                const source = sourceGroups.find(
+                  (group) => group.name.toLocaleLowerCase('pt-BR') === providerName.toLocaleLowerCase('pt-BR')
+                );
+                const isActive = activeSourceGroup?.name.toLocaleLowerCase('pt-BR') === providerName.toLocaleLowerCase('pt-BR');
                 return (
                   <button
-                    key={server.id}
+                    key={providerName}
                     type="button"
                     aria-pressed={isActive}
                     onClick={() => {
-                      setActiveServerId(server.id);
+                      if (source) {
+                        setActiveServerId(source.variants[0].id);
+                        window.localStorage.setItem('preferredStreamProvider', source.name);
+                      } else {
+                        onProviderChange?.(providerName);
+                      }
                       setIsPlaying(false);
                       setShowServerPicker(false);
                     }}
@@ -823,8 +942,13 @@ export function VideoPlayer({
                       isActive ? 'bg-[#FF6B00] text-white' : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
                     }`}
                   >
-                    <span className="truncate">{server.name}</span>
-                    {isActive && <CheckCircle2 size={15} className="shrink-0" />}
+                    <span className="truncate">{providerName}</span>
+                    <span className="flex shrink-0 items-center gap-2 text-[10px] font-medium opacity-75">
+                      {source
+                        ? `${source.variants.length} ${source.variants.length === 1 ? 'qualidade' : 'qualidades'}`
+                        : 'Carregar'}
+                      {isActive && <CheckCircle2 size={15} />}
+                    </span>
                   </button>
                 );
               })}
@@ -849,6 +973,16 @@ export function VideoPlayer({
         {/* Glow de Iluminação Ambiente */}
         <div
           ref={containerRef}
+          tabIndex={0}
+          aria-label="Player de vídeo. Pressione Shift mais F10 para abrir o menu de contexto."
+          onContextMenu={handleContextMenu}
+          onKeyDown={(event) => {
+            if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+              event.preventDefault();
+              const bounds = event.currentTarget.getBoundingClientRect();
+              openContextMenu(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+            }
+          }}
           onMouseMove={handleMouseMove}
           onTouchStart={handleMouseMove}
           onMouseLeave={() => isPlaying && setShowControls(false)}
@@ -856,6 +990,133 @@ export function VideoPlayer({
             isTheaterMode ? 'fixed inset-x-1 top-1/2 z-50 mx-auto max-w-7xl -translate-y-1/2 border-[#FF6B00]/60 shadow-[0_28px_100px_rgba(0,0,0,0.8)] sm:inset-x-6' : 'border-white/10'
           }`}
         >
+          {contextMenu && activeServer?.type !== 'embed' && (
+            <div
+              ref={contextMenuRef}
+              role="menu"
+              aria-label="Ações do player"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              className="absolute z-[70] w-[min(248px,calc(100%-16px))] overflow-hidden rounded-[14px] border border-white/10 bg-[#15151B]/98 p-1.5 text-white shadow-[0_18px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl animate-fade-in"
+            >
+              <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/10 px-2.5 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-semibold text-zinc-200">{activeServer?.provider || 'AniStream'}</p>
+                  <p className="text-[10px] tabular-nums text-zinc-500">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-md bg-[#FF6B00]/15 px-2 py-1 text-[10px] font-bold text-[#FF8A3D]">
+                  {activeServer?.quality || 'Auto'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runContextAction(togglePlay)}
+                className="mt-1 flex min-h-9 w-full items-center gap-2.5 rounded-[9px] px-2.5 text-left text-xs font-semibold text-zinc-100 transition-colors hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+              >
+                {isPlaying ? <Pause size={15} /> : <Play size={15} className="fill-current" />}
+                <span>{isPlaying ? 'Pausar' : 'Reproduzir'}</span>
+                <kbd className="ml-auto text-[10px] font-medium text-zinc-500">K</kbd>
+              </button>
+
+              <div className="grid grid-cols-2 gap-1">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => runContextAction(() => skipTime(-10))}
+                  className="flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+                >
+                  <RotateCcw size={14} />
+                  <span>Voltar 10s</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => runContextAction(() => skipTime(10))}
+                  className="flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+                >
+                  <RotateCw size={14} />
+                  <span>Avançar 10s</span>
+                </button>
+              </div>
+
+              <div className="my-1 h-px bg-white/10" />
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runContextAction(toggleMute)}
+                className="flex min-h-9 w-full items-center gap-2.5 rounded-[9px] px-2.5 text-left text-xs font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+              >
+                <span className="text-zinc-400">{isMuted ? <Volume2 size={15} /> : <VolumeX size={15} />}</span>
+                <span>{isMuted ? 'Ativar som' : 'Silenciar'}</span>
+                <kbd className="ml-auto text-[10px] font-medium text-zinc-500">M</kbd>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runContextAction(togglePip)}
+                className="flex min-h-9 w-full items-center gap-2.5 rounded-[9px] px-2.5 text-left text-xs font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+              >
+                <PictureInPicture2 size={15} className="text-zinc-400" />
+                <span className="truncate">{isPipActive ? 'Sair do Picture-in-Picture' : 'Picture-in-Picture'}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runContextAction(() => setIsTheaterMode((active) => !active))}
+                className="flex min-h-9 w-full items-center gap-2.5 rounded-[9px] px-2.5 text-left text-xs font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+              >
+                <Film size={15} className="text-zinc-400" />
+                <span>{isTheaterMode ? 'Sair do modo cinema' : 'Modo cinema'}</span>
+                <kbd className="ml-auto text-[10px] font-medium text-zinc-500">C</kbd>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runContextAction(toggleFullscreen)}
+                className="flex min-h-9 w-full items-center gap-2.5 rounded-[9px] px-2.5 text-left text-xs font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+              >
+                {isFullscreen ? <Minimize size={15} className="text-zinc-400" /> : <Maximize size={15} className="text-zinc-400" />}
+                <span>{isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}</span>
+                <kbd className="ml-auto text-[10px] font-medium text-zinc-500">F</kbd>
+              </button>
+
+              <div className="my-1 h-px bg-white/10" />
+
+              <div className="grid grid-cols-2 gap-1">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() =>
+                    runContextAction(() => {
+                      setShowShortcutsModal(true);
+                    })
+                  }
+                  className="flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+                >
+                  <Keyboard size={14} />
+                  <span>Atalhos</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() =>
+                    runContextAction(() => {
+                      setIsReportModalOpen(true);
+                    })
+                  }
+                  className="flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                >
+                  <Flag size={14} />
+                  <span>Reportar</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Banner Informativo de Status quando não houver fontes reais */}
           {streamStatusMessage && serverList.length > 0 && (
             <div className="absolute top-4 left-4 z-30 px-3.5 py-2 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold backdrop-blur-md flex items-center gap-2 shadow-2xl animate-fade-in">
@@ -1281,6 +1542,21 @@ export function VideoPlayer({
                               </div>
                             </button>
 
+                            {/* Qualidade da fonte selecionada */}
+                            <button
+                              onClick={() => setSettingsTab('quality')}
+                              className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/10 text-gray-200 font-bold transition-all text-left"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Film size={15} className="text-[#FF6B00]" />
+                                <span>Qualidade</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-gray-400 font-mono text-[10px]">
+                                <span>{activeServer?.quality || 'Auto'}</span>
+                                <ChevronRight size={14} />
+                              </div>
+                            </button>
+
                             {/* Velocidade Submenu Opção */}
                             <button
                               onClick={() => setSettingsTab('speed')}
@@ -1427,6 +1703,44 @@ export function VideoPlayer({
                                   })}
                                 </div>
                               )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Nível 2: Qualidades do provedor atual */}
+                        {settingsTab === 'quality' && (
+                          <div className="space-y-2 text-xs">
+                            <button onClick={() => setSettingsTab('main')} className="flex items-center gap-1 text-[#FF6B00] font-bold pb-1 border-b border-white/10 w-full text-left">
+                              <ChevronLeft size={16} />
+                              <span>Voltar às Configurações</span>
+                            </button>
+
+                            <div className="px-1 py-1">
+                              <p className="font-semibold text-white">{activeSourceGroup?.name || 'Fonte atual'}</p>
+                              <p className="mt-0.5 text-[10px] font-medium text-gray-400">Escolha a resolução desta fonte</p>
+                            </div>
+
+                            <div className="space-y-1">
+                              {(activeSourceGroup?.variants || []).map((variant) => {
+                                const isSelected = activeServer?.id === variant.id;
+                                return (
+                                  <button
+                                    key={variant.id}
+                                    type="button"
+                                    aria-pressed={isSelected}
+                                    onClick={() => {
+                                      setActiveServerId(variant.id);
+                                      setSettingsTab('main');
+                                    }}
+                                    className={`w-full text-left px-2.5 py-1.5 rounded-xl font-bold transition-all flex items-center justify-between ${
+                                      isSelected ? 'bg-[#FF6B00] text-white shadow-md' : 'hover:bg-white/10 text-gray-300'
+                                    }`}
+                                  >
+                                    <span>{variant.quality}</span>
+                                    {isSelected && <CheckCircle2 size={13} />}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

@@ -7,6 +7,11 @@ import { apiSuccess, apiError } from '@/lib/api/response';
 import { prisma } from '@/lib/db/prisma';
 import { encryptData } from '@/lib/security/crypto';
 
+type EnabledProvider = {
+  id: string;
+  name: string;
+};
+
 function buildPlaybackUrl(
   source: {
     id: string;
@@ -58,6 +63,29 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parseResult.data;
+    const enabledProviders = await prisma.mediaProvider.findMany({
+      where: {
+        enabled: true,
+        type: { in: ['ANIME_SDK', 'CONSUMET', 'EXTERNAL_API', 'EMBED'] },
+      },
+      orderBy: { priority: 'desc' },
+      select: { id: true, name: true },
+    });
+    const defaultProviderSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'default_stream_provider_id' },
+      select: { value: true },
+    });
+    const adminDefaultProvider =
+      enabledProviders.find((provider: EnabledProvider) => provider.id === defaultProviderSetting?.value) ??
+      enabledProviders[0] ??
+      null;
+    const requestedProvider = input.preferredProvider;
+    const requestedProviderExists = enabledProviders.some(
+      (provider: EnabledProvider) => provider.name.toLocaleLowerCase('pt-BR') === requestedProvider?.toLocaleLowerCase('pt-BR')
+    );
+    input.preferredProvider = requestedProviderExists
+      ? requestedProvider
+      : adminDefaultProvider?.name;
     let opening: {
       startSeconds: number;
       endSeconds: number;
@@ -129,7 +157,21 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Resolve sources concurrently via StreamResolver
-    const resolveResult = await defaultStreamResolver.resolveEpisodeStream(input);
+    let resolveResult = await defaultStreamResolver.resolveEpisodeStream(input);
+
+    if (
+      !resolveResult.selected &&
+      adminDefaultProvider &&
+      input.preferredProvider !== adminDefaultProvider.name
+    ) {
+      input.preferredProvider = adminDefaultProvider.name;
+      resolveResult = await defaultStreamResolver.resolveEpisodeStream(input);
+    }
+
+    if (!resolveResult.selected && input.preferredProvider) {
+      input.preferredProvider = undefined;
+      resolveResult = await defaultStreamResolver.resolveEpisodeStream(input);
+    }
 
     if (!resolveResult.selected) {
       return apiError('NO_SOURCES_AVAILABLE', 'Nenhuma fonte autorizada disponível para este episódio no momento.', 444, { attempts: resolveResult.attempts }, undefined, reqPath);
@@ -166,6 +208,7 @@ export async function POST(request: NextRequest) {
       audioLanguage: selected.audioLanguage || 'ja',
       subtitles: selected.subtitles || [],
       alternatives: safeAlternatives,
+      availableProviders: enabledProviders.map((provider: EnabledProvider) => provider.name),
       opening,
     };
 

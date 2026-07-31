@@ -93,8 +93,15 @@ export async function GET() {
     providers = await prisma.mediaProvider.findMany({
       orderBy: { priority: 'desc' },
     });
+    const defaultProviderSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'default_stream_provider_id' },
+      select: { value: true },
+    });
 
-    return NextResponse.json({ providers });
+    return NextResponse.json({
+      providers,
+      defaultProviderId: defaultProviderSetting?.value || providers.find((provider: { enabled: boolean }) => provider.enabled)?.id || null,
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -135,7 +142,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { id, enabled, autoIndex, name, url, priority } = body;
+    const { id, enabled, autoIndex, name, url, priority, setAsDefault } = body;
 
     if (!id) return NextResponse.json({ error: 'ID do provedor é obrigatório.' }, { status: 400 });
 
@@ -150,6 +157,17 @@ export async function PATCH(req: Request) {
       where: { id },
       data: updateData,
     });
+
+    if (setAsDefault === true) {
+      if (!updated.enabled) {
+        return NextResponse.json({ error: 'Ative o provedor antes de defini-lo como padrão.' }, { status: 400 });
+      }
+      await prisma.systemSetting.upsert({
+        where: { key: 'default_stream_provider_id' },
+        create: { key: 'default_stream_provider_id', value: updated.id },
+        update: { value: updated.id },
+      });
+    }
 
     if (url) {
       await autoAuthorizeHostnames([url]);

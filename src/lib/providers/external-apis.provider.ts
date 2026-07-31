@@ -94,6 +94,9 @@ export class ExternalApisProvider implements AnimeProvider {
         where: {
           enabled: true,
           type: { in: ['ANIME_SDK', 'CONSUMET', 'EXTERNAL_API', 'EMBED'] },
+          ...(input.preferredProvider
+            ? { name: { equals: input.preferredProvider, mode: 'insensitive' as const } }
+            : {}),
         },
         orderBy: { priority: 'desc' },
       });

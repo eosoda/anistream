@@ -97,22 +97,22 @@ export function FloatingRecommendationsWidget() {
   return (
     <>
       {/* Floating Trigger Button */}
-      <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2 animate-bounce-subtle">
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] right-4 z-40 flex items-center gap-2 lg:bottom-6 lg:right-6">
         {/* Main Floating Trigger */}
         <button
           onClick={() => setIsOpen(true)}
-          className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-[#FF6B00] via-amber-500 to-purple-600 text-white font-black text-xs sm:text-sm shadow-2xl shadow-[#FF6B00]/40 hover:scale-105 active:scale-95 transition-all border border-white/20"
+          aria-label="Abrir recomendações para você"
+          className="group relative flex size-11 items-center justify-center rounded-full border border-white/15 bg-[#FF6B00] text-xs font-black text-white shadow-[0_10px_30px_rgba(255,107,0,0.3)] transition-[transform,background-color,box-shadow] hover:bg-[#FF8533] hover:shadow-[0_12px_34px_rgba(255,107,0,0.4)] active:scale-95 lg:size-auto lg:min-h-11 lg:gap-2.5 lg:px-4 lg:py-2.5 lg:text-sm"
         >
           <span className="relative flex items-center justify-center">
-            <Sparkles size={18} className="animate-spin-slow text-yellow-200" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
+            <Sparkles size={18} className="text-white" />
+            <span className="absolute -right-1 -top-1 size-2 rounded-full bg-emerald-400 ring-2 ring-[#FF6B00]" />
           </span>
 
-          <span className="tracking-tight hidden sm:inline">Para Você</span>
-          <span className="tracking-tight sm:hidden">Recomendações</span>
+          <span className="hidden tracking-tight lg:inline">Para Você</span>
 
           {recommendations.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-black/40 text-[10px] font-black border border-white/20">
+            <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full border-2 border-[#0B0B0F] bg-white px-1 py-0.5 text-center text-[9px] font-black text-[#FF6B00] lg:static lg:border-white/20 lg:bg-black/30 lg:text-white">
               {recommendations.length}
             </span>
           )}
@@ -122,7 +122,8 @@ export function FloatingRecommendationsWidget() {
         <Tooltip content="Ocultar ícone flutuante" position="top">
           <button
             onClick={() => setIsDismissed(true)}
-            className="p-2 rounded-full bg-black/80 hover:bg-black text-gray-400 hover:text-white border border-white/10 transition-colors shadow-lg"
+            aria-label="Ocultar recomendações"
+            className="hidden size-9 items-center justify-center rounded-full border border-white/10 bg-[#121219] text-gray-400 shadow-lg transition-colors hover:bg-white/10 hover:text-white lg:flex"
           >
             <X size={14} />
           </button>

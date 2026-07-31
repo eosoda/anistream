@@ -62,3 +62,33 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Episode carousel position indicator */
+.episode-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 107, 0, 0.9) rgba(255, 255, 255, 0.08);
+}
+
+.episode-scrollbar::-webkit-scrollbar {
+  height: 5px;
+}
+
+.episode-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.episode-scrollbar::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.episode-scrollbar::-webkit-scrollbar-thumb {
+  background: #ff6b00;
+  border-radius: 999px;
+}
+
+.episode-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ff8533;
+}

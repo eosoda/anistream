@@ -18,6 +18,7 @@ import {
   XCircle,
   Clock,
   Bot,
+  Star,
 } from 'lucide-react';
 import { ProviderStatus } from '@/components/ProviderStatus';
 import { AutopilotPanel } from '@/components/admin/AutopilotPanel';
@@ -40,6 +41,7 @@ export default function AdminSourcesPage() {
   const { confirm } = useConfirmation();
   const [activeTab, setActiveTab] = useState<'providers' | 'm3u' | 'json' | 'autopilot' | 'hosts'>('providers');
   const [providers, setProviders] = useState<MediaProviderItem[]>([]);
+  const [defaultProviderId, setDefaultProviderId] = useState<string | null>(null);
   const [loadingProviders, setLoadingProviders] = useState(true);
 
   // Domínios Autorizados
@@ -77,6 +79,7 @@ export default function AdminSourcesPage() {
       const res = await fetch('/api/admin/providers');
       const data = await res.json();
       if (data.providers) setProviders(data.providers);
+      setDefaultProviderId(data.defaultProviderId || null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -187,6 +190,22 @@ export default function AdminSourcesPage() {
         body: JSON.stringify({ id, [key]: value }),
       });
       fetchProviders();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSetDefaultProvider = async (id: string) => {
+    try {
+      const res = await fetch('/api/admin/providers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, setAsDefault: true }),
+      });
+      if (res.ok) {
+        setDefaultProviderId(id);
+        fetchProviders();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -435,6 +454,12 @@ export default function AdminSourcesPage() {
                           <span className="px-2 py-0.5 rounded-md bg-[#FF6B00]/20 text-[#FF6B00] font-bold text-[10px]">
                             Prioridade: {p.priority}
                           </span>
+                          {defaultProviderId === p.id && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-400/15 text-amber-300 border border-amber-400/25 font-bold text-[10px]">
+                              <Star size={11} className="fill-current" />
+                              Padrão
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] text-gray-400 font-mono truncate">{p.url}</p>
 
@@ -472,6 +497,17 @@ export default function AdminSourcesPage() {
 
                       {/* Controles de Ação */}
                       <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefaultProvider(p.id)}
+                          disabled={!p.enabled || defaultProviderId === p.id}
+                          className="px-3 py-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-200 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-default"
+                          title={p.enabled ? 'Usar como fonte padrão no player' : 'Ative a fonte antes de defini-la como padrão'}
+                        >
+                          <Star size={13} className={defaultProviderId === p.id ? 'fill-current' : ''} />
+                          <span>{defaultProviderId === p.id ? 'Fonte padrão' : 'Definir padrão'}</span>
+                        </button>
+
                         {/* Botão Testar Conexão Ao Vivo */}
                         <button
                           onClick={() => handleTestProvider(p)}

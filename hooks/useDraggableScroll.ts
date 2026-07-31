@@ -1,50 +1,125 @@
-import { useRef, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useDraggableScroll<T extends HTMLElement = HTMLDivElement>() {
-  const ref = useRef<T>(null);
+  const elementRef = useRef<T>(null);
+  const [slider, setSlider] = useState<T | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  const ref = useCallback((node: T | null) => {
+    elementRef.current = node;
+    setSlider(node);
+  }, []);
+
   useEffect(() => {
-    const slider = ref.current;
     if (!slider) return;
 
     let isDown = false;
     let startX = 0;
     let scrollLeft = 0;
     let hasDraggedDistance = false;
+    let suppressClickUntil = 0;
+    let activePointerId: number | null = null;
+    let lastPointerX = 0;
+    let lastPointerTime = 0;
+    let pointerStartedAt = 0;
+    let velocity = 0;
+    let momentumFrame: number | null = null;
 
-    const handleMouseDown = (e: MouseEvent) => {
-      // Only drag on left click
-      if (e.button !== 0) return;
+    const stopMomentum = () => {
+      if (momentumFrame !== null) {
+        cancelAnimationFrame(momentumFrame);
+        momentumFrame = null;
+      }
+    };
+
+    const startMomentum = () => {
+      if (
+        Math.abs(velocity) < 0.05 ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        return;
+      }
+
+      let previousTime = performance.now();
+      const glide = (time: number) => {
+        const elapsed = Math.min(time - previousTime, 32);
+        previousTime = time;
+        const previousScrollLeft = slider.scrollLeft;
+
+        slider.scrollLeft += velocity * elapsed;
+        velocity *= Math.pow(0.92, elapsed / 16.67);
+
+        const reachedEdge = slider.scrollLeft === previousScrollLeft;
+        if (Math.abs(velocity) < 0.02 || reachedEdge) {
+          momentumFrame = null;
+          return;
+        }
+
+        momentumFrame = requestAnimationFrame(glide);
+      };
+
+      momentumFrame = requestAnimationFrame(glide);
+    };
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+
+      stopMomentum();
       isDown = true;
       hasDraggedDistance = false;
-      startX = e.pageX - slider.offsetLeft;
+      activePointerId = e.pointerId;
+      startX = e.clientX;
+      lastPointerX = e.clientX;
+      lastPointerTime = performance.now();
+      pointerStartedAt = lastPointerTime;
+      velocity = 0;
       scrollLeft = slider.scrollLeft;
     };
 
-    const handleMouseLeave = () => {
-      if (isDown) {
-        isDown = false;
-        setIsDragging(false);
+    const finishDragging = (e: PointerEvent) => {
+      if (activePointerId !== e.pointerId) return;
+
+      if (slider.hasPointerCapture(e.pointerId)) {
+        slider.releasePointerCapture(e.pointerId);
       }
+
+      isDown = false;
+      activePointerId = null;
+      setIsDragging(false);
+      if (hasDraggedDistance) {
+        suppressClickUntil = performance.now() + 180;
+        const gestureDuration = Math.max(performance.now() - pointerStartedAt, 1);
+        const averageVelocity = Math.max(
+          -1.8,
+          Math.min(1.8, (-(e.clientX - startX) / gestureDuration) * 0.35)
+        );
+        if (Math.abs(averageVelocity) > Math.abs(velocity)) {
+          velocity = averageVelocity;
+        }
+        startMomentum();
+      }
+      hasDraggedDistance = false;
     };
 
-    const handleMouseUp = () => {
-      if (isDown) {
-        isDown = false;
-        setIsDragging(false);
-      }
-    };
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDown || activePointerId !== e.pointerId) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDown) return;
-      const x = e.pageX - slider.offsetLeft;
-      const walk = (x - startX) * 1.2;
+      const now = performance.now();
+      const elapsed = Math.max(now - lastPointerTime, 1);
+      const pointerDelta = e.clientX - lastPointerX;
+      const walk = e.clientX - startX;
+
+      velocity = velocity * 0.55 + (-pointerDelta / elapsed) * 0.45;
+      lastPointerX = e.clientX;
+      lastPointerTime = now;
+
       if (Math.abs(walk) > 4) {
         if (!hasDraggedDistance) {
           hasDraggedDistance = true;
           setIsDragging(true);
+          slider.setPointerCapture(e.pointerId);
         }
+
         e.preventDefault();
         slider.scrollLeft = scrollLeft - walk;
       }
@@ -52,27 +127,28 @@ export function useDraggableScroll<T extends HTMLElement = HTMLDivElement>() {
 
     // Intercept click if user was dragging so links/cards don't open accidentally
     const handleClickCapture = (e: MouseEvent) => {
-      if (hasDraggedDistance) {
+      if (performance.now() <= suppressClickUntil) {
         e.preventDefault();
         e.stopPropagation();
-        hasDraggedDistance = false;
+        suppressClickUntil = 0;
       }
     };
 
-    slider.addEventListener('mousedown', handleMouseDown);
-    slider.addEventListener('mouseleave', handleMouseLeave);
-    slider.addEventListener('mouseup', handleMouseUp);
-    slider.addEventListener('mousemove', handleMouseMove);
+    slider.addEventListener('pointerdown', handlePointerDown);
+    slider.addEventListener('pointerup', finishDragging);
+    slider.addEventListener('pointercancel', finishDragging);
+    slider.addEventListener('pointermove', handlePointerMove);
     slider.addEventListener('click', handleClickCapture, true);
 
     return () => {
-      slider.removeEventListener('mousedown', handleMouseDown);
-      slider.removeEventListener('mouseleave', handleMouseLeave);
-      slider.removeEventListener('mouseup', handleMouseUp);
-      slider.removeEventListener('mousemove', handleMouseMove);
+      stopMomentum();
+      slider.removeEventListener('pointerdown', handlePointerDown);
+      slider.removeEventListener('pointerup', finishDragging);
+      slider.removeEventListener('pointercancel', finishDragging);
+      slider.removeEventListener('pointermove', handlePointerMove);
       slider.removeEventListener('click', handleClickCapture, true);
     };
-  }, []);
+  }, [slider]);
 
-  return { ref, isDragging };
+  return { ref, elementRef, isDragging };
 }

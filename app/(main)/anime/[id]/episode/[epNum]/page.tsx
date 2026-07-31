@@ -1,6 +1,6 @@
 'use client';
 
-import React, { use } from 'react';
+import React, { use, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import { DetailSkeleton } from '@/components/ui/LoadingSkeleton';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
+import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 
 export default function EpisodePlayerPage({ params }: { params: Promise<{ id: string; epNum: string }> }) {
   const router = useRouter();
@@ -18,6 +19,23 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
   const epNum = parseInt(resolvedParams.epNum, 10);
 
   const { progressMap } = useWatchProgress();
+  const [preferredProvider, setPreferredProvider] = React.useState<string | null>(null);
+  const [isProviderPreferenceReady, setIsProviderPreferenceReady] = React.useState(false);
+  const {
+    ref: episodeScrollRef,
+    elementRef: episodeScrollElementRef,
+    isDragging: isEpisodeDragging,
+  } =
+    useDraggableScroll<HTMLDivElement>();
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPreferredProvider(window.localStorage.getItem('preferredStreamProvider'));
+      setIsProviderPreferenceReady(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   // Fetch Anime Main Info
   const { data: anime, isLoading: isLoadingAnime } = useQuery({
@@ -39,7 +57,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
     isLoading: isResolvingStream,
     isFetching: isRefreshingStream,
   } = useQuery({
-    queryKey: ['streamResolve', animeId, epNum],
+    queryKey: ['streamResolve', animeId, epNum, preferredProvider],
     queryFn: async () => {
       try {
         const res = await fetch('/api/streams/resolve', {
@@ -53,6 +71,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
             animeTitle: anime?.title_english || anime?.title,
             originalTitle: anime?.title_japanese,
             aliases: anime?.titles?.map((title) => title.title).filter(Boolean),
+            preferredProvider: preferredProvider || undefined,
           }),
         });
         const data = await res.json();
@@ -74,7 +93,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
         };
       }
     },
-    enabled: !isNaN(animeId) && !isNaN(epNum) && Boolean(anime),
+    enabled: !isNaN(animeId) && !isNaN(epNum) && Boolean(anime) && isProviderPreferenceReady,
   });
 
   const episodeList = React.useMemo(() => {
@@ -95,6 +114,18 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
       );
     });
   }, [anime?.episodes, episodes]);
+
+  useEffect(() => {
+    const currentCard = episodeScrollElementRef.current?.querySelector<HTMLElement>(
+      `[data-episode="${epNum}"]`
+    );
+
+    currentCard?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
+  }, [epNum, episodeList.length, episodeScrollElementRef]);
 
   if (isLoadingAnime) {
     return <DetailSkeleton />;
@@ -162,6 +193,10 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
             router.push(`/anime/${animeId}/episode/${nextEp}`);
           }
         }}
+        onProviderChange={(provider) => {
+          window.localStorage.setItem('preferredStreamProvider', provider);
+          setPreferredProvider(provider);
+        }}
       />
 
       {/* Episode Carousel below player for binge-watching */}
@@ -175,7 +210,13 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Sliding Episode Row */}
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 select-none">
+        <div
+          ref={episodeScrollRef}
+          aria-label="Lista de episódios. Arraste horizontalmente para navegar."
+          className={`episode-scrollbar flex touch-pan-y items-stretch gap-2 overflow-x-auto pb-3 pt-2 pr-2 select-none overscroll-x-contain cursor-grab active:cursor-grabbing ${
+            isEpisodeDragging ? 'scroll-auto' : 'scroll-smooth'
+          }`}
+        >
           {episodeList.map((ep, index) => {
             const isCurrent = ep.mal_id === epNum;
             const progress = progressMap[`${animeId}_ep_${ep.mal_id}`];
@@ -183,20 +224,22 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
             return (
               <Link
                 key={`${ep.mal_id}-${index}`}
+                data-episode={ep.mal_id}
                 href={`/anime/${animeId}/episode/${ep.mal_id}`}
-                className={`relative flex-shrink-0 w-44 sm:w-52 p-3 rounded-2xl border transition-all overflow-hidden space-y-2 ${
-                  isCurrent ? 'bg-[#FF6B00]/20 border-[#FF6B00] ring-2 ring-[#FF6B00]/40 shadow-xl shadow-[#FF6B00]/20' : 'glass-panel hover:bg-white/10 text-gray-300 border-white/10'
+                draggable={false}
+                className={`group relative flex-shrink-0 w-36 sm:w-40 p-2 rounded-xl border transition-[transform,background-color,border-color,box-shadow] duration-200 ease-out hover:-translate-y-1 overflow-hidden space-y-1.5 ${
+                  isCurrent ? 'bg-[#FF6B00]/20 border-[#FF6B00] ring-1 ring-[#FF6B00]/50 shadow-lg shadow-[#FF6B00]/15 hover:shadow-xl hover:shadow-[#FF6B00]/25' : 'glass-panel hover:bg-white/10 text-gray-300 border-white/10 hover:border-[#FF6B00]/40 hover:shadow-xl hover:shadow-black/30'
                 }`}
               >
                 {/* Poster Preview / Thumbnail Header */}
-                <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-neutral-900 border border-white/10">
+                <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-neutral-900 border border-white/10 pointer-events-none">
                   {posterUrl ? (
                     <SafeImage
                       src={posterUrl}
                       animeId={animeId}
                       alt={ep.title || `Episódio ${ep.mal_id}`}
                       fill
-                      sizes="(max-width: 640px) 176px, 208px"
+                      sizes="(max-width: 640px) 144px, 160px"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
@@ -204,14 +247,14 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
                   )}
 
                   {isCurrent && (
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-[#FF6B00] text-white font-black text-[10px] shadow-md flex items-center gap-1 uppercase tracking-wider">
+                    <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-[#FF6B00] text-white font-black text-[9px] shadow-md flex items-center gap-1 uppercase tracking-wide">
                       <Clock size={10} />
                       <span>Assistindo</span>
                     </div>
                   )}
 
                   {progress?.completed && (
-                    <div className="absolute top-2 right-2 p-1 rounded-full bg-emerald-500 text-black shadow-md">
+                    <div className="absolute top-1.5 right-1.5 p-1 rounded-full bg-emerald-500 text-black shadow-md">
                       <CheckCircle2 size={12} />
                     </div>
                   )}
@@ -223,7 +266,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
                     <span className={`text-xs font-black ${isCurrent ? 'text-[#FF6B00]' : 'text-white'}`}>EP {ep.mal_id}</span>
                     {progress && !progress.completed && progress.percentage > 0 && <span className="text-[10px] text-gray-400 font-mono">{progress.percentage}%</span>}
                   </div>
-                  <p className="text-[11px] text-gray-300 truncate font-semibold mt-0.5">{ep.title || `Episódio ${ep.mal_id}`}</p>
+                  <p className="text-[10px] text-gray-300 truncate font-semibold mt-0.5">{ep.title || `Episódio ${ep.mal_id}`}</p>
                 </div>
 
                 {/* Bottom Watch Progress Line */}

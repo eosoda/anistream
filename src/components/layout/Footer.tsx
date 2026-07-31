@@ -4,11 +4,11 @@ import { Play, Heart, ExternalLink, ShieldCheck } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="w-full bg-[#07070A] border-t border-white/10 mt-16 md:mt-20 text-gray-400 mb-16 lg:mb-0">
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+    <footer className="mb-16 mt-10 w-full border-t border-white/10 bg-[#07070A] text-gray-400 md:mt-16 lg:mb-0">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-10">
+        <div className="mb-8 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4 md:gap-8">
           {/* Column 1: Brand */}
-          <div className="md:col-span-2 space-y-4">
+          <div className="col-span-2 space-y-3 md:space-y-4">
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-[#FF6B00] flex items-center justify-center text-white">
                 <Play size={16} className="fill-current ml-0.5" />
@@ -17,21 +17,21 @@ export function Footer() {
                 ANI<span className="text-[#FF6B00]">STREAM</span>
               </span>
             </Link>
-            <p className="text-xs text-gray-400 max-w-sm leading-relaxed">
+            <p className="max-w-md text-xs leading-5 text-gray-400">
               Plataforma moderna de exploração, catálogo e streaming de animes com suporte offline PWA,
               assistente de instalação e atalhos avançados de player.
             </p>
-            <div className="text-xs text-gray-500 pt-2 flex items-center gap-1">
+            <div className="flex items-center gap-1 text-xs text-gray-500 md:pt-1">
               Desenvolvido com <Heart size={12} className="text-[#FF6B00] fill-current" /> para a comunidade otaku.
             </div>
           </div>
 
           {/* Column 2: Navigation */}
           <div>
-            <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">
+            <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
               Navegação
             </h4>
-            <ul className="space-y-2.5 text-xs font-semibold">
+            <ul className="space-y-2 text-xs font-semibold">
               <li>
                 <Link href="/" className="hover:text-[#FF6B00] transition-colors">
                   Página Inicial
@@ -67,10 +67,10 @@ export function Footer() {
 
           {/* Column 3: API Credits & Admin */}
           <div>
-            <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">
+            <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
               Fontes & Administração
             </h4>
-            <ul className="space-y-2.5 text-xs font-semibold">
+            <ul className="space-y-2 text-xs font-semibold">
               <li>
                 <a
                   href="https://jikan.moe"
@@ -93,10 +93,10 @@ export function Footer() {
                   <ExternalLink size={12} />
                 </a>
               </li>
-              <li className="pt-2">
+              <li className="pt-1">
                 <Link
                   href="/admin/login"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold transition-all"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-[10px] border border-white/10 bg-white/5 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-white/10"
                 >
                   <ShieldCheck size={14} className="text-[#FF6B00]" />
                   <span>Painel Administrativo</span>
@@ -107,11 +107,12 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500">
+        <div className="flex flex-col items-start justify-between gap-2 border-t border-white/5 pt-5 text-[11px] text-gray-500 sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} AniStream. Todos os direitos reservados.</p>
           <div className="flex items-center gap-4">
-            <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-gray-400">
-              Versão 2.0.0 (PWA + HLS Player + Admin CRUD)
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-gray-400">
+              <span className="sm:hidden">Versão 2.0.0</span>
+              <span className="hidden sm:inline">Versão 2.0.0 (PWA + HLS Player + Admin CRUD)</span>
             </span>
           </div>
         </div>

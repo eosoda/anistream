@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Play, Heart, Tv, Sparkles, CheckCircle, PlayCircle, Mic, MessageSquare, Eye } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
@@ -21,6 +22,7 @@ interface AnimeCardProps {
 }
 
 export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, index }: AnimeCardProps) {
+  const router = useRouter();
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const { isFavorite, toggleFavoriteWithConfirm, newEpisodesMap, markAsSeen } = useFavorites();
   const { getAnimeOverallProgress } = useWatchProgress();
@@ -51,6 +53,10 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, i
 
   return (
     <motion.div
+      onClick={(event) => {
+        if (event.defaultPrevented || (event.target as HTMLElement).closest('a, button')) return;
+        router.push(`/anime/${anime.mal_id}`);
+      }}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -58,7 +64,7 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false, i
         delay: index !== undefined ? Math.min((index % 12) * 0.04, 0.36) : 0,
         ease: [0.21, 0.47, 0.32, 0.98],
       }}
-      className={`group relative flex flex-col w-full h-full rounded-xl overflow-hidden glass-panel glass-panel-hover transition-all duration-300 ease-out ${
+      className={`group relative flex flex-col w-full h-full cursor-pointer rounded-xl overflow-hidden glass-panel glass-panel-hover transition-all duration-300 ease-out ${
         hasNewEpisode ? 'ring-2 ring-emerald-500/70 shadow-lg shadow-emerald-500/20' : ''
       }`}
     >
