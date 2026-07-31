@@ -1,0 +1,2 @@
+import { DatabaseBackup } from 'lucide-react'; import { OperationalPage } from '@/components/admin/OperationalPage';
+export default function Page() { return <OperationalPage title="Backups" description="Proteção e recuperação dos dados do catálogo." icon={DatabaseBackup} items={[{ title: 'Estado dos backups', description: 'Nenhuma ação destrutiva é executada nesta página.', status: 'attention' }, { title: 'Ferramentas existentes', description: 'Acesse os controles atuais no dashboard.', href: '/admin' }]} />; }

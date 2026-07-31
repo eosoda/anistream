@@ -1,0 +1,2 @@
+import { Settings } from 'lucide-react'; import { OperationalPage } from '@/components/admin/OperationalPage';
+export default function Page() { return <OperationalPage title="Sistema" description="Saúde da aplicação e atalhos seguros para configuração." icon={Settings} items={[{ title: 'Configuração geral', description: 'Preferências públicas e comportamento do aplicativo.', href: '/admin' }, { title: 'Diagnóstico', description: 'Serviços principais disponíveis.', status: 'ok' }]} />; }

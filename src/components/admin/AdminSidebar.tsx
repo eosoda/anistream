@@ -14,6 +14,11 @@ import {
   Flame,
   Wrench,
   ExternalLink,
+  Settings,
+  RadioTower,
+  DatabaseBackup,
+  PlugZap,
+  Rocket,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -63,6 +68,11 @@ export function AdminSidebar({
       exact: false,
       icon: <Navigation size={18} />,
     },
+    { name: 'Sistema', href: '/admin/system', exact: true, icon: <Settings size={18} /> },
+    { name: 'Comunicados', href: '/admin/broadcasts', exact: true, icon: <RadioTower size={18} /> },
+    { name: 'Backups', href: '/admin/backups', exact: true, icon: <DatabaseBackup size={18} /> },
+    { name: 'Integrações', href: '/admin/integrations', exact: true, icon: <PlugZap size={18} /> },
+    { name: 'Releases', href: '/admin/releases', exact: true, icon: <Rocket size={18} /> },
   ];
 
   const isActive = (item: { href: string; exact: boolean }) => {

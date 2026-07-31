@@ -1,0 +1,2 @@
+import { PlugZap } from 'lucide-react'; import { OperationalPage } from '@/components/admin/OperationalPage';
+export default function Page() { return <OperationalPage title="Integrações" description="Provedores de metadados, mídia e serviços conectados." icon={PlugZap} items={[{ title: 'Fontes de episódios', description: 'Saúde, prioridade e disponibilidade.', href: '/admin/sources' }, { title: 'Testador de mídia', description: 'Diagnóstico detalhado dos streams.', href: '/admin/sources/tester' }]} />; }
