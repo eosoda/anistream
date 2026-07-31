@@ -2,6 +2,16 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { apiSuccess, apiError } from '@/lib/api/response';
 
+const HOME_SECTION_IDS = new Set([
+  'hero',
+  'quick_filter',
+  'continue_watching',
+  'trending',
+  'season_now',
+  'top_popular',
+  'top_rated',
+]);
+
 export async function GET(request: NextRequest) {
   try {
     const settingsList = await prisma.systemSetting.findMany({
@@ -22,7 +32,9 @@ export async function GET(request: NextRequest) {
     return apiSuccess({
       navigation: settingsMap.get('public_navigation') || null,
       pages: settingsMap.get('page_features') || null,
-      homeSections: settingsMap.get('home_sections') || null,
+      homeSections: Array.isArray(settingsMap.get('home_sections'))
+        ? settingsMap.get('home_sections').filter((section: { id?: string }) => section.id && HOME_SECTION_IDS.has(section.id))
+        : null,
     });
   } catch (err: any) {
     return apiError('ADMIN_NAVIGATION_FETCH_ERROR', err.message, 500);
@@ -57,11 +69,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (homeSections && Array.isArray(homeSections)) {
+      const supportedHomeSections = homeSections.filter(
+        (section: { id?: string }) => section.id && HOME_SECTION_IDS.has(section.id)
+      );
       updates.push(
         prisma.systemSetting.upsert({
           where: { key: 'home_sections' },
-          update: { value: JSON.stringify(homeSections) },
-          create: { key: 'home_sections', value: JSON.stringify(homeSections) },
+          update: { value: JSON.stringify(supportedHomeSections) },
+          create: { key: 'home_sections', value: JSON.stringify(supportedHomeSections) },
         })
       );
     }

@@ -45,8 +45,8 @@ const DEFAULT_HOME_SECTIONS: HomeSectionConfig[] = [
   { id: 'season_now', name: 'Temporada Atual', enabled: true, order: 5 },
   { id: 'top_popular', name: 'Mais Populares', enabled: true, order: 6 },
   { id: 'top_rated', name: 'Mais Bem Avaliados', enabled: true, order: 7 },
-  { id: 'recommendations', name: 'Recomendações Imperdíveis', enabled: true, order: 8 },
 ];
+const HOME_SECTION_IDS = new Set(DEFAULT_HOME_SECTIONS.map((section) => section.id));
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,7 +67,10 @@ export async function GET(request: NextRequest) {
 
     const navigation: NavItemConfig[] = settingsMap.get('public_navigation') || DEFAULT_NAVIGATION;
     const pages: PageFeatureConfig[] = settingsMap.get('page_features') || DEFAULT_PAGES;
-    const homeSections: HomeSectionConfig[] = settingsMap.get('home_sections') || DEFAULT_HOME_SECTIONS;
+    const storedHomeSections = settingsMap.get('home_sections');
+    const homeSections: HomeSectionConfig[] = Array.isArray(storedHomeSections)
+      ? storedHomeSections.filter((section) => HOME_SECTION_IDS.has(section.id))
+      : DEFAULT_HOME_SECTIONS;
 
     return apiSuccess(
       {

@@ -78,7 +78,7 @@ Dense, flat, and comparable. Prefer tables, grouped rows, split panes, and spars
 - Do not use global overflow clipping to hide layout defects.
 - Mobile navigation contains four primary destinations plus More.
 - Tablet layouts are intentionally composed rather than treated as compressed desktop.
-- Fixed navigation, recommendations, PWA banners, toasts, and player controls share a documented safe-area/layer scale.
+- Fixed navigation, PWA banners, toasts, and player controls share a documented safe-area/layer scale.
 
 ## Content rules
 

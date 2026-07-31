@@ -20,7 +20,6 @@ import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
 import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { EpisodeRemindersPanel } from '@/components/home/EpisodeRemindersPanel';
-import { ForYouSection } from '@/components/home/ForYouSection';
 import { Tooltip } from '@/components/ui/Tooltip';
 
 export default function FavoritesPage() {
@@ -32,8 +31,6 @@ export default function FavoritesPage() {
     lastCheckTime,
     checkNewEpisodes,
     markAllAsSeen,
-    recommendationsEnabled,
-    toggleRecommendationsEnabled,
   } = useFavorites();
 
   const { showToast } = useToast();
@@ -245,63 +242,6 @@ export default function FavoritesPage() {
         </div>
       )}
 
-      {/* Recommendation Settings Card */}
-      <div className="p-5 rounded-3xl bg-gradient-to-r from-[#171322] via-[#12131D] to-[#0D0E15] border border-white/10 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div
-            className={`p-3 rounded-2xl border transition-all ${
-              recommendationsEnabled
-                ? 'bg-[#FF6B00]/20 text-[#FF6B00] border-[#FF6B00]/30'
-                : 'bg-white/5 text-gray-400 border-white/10'
-            }`}
-          >
-            <Sparkles size={22} className={recommendationsEnabled ? 'animate-spin-slow' : ''} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm sm:text-base font-extrabold text-white">
-                Recomendações Personalizadas
-              </h3>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                  recommendationsEnabled
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                }`}
-              >
-                {recommendationsEnabled ? 'Ativadas' : 'Desativadas'}
-              </span>
-            </div>
-            <p className="text-xs text-gray-400 mt-0.5 max-w-xl">
-              Gera sugestões de animes com base nos seus <strong className="text-white">Favoritos</strong> e nos <strong className="text-white">Animes Assistidos</strong>.
-            </p>
-          </div>
-        </div>
-
-        {/* Toggle Switch */}
-        <button
-          onClick={toggleRecommendationsEnabled}
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border font-bold text-xs transition-all ${
-            recommendationsEnabled
-              ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-lg shadow-[#FF6B00]/30'
-              : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:text-white'
-          }`}
-        >
-          <span>{recommendationsEnabled ? 'Desativar Recomendações' : 'Ativar Recomendações'}</span>
-          <div
-            className={`w-10 h-5 rounded-full p-0.5 transition-colors relative flex items-center ${
-              recommendationsEnabled ? 'bg-black/40' : 'bg-white/20'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                recommendationsEnabled ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </div>
-        </button>
-      </div>
-
       {/* Episode Reminders Panel */}
       <EpisodeRemindersPanel favorites={favorites} />
 
@@ -393,12 +333,6 @@ export default function FavoritesPage() {
         />
       )}
 
-      {/* Recommendations Section in Favorites Page */}
-      {recommendationsEnabled && (
-        <div className="pt-8 border-t border-white/10 space-y-4">
-          <ForYouSection />
-        </div>
-      )}
     </div>
   );
 }

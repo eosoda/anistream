@@ -41,18 +41,6 @@ for (const path of ['/pesquisa?q=frieren', '/admin/login', '/anime/52991', '/ani
   });
 }
 
-test('drawer de recomendações gerencia foco e Escape', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
-  const trigger = page.getByRole('button', { name: /abrir recomendações/i });
-  await trigger.click();
-  const dialog = page.getByRole('dialog', { name: /recomendações para você/i });
-  await expect(dialog).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-  await expect(trigger).toBeFocused();
-});
-
 test('formulários administrativos não têm violações graves', async ({ page }) => {
   await authenticateAdmin(page);
   await page.setViewportSize({ width: 1440, height: 900 });

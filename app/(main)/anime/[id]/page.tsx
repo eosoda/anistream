@@ -23,7 +23,6 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
-  Sparkles,
   ListVideo,
   Info,
 } from 'lucide-react';
@@ -34,7 +33,6 @@ import { GenreBadge } from '@/components/ui/GenreBadge';
 import { EpisodeList } from '@/components/player/EpisodeList';
 import { CharacterCard } from '@/components/anime/CharacterCard';
 import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
-import { RecommendationCard } from '@/components/anime/RecommendationCard';
 import { DetailSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -51,7 +49,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
   const resolvedParams = use(params);
   const animeId = parseInt(resolvedParams.id, 10);
 
-  const [activeTab, setActiveTab] = useState<'episodes' | 'info' | 'characters' | 'relations' | 'recommendations'>('episodes');
+  const [activeTab, setActiveTab] = useState<'episodes' | 'info' | 'characters' | 'relations'>('episodes');
   const [isSynopsisExpanded, setIsSynopsisExpanded] = useState(false);
   const [showTrailer, setShowTrailer] = useState(false);
   const closeTrailer = useCallback(() => setShowTrailer(false), []);
@@ -92,13 +90,6 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
   const { data: relations } = useReactQuery({
     queryKey: ['animeRelations', animeId],
     queryFn: () => jikanService.getAnimeRelations(animeId),
-    enabled: !isNaN(animeId),
-  });
-
-  // 6. Fetch Recommendations
-  const { data: recommendations } = useReactQuery({
-    queryKey: ['animeRecommendations', animeId],
-    queryFn: () => jikanService.getAnimeRecommendations(animeId),
     enabled: !isNaN(animeId),
   });
 
@@ -421,17 +412,6 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                 Personagens ({characters?.length || 0})
               </button>
 
-              <button
-                onClick={() => setActiveTab('recommendations')}
-                className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 whitespace-nowrap transition-all ${
-                  activeTab === 'recommendations'
-                    ? 'bg-[#FF6B00] text-black shadow-lg shadow-[#FF6B00]/30'
-                    : 'bg-white/5 hover:bg-white/10 text-gray-400 border border-white/5'
-                }`}
-              >
-                <Sparkles size={18} />
-                Recomendações ({recommendations?.length || 0})
-              </button>
             </div>
 
             {/* TAB CONTENT 1: EPISODES (DEFAULT OPEN) */}
@@ -553,20 +533,6 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
 
-            {/* TAB CONTENT 4: RECOMMENDATIONS */}
-            {activeTab === 'recommendations' && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {recommendations && recommendations.length > 0 ? (
-                  recommendations.slice(0, 12).map((rec, i) => (
-                    <RecommendationCard key={`${rec.entry?.mal_id || 'rec'}-${i}`} item={rec} />
-                  ))
-                ) : (
-                  <p className="text-gray-400 text-sm col-span-full text-center py-8">
-                    Nenhuma recomendação disponível.
-                  </p>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Right Sidebar Column (4 cols) */}

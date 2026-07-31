@@ -21,7 +21,7 @@
 ### Consumo de Dados & Estado
 - **@tanstack/react-query (v5)**: Gerenciamento avançado de estado de servidor, cache, invalidação e refetching automático.
 - **Jikan API v4 (MyAnimeList REST API)**: Fonte primária de metadados de animes, episódios, personagens, fotos e rankings.
-- **AniList API (GraphQL)**: Fonte complementar para capas HD e recomendações avançadas.
+- **AniList API (GraphQL)**: Fonte complementar para capas em alta resolução.
 
 ### Armazenamento Local & Offline
 - **LocalStorage**: Persistência de favoritos do usuário, preferências de visualização e progresso de vídeos.

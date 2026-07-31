@@ -19,8 +19,6 @@ export interface NewEpisodeInfo {
   lastChecked?: number;
 }
 
-const RECOMMENDATIONS_ENABLED_KEY = 'anistream_recommendations_enabled_v1';
-
 export interface SeenRecord {
   lastSeenEp?: number;
   lastSeenTimestamp?: number;
@@ -39,34 +37,11 @@ interface FavoritesContextType {
   checkNewEpisodes: (forceRefresh?: boolean) => Promise<void>;
   markAsSeen: (malId: number, epNum?: number) => void;
   markAllAsSeen: () => void;
-  recommendationsEnabled: boolean;
-  setRecommendationsEnabled: (enabled: boolean) => void;
-  toggleRecommendationsEnabled: () => void;
 }
 
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
 
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
-  const [recommendationsEnabled, setRecommendationsEnabledState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    try {
-      const stored = localStorage.getItem(RECOMMENDATIONS_ENABLED_KEY);
-      return stored !== null ? JSON.parse(stored) : true;
-    } catch {
-      return true;
-    }
-  });
-
-  const setRecommendationsEnabled = (enabled: boolean) => {
-    setRecommendationsEnabledState(enabled);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(RECOMMENDATIONS_ENABLED_KEY, JSON.stringify(enabled));
-    }
-  };
-
-  const toggleRecommendationsEnabled = () => {
-    setRecommendationsEnabled(!recommendationsEnabled);
-  };
   const [favorites, setFavorites] = useState<JikanAnime[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -405,9 +380,6 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         checkNewEpisodes,
         markAsSeen,
         markAllAsSeen,
-        recommendationsEnabled,
-        setRecommendationsEnabled,
-        toggleRecommendationsEnabled,
       }}
     >
       {children}
@@ -431,9 +403,6 @@ export function useFavoritesContext() {
       checkNewEpisodes: async () => {},
       markAsSeen: () => {},
       markAllAsSeen: () => {},
-      recommendationsEnabled: true,
-      setRecommendationsEnabled: () => {},
-      toggleRecommendationsEnabled: () => {},
     };
   }
   return context;

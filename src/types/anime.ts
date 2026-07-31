@@ -136,16 +136,6 @@ export interface JikanRelation {
   }[];
 }
 
-export interface JikanRecommendation {
-  entry: {
-    mal_id: number;
-    url: string;
-    images: JikanImage;
-    title: string;
-  };
-  votes: number;
-}
-
 export interface AniListMedia {
   id: number;
   idMal: number;

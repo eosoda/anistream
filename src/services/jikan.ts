@@ -4,7 +4,6 @@ import {
   JikanCharacter,
   JikanEpisode,
   JikanGenre,
-  JikanRecommendation,
   JikanRelation,
 } from '@/types/anime';
 import { FALLBACK_ANIMES } from '@/data/fallbackAnime';
@@ -241,18 +240,6 @@ export const jikanService = {
     return throttleRequest(async () => {
       try {
         const res = await jikanClient.get(`/anime/${id}/relations`);
-        return res.data.data || [];
-      } catch {
-        return [];
-      }
-    });
-  },
-
-  // Recomendações
-  async getAnimeRecommendations(id: number): Promise<JikanRecommendation[]> {
-    return throttleRequest(async () => {
-      try {
-        const res = await jikanClient.get(`/anime/${id}/recommendations`);
         return res.data.data || [];
       } catch {
         return [];

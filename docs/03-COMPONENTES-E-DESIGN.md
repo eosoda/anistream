@@ -24,7 +24,7 @@ components/
 - [`AnimeCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/AnimeCard.tsx): Card visual em formato portrait/wide com poster, badge de nota, botão rápido de favorito e pré-visualização.
 - [`CompactAnimeCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/CompactAnimeCard.tsx): Card compacto em linha para exibição densa de listas e busca rápida com botão "Marcar Visto".
 - [`AnimeCarousel.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/AnimeCarousel.tsx): Carrossel horizontal responsivo com controle por setas e suporte a arraste por mouse/touch (`useDraggableScroll`).
-- [`CharacterCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/CharacterCard.tsx) & [`RecommendationCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/RecommendationCard.tsx): Cards de personagens/dubladores e animes sugeridos.
+- [`CharacterCard.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/anime/CharacterCard.tsx): Cards de personagens e dubladores.
 
 ### 🎬 Domínio Player (`components/player/`)
 - [`VideoPlayer.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/player/VideoPlayer.tsx): Player de vídeo com popover multinível de configurações ⚙️ (Áudio/Legendas, Velocidade, Apagar Luzes, Atalhos e Reportar), HLS adaptativo (`hls.js`), auditoria de erros nativos HTML5 (`MediaError`) e pill flutuante *"Pular Abertura (+85s)"*.
@@ -41,7 +41,6 @@ components/
 - **Barra de Quick Multi-Filter Pills**: Filtros em tempo real na Home (`[ ✨ Todos ]`, `[ 🎙️ Dublados ]`, `[ 🇯🇵 Legendados ]`, `[ 🔥 Em Alta ]`).
 - [`ContinueWatchingSection.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/home/ContinueWatchingSection.tsx): Carrossel de animes que o usuário começou a assistir com porcentagem concluída.
 - [`EpisodeRemindersPanel.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/home/EpisodeRemindersPanel.tsx): Painel de gerenciamento de lembretes e lançamentos semanais.
-- [`FloatingRecommendationsWidget.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/home/FloatingRecommendationsWidget.tsx): Widget flutuante no canto inferior para recomendações em tempo real.
 
 ### ⚛️ Domínio UI (`components/ui/`)
 - [`SafeImage.tsx`](file:///c:/Users/junin/Documents/projetos/anistream/components/ui/SafeImage.tsx): Componente seguro de imagem com fallback automático contra links quebrados ou 404.

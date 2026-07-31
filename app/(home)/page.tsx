@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Flame, Star, Calendar, TrendingUp, Compass } from 'lucide-react';
+import { Flame, Star, Calendar, TrendingUp } from 'lucide-react';
 import { BannerHero } from '@/components/home/BannerHero';
 import { AnimeCarousel } from '@/components/anime/AnimeCarousel';
 import { ContinueWatchingSection } from '@/components/home/ContinueWatchingSection';
@@ -117,13 +117,6 @@ export default function HomePage() {
           viewAllHref="/populares"
         />
 
-        {/* Section 5: Recomendações em Destaque */}
-        <DeferredHomeCarousel
-          title="Recomendações Imperdíveis"
-          subtitle="Seleção especial recomendada pela comunidade otaku"
-          icon={<Compass size={22} className="text-[#FF6B00]" />}
-          animes={seasonAnimes.slice(5, 12)}
-        />
       </div>
     </div>
   );
