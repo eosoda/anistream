@@ -215,7 +215,7 @@ export default function FavoritesPage() {
       {newEpisodesCount > 0 && (
         <div className="p-4 rounded-3xl bg-gradient-to-r from-emerald-900/40 via-teal-900/30 to-neutral-900 border border-emerald-500/40 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-emerald-500 text-black shadow-lg shadow-emerald-500/30 flex-shrink-0 animate-bounce">
+            <div className="p-3 rounded-2xl bg-emerald-500 text-black shadow-lg shadow-emerald-500/30 flex-shrink-0">
               <BellRing size={20} />
             </div>
             <div>

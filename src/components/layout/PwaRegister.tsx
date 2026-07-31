@@ -86,7 +86,7 @@ export function PwaRegister() {
   if (!showInstallBtn) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-neutral-900/95 border border-[#FF6B00]/40 shadow-2xl backdrop-blur-md flex items-center gap-3 text-xs text-white animate-bounce">
+    <div className="fixed bottom-[calc(var(--bottom-nav-height)+1rem+env(safe-area-inset-bottom))] right-4 z-40 p-4 rounded-2xl bg-neutral-900/95 border border-[#FF6B00]/40 shadow-2xl backdrop-blur-md flex items-center gap-3 text-xs text-white lg:bottom-6 lg:right-6">
       <div className="p-2 rounded-xl bg-[#FF6B00] text-white">
         <Download size={18} />
       </div>

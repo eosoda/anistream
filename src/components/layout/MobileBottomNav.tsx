@@ -42,7 +42,7 @@ export function MobileBottomNav() {
               <div className="relative">
                 {item.icon}
                 {item.newBadge ? (
-                  <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-emerald-500 text-black text-[9px] font-black flex items-center justify-center animate-bounce shadow-md">
+                  <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-emerald-500 text-black text-[9px] font-black flex items-center justify-center shadow-md">
                     {item.newBadge}
                   </span>
                 ) : item.badge ? (

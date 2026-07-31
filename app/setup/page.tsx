@@ -760,7 +760,7 @@ Hosts de Mídia     : ${mediaHosts}
         {/* Passo 5: Sucesso & Conclusão */}
         {currentStep === 5 && (
           <div className="text-center space-y-6 py-6">
-            <CheckCircle2 size={64} className="text-emerald-400 mx-auto animate-bounce" />
+            <CheckCircle2 size={64} className="text-emerald-400 mx-auto" />
             <div className="space-y-2">
               <h2 className="text-2xl font-black text-white">Instalação Concluída com Sucesso!</h2>
               <p className="text-xs text-gray-300 max-w-md mx-auto">

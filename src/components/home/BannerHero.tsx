@@ -184,7 +184,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
         title="Explorar o catálogo completo abaixo"
       >
         <span>Ver Catálogo</span>
-        <ChevronDown size={14} className="text-[#FF6B00] group-hover:text-white animate-bounce" />
+        <ChevronDown size={14} className="text-[#FF6B00] group-hover:text-white" />
       </button>
 
       {/* Manual Slide Controls and Thumbnail Tabs */}

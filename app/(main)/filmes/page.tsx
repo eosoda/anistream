@@ -79,12 +79,12 @@ export default function FilmesPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-8 space-y-8 animate-fade-in">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#1A0B1E] via-[#151221] to-[#0D111E] border border-purple-500/20 p-6 sm:p-10 shadow-2xl">
-        <div className="absolute -top-24 -right-24 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-[var(--radius-media)] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-6 sm:p-10">
+        <div className="absolute -top-24 -right-24 w-80 h-80 bg-[#FF6B00]/8 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-[#FF6B00]/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 space-y-4 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#FF6B00]/30 bg-[#FF6B00]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#FF8533]">
             <Clapperboard size={14} />
             Catálogo Cinematográfico
           </div>
