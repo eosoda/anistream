@@ -216,6 +216,7 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
         <div className="flex items-center justify-end pt-1 border-t border-white/5">
           <Tooltip content={favorited ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'} position="left">
             <button
+              aria-label={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();

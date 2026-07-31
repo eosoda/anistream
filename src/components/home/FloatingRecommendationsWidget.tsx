@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   Sparkles,
   X,
@@ -20,6 +20,7 @@ import { useWatchProgress } from '@/hooks/useWatchProgress';
 import type { JikanAnime } from '@/types/anime';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { RatingBadge } from '@/components/ui/RatingBadge';
+import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
 import { Tooltip } from '@/components/ui/Tooltip';
 
 export function FloatingRecommendationsWidget({ initialOpen = false }: { initialOpen?: boolean }) {
@@ -28,6 +29,9 @@ export function FloatingRecommendationsWidget({ initialOpen = false }: { initial
   const { getWatchHistory } = useWatchProgress();
 
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeDrawer = useCallback(() => { setIsOpen(false); window.setTimeout(() => triggerRef.current?.focus(), 0); }, []);
+  const { panelRef, titleId } = useDialogAccessibility(isOpen, closeDrawer);
   const [isDismissed, setIsDismissed] = useState(false);
   const [recommendationResult, setRecommendationResult] = useState<{
     genreId: number;
@@ -120,6 +124,7 @@ export function FloatingRecommendationsWidget({ initialOpen = false }: { initial
       <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] right-4 z-40 flex items-center gap-2 lg:bottom-6 lg:right-6">
         {/* Main Floating Trigger */}
         <button
+          ref={triggerRef}
           onClick={() => setIsOpen(true)}
           aria-label="Abrir recomendações para você"
           className="group relative flex size-11 items-center justify-center rounded-full border border-black/20 bg-[#FF6B00] text-xs font-black text-black shadow-[0_10px_30px_rgba(255,107,0,0.3)] transition-[transform,background-color,box-shadow] hover:bg-[#FF8533] hover:shadow-[0_12px_34px_rgba(255,107,0,0.4)] active:scale-95 lg:size-auto lg:min-h-11 lg:gap-2.5 lg:px-4 lg:py-2.5 lg:text-sm"
@@ -154,10 +159,10 @@ export function FloatingRecommendationsWidget({ initialOpen = false }: { initial
       {isOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm animate-fade-in">
           {/* Backdrop click to close */}
-          <div className="flex-1" onClick={() => setIsOpen(false)} />
+          <button type="button" aria-label="Fechar recomendações" className="flex-1" onClick={closeDrawer} />
 
           {/* Drawer Container */}
-          <div className="w-full sm:w-[480px] h-full bg-[#0D0E15] border-l border-white/10 shadow-2xl flex flex-col overflow-hidden animate-slide-left">
+          <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full sm:w-[480px] h-full bg-[#0D0E15] border-l border-white/10 shadow-2xl flex flex-col overflow-hidden animate-slide-left">
             {/* Drawer Header */}
             <div className="p-5 border-b border-white/10 bg-gradient-to-r from-[#181024] via-[#12131C] to-[#0D0E15] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -165,7 +170,7 @@ export function FloatingRecommendationsWidget({ initialOpen = false }: { initial
                   <Sparkles size={20} />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-white flex items-center gap-2">
+                  <h2 id={titleId} className="text-base font-black text-white flex items-center gap-2">
                     Recomendações Para Você
                   </h2>
                   <p className="text-[11px] text-gray-400">

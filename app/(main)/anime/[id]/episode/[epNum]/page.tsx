@@ -247,7 +247,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
                   )}
 
                   {isCurrent && (
-                    <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-[#FF6B00] text-white font-black text-[9px] shadow-md flex items-center gap-1 uppercase tracking-wide">
+                    <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-[#FF6B00] text-black font-black text-xs shadow-md flex items-center gap-1 uppercase tracking-wide">
                       <Clock size={10} />
                       <span>Assistindo</span>
                     </div>

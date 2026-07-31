@@ -91,6 +91,8 @@ export function EpisodeSourcesModal({
     type: string;
     provider: string;
   } | null>(null);
+  const closeTestingStream = useCallback(() => setTestingStream(null), []);
+  const { panelRef: testPanelRef, titleId: testTitleId } = useDialogAccessibility(Boolean(testingStream), closeTestingStream);
 
   // Edição inline de fonte
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
@@ -542,8 +544,9 @@ export function EpisodeSourcesModal({
           <form onSubmit={handleSaveManualSource} className="space-y-4 pt-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Nome do Provedor</label>
+                <label htmlFor="manual-provider" className="block text-sm font-bold text-gray-300 mb-1">Nome do provedor</label>
                 <input
+                  id="manual-provider"
                   type="text"
                   placeholder="Ex: AniZone HD, M3U Servidor 1, 2Embed..."
                   value={manualProvider}
@@ -553,8 +556,9 @@ export function EpisodeSourcesModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Tipo de Stream</label>
+                <label htmlFor="manual-stream-type" className="block text-sm font-bold text-gray-300 mb-1">Tipo de stream</label>
                 <select
+                  id="manual-stream-type"
                   value={manualType}
                   onChange={(e) => setManualType(e.target.value as any)}
                   className="w-full px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-xs text-white focus:outline-none focus:border-[#FF6B00]"
@@ -567,8 +571,9 @@ export function EpisodeSourcesModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">URL da Mídia ou Embed</label>
+              <label htmlFor="manual-stream-url" className="block text-sm font-bold text-gray-300 mb-1">URL da mídia ou embed</label>
               <input
+                id="manual-stream-url"
                 type="url"
                 placeholder="https://servidor.com/video.m3u8 ou https://player.com/embed/123"
                 value={manualUrl}
@@ -579,8 +584,9 @@ export function EpisodeSourcesModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Qualidade</label>
+                <label htmlFor="manual-quality" className="block text-sm font-bold text-gray-300 mb-1">Qualidade</label>
                 <select
+                  id="manual-quality"
                   value={manualQuality}
                   onChange={(e) => setManualQuality(e.target.value)}
                   className="w-full px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-xs text-white"
@@ -593,8 +599,9 @@ export function EpisodeSourcesModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Idioma de Áudio</label>
+                <label htmlFor="manual-audio" className="block text-sm font-bold text-gray-300 mb-1">Idioma de áudio</label>
                 <select
+                  id="manual-audio"
                   value={manualAudio}
                   onChange={(e) => setManualAudio(e.target.value)}
                   className="w-full px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-xs text-white"
@@ -606,7 +613,7 @@ export function EpisodeSourcesModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Status Inicial</label>
+                <p className="mb-1 text-sm font-bold text-gray-300">Status inicial</p>
                 <button
                   type="button"
                   onClick={() => setManualEnabled(!manualEnabled)}
@@ -656,16 +663,17 @@ export function EpisodeSourcesModal({
       {/* Modal Interno de Preview do Player Inline */}
       {testingStream && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-4xl glass-panel border border-white/20 rounded-3xl p-6 bg-[#0B0B0F] space-y-4 shadow-2xl">
+          <div ref={testPanelRef} role="dialog" aria-modal="true" aria-labelledby={testTitleId} className="relative w-full max-w-4xl glass-panel border border-white/20 rounded-3xl p-6 bg-[#0B0B0F] space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
                 <Play size={18} className="text-[#FF6B00]" />
-                <span className="font-bold text-white text-sm">
+                <span id={testTitleId} className="font-bold text-white text-sm">
                   Testando Player: {testingStream.provider} ({testingStream.type.toUpperCase()})
                 </span>
               </div>
               <button
-                onClick={() => setTestingStream(null)}
+                onClick={closeTestingStream}
+                aria-label="Fechar teste do player"
                 className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white"
               >
                 <X size={18} />
