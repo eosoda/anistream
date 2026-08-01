@@ -83,6 +83,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
             alt={title}
             fill
             priority
+            fetchPriority="high"
             unoptimized={backdropImage.startsWith('/')}
             sizes="100vw"
             className="object-cover object-center"
@@ -139,7 +140,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
                   <Link
                     href={`/anime/${currentAnime.mal_id}`}
                     prefetch={false}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#FF6B00] hover:bg-[#FF8533] text-white font-bold text-xs sm:text-sm transition-all transform hover:scale-105 shadow-xl shadow-[#FF6B00]/30"
+                    className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[#FF6B00] px-4 text-sm font-bold text-black transition-[background-color,transform] hover:bg-[#FF8533] sm:flex-none sm:px-5"
                   >
                     <Play size={16} className="fill-current sm:w-4 sm:h-4" />
                     <span>Mais Detalhes</span>
@@ -184,14 +185,14 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
         title="Explorar o catálogo completo abaixo"
       >
         <span>Ver Catálogo</span>
-        <ChevronDown size={14} className="text-[#FF6B00] group-hover:text-white animate-bounce" />
+        <ChevronDown size={14} className="text-[#FF6B00] group-hover:text-white" />
       </button>
 
       {/* Manual Slide Controls and Thumbnail Tabs */}
-      <div className="absolute top-3 right-3 sm:top-auto sm:bottom-3 sm:right-6 md:right-12 z-20 flex items-center gap-1.5 sm:gap-2.5 bg-black/70 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/10 shadow-lg scale-90 sm:scale-100">
+      <div className="absolute right-3 top-3 z-20 flex scale-90 items-center gap-1.5 rounded-full border border-white/10 bg-black/70 px-2.5 py-1.5 shadow-lg backdrop-blur-md md:bottom-3 md:right-12 md:top-auto md:scale-100 md:gap-2.5">
         <button
           onClick={() => setCurrentIndex((prev) => (prev === 0 ? animes.length - 1 : prev - 1))}
-          className="p-1 sm:p-1.5 rounded-full hover:bg-white/20 text-white transition-colors"
+          className="grid size-10 place-items-center rounded-full text-white transition-colors hover:bg-white/20"
           aria-label="Anterior"
         >
           <ChevronLeft size={14} className="sm:w-4 sm:h-4" />
@@ -205,10 +206,10 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
               <button
                 key={idx}
                 onClick={() => setCurrentIndex(idx)}
-                className={`relative rounded-md transition-all overflow-hidden ${
+                className={`relative grid size-8 place-items-center overflow-hidden rounded-md transition-[background-color,box-shadow,transform] ${
                   isSelected
-                    ? 'w-7 sm:w-8 h-4 sm:h-5 ring-2 ring-[#FF6B00] scale-105'
-                    : 'w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-white/40 hover:bg-white/80'
+                    ? 'ring-2 ring-[#FF6B00] scale-105'
+                    : 'after:size-2 after:rounded-full after:bg-white/50 hover:after:bg-white'
                 }`}
                 aria-label={`Ir para slide ${idx + 1}`}
                 title={animeItem.title_english || animeItem.title}
@@ -230,7 +231,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
 
         <button
           onClick={() => setCurrentIndex((prev) => (prev + 1) % animes.length)}
-          className="p-1 sm:p-1.5 rounded-full hover:bg-white/20 text-white transition-colors"
+          className="grid size-10 place-items-center rounded-full text-white transition-colors hover:bg-white/20"
           aria-label="Próximo"
         >
           <ChevronRight size={14} className="sm:w-4 sm:h-4" />

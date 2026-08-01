@@ -44,8 +44,8 @@ export function Tooltip({
   const arrowClasses = {
     top: 'top-full left-1/2 -translate-x-1/2 border-t-neutral-800 border-x-transparent border-b-transparent border-t-4 border-x-4',
     bottom: 'bottom-full left-1/2 -translate-x-1/2 border-b-neutral-800 border-x-transparent border-a-transparent border-b-4 border-x-4',
-    left: 'left-full top-1/2 -translate-y-1/2 border-l-neutral-800 border-y-transparent border-r-transparent border-l-4 border-y-4',
-    right: 'right-full top-1/2 -translate-y-1/2 border-r-neutral-800 border-y-transparent border-l-transparent border-r-4 border-y-4',
+    left: 'hidden',
+    right: 'hidden',
   };
 
   return (

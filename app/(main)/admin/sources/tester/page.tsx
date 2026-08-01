@@ -79,10 +79,10 @@ export default function AdminStreamTesterPage() {
       <form onSubmit={handleTestUrl} className="p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div className="sm:col-span-3">
-            <label className="block text-xs font-bold text-gray-300 mb-1">
+            <label htmlFor="source-test-url" className="block text-xs font-bold text-gray-300 mb-1">
               URL da Fonte de Vídeo (HLS .m3u8 ou MP4)
             </label>
-            <input
+            <input id="source-test-url"
               type="url"
               required
               placeholder="https://seu-servidor.com/stream/master.m3u8"
@@ -93,8 +93,8 @@ export default function AdminStreamTesterPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">Tipo de Stream</label>
-            <select
+            <label htmlFor="source-test-type" className="block text-xs font-bold text-gray-300 mb-1">Tipo de Stream</label>
+            <select id="source-test-type"
               value={type}
               onChange={(e) => setType(e.target.value as 'hls' | 'mp4')}
               className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"

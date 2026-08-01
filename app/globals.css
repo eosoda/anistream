@@ -7,15 +7,48 @@
     --bg-card: #181824;
     --accent-orange: #FF6B00;
     --accent-orange-hover: #FF8533;
+    --background: #090a0e;
+    --surface-1: #111219;
+    --surface-2: #181a24;
+    --surface-3: #20232f;
+    --text-primary: #f8f8fa;
+    --text-secondary: #b6b8c4;
+    --text-muted: #858896;
+    --border-subtle: rgba(255, 255, 255, .09);
+    --border-strong: rgba(255, 255, 255, .18);
+    --accent: #ff6b00;
+    --accent-hover: #ff8129;
+    --success: #24c78b;
+    --warning: #f5aa32;
+    --danger: #ef5261;
+    --focus: #ff9a52;
+    --radius-field: 8px;
+    --radius-control: 12px;
+    --radius-media: 16px;
+    --bottom-nav-height: 72px;
   }
 
   body {
     background-color: #0B0B0F;
     color: #FFFFFF;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    overflow-x: hidden;
+    font-family: var(--font-geist), system-ui, sans-serif;
+    min-width: 0;
+  }
+
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  button, a, input, select, textarea { touch-action: manipulation; }
+  ::selection { background: var(--accent); color: white; }
+
+  @media (max-width: 1023px) {
+    body { padding-bottom: env(safe-area-inset-bottom); }
   }
 }
+
+.font-mono-data { font-family: var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; }
+.safe-area-bottom { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+.surface-panel { background: var(--surface-1); border: 1px solid var(--border-subtle); }
+.admin-field { width: 100%; min-height: 44px; border: 1px solid var(--border-strong); border-radius: var(--radius-field); background: var(--surface-2); padding: .65rem .75rem; color: var(--text-primary); font-size: .875rem; }
+.operation-card { display: grid; gap: 1rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-media); background: var(--surface-1); padding: clamp(1rem, 3vw, 1.5rem); }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
@@ -45,7 +78,7 @@
 }
 
 .glass-panel-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
 
 .glass-panel-hover:hover {
@@ -61,6 +94,12 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .animate-bounce, .animate-ping, .animate-pulse { animation: none !important; }
+  .animate-spin { animation-duration: 1.8s !important; }
 }
 
 /* Episode carousel position indicator */

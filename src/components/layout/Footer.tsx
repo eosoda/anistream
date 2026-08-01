@@ -4,7 +4,7 @@ import { Play, Heart, ExternalLink, ShieldCheck } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="mb-16 mt-10 w-full border-t border-white/10 bg-[#07070A] text-gray-400 md:mt-16 lg:mb-0">
+    <footer className="mt-10 w-full border-t border-white/10 bg-[#07070A] text-gray-400 md:mt-16">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-10">
         <div className="mb-8 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4 md:gap-8">
           {/* Column 1: Brand */}
@@ -21,16 +21,16 @@ export function Footer() {
               Plataforma moderna de exploração, catálogo e streaming de animes com suporte offline PWA,
               assistente de instalação e atalhos avançados de player.
             </p>
-            <div className="flex items-center gap-1 text-xs text-gray-500 md:pt-1">
+          <div className="flex items-center gap-1 text-xs text-gray-400 md:pt-1">
               Desenvolvido com <Heart size={12} className="text-[#FF6B00] fill-current" /> para a comunidade otaku.
             </div>
           </div>
 
           {/* Column 2: Navigation */}
           <div>
-            <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
               Navegação
-            </h4>
+            </h2>
             <ul className="space-y-2 text-xs font-semibold">
               <li>
                 <Link href="/" className="hover:text-[#FF6B00] transition-colors">
@@ -67,9 +67,9 @@ export function Footer() {
 
           {/* Column 3: API Credits & Admin */}
           <div>
-            <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">
               Fontes & Administração
-            </h4>
+            </h2>
             <ul className="space-y-2 text-xs font-semibold">
               <li>
                 <a
@@ -107,16 +107,16 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="flex flex-col items-start justify-between gap-2 border-t border-white/5 pt-5 text-[11px] text-gray-500 sm:flex-row sm:items-center">
+        <div className="flex flex-col items-start justify-between gap-2 border-t border-white/5 pt-5 text-xs text-gray-400 sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} AniStream. Todos os direitos reservados.</p>
           <div className="flex items-center gap-4">
             <Link
               href="/changelog"
-              aria-label="Ver changelog da versão 2.1.0"
+              aria-label="Ver changelog da versão 2.2.0"
               className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-gray-400 transition-colors hover:border-[#FF6B00]/50 hover:bg-[#FF6B00]/10 hover:text-[#FF8A3D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
             >
-              <span className="sm:hidden">Versão 2.1.0</span>
-              <span className="hidden sm:inline">Versão 2.1.0 (Player inteligente + busca local)</span>
+              <span className="sm:hidden">Versão 2.2.0</span>
+              <span className="hidden sm:inline">Versão 2.2.0 (Sistema de UI/UX acessível)</span>
             </Link>
           </div>
         </div>

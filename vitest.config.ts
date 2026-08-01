@@ -1,6 +1,6 @@
 import path from 'path';
 
-export default {
+const config = {
   test: {
     environment: 'node',
     globals: true,
@@ -12,3 +12,5 @@ export default {
     },
   },
 };
+
+export default config;

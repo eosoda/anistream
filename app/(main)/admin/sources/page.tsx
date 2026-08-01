@@ -366,8 +366,9 @@ export default function AdminSourcesPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-gray-300 mb-1">Nome do Provedor</label>
+                <label htmlFor="provider-name" className="block text-sm font-bold text-gray-300 mb-1">Nome do provedor</label>
                 <input
+                  id="provider-name"
                   type="text"
                   placeholder="Ex: Servidor HLS Principal BR"
                   value={newPropName}
@@ -377,8 +378,9 @@ export default function AdminSourcesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Tipo de Provedor</label>
+                <label htmlFor="provider-type" className="block text-sm font-bold text-gray-300 mb-1">Tipo de provedor</label>
                 <select
+                  id="provider-type"
                   value={newPropType}
                   onChange={(e) => setNewPropType(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
@@ -391,8 +393,9 @@ export default function AdminSourcesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Prioridade (0 - 100)</label>
+                <label htmlFor="provider-priority" className="block text-sm font-bold text-gray-300 mb-1">Prioridade (0–100)</label>
                 <input
+                  id="provider-priority"
                   type="number"
                   value={newPropPriority}
                   onChange={(e) => setNewPropPriority(Number(e.target.value))}
@@ -402,8 +405,9 @@ export default function AdminSourcesPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">URL do Provedor / Playlist</label>
+              <label htmlFor="provider-url" className="block text-sm font-bold text-gray-300 mb-1">URL do provedor ou playlist</label>
               <input
+                id="provider-url"
                 type="url"
                 placeholder="https://seu-servidor.com/playlist.m3u ou https://api.provedor.com/v1"
                 value={newPropUrl}
@@ -578,8 +582,9 @@ export default function AdminSourcesPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Nome do Provedor</label>
+              <label htmlFor="m3u-provider-name" className="block text-sm font-bold text-gray-300 mb-1">Nome do provedor</label>
               <input
+                id="m3u-provider-name"
                 type="text"
                 value={providerName}
                 onChange={(e) => setProviderName(e.target.value)}
@@ -588,8 +593,9 @@ export default function AdminSourcesPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Idioma Padrão do Áudio</label>
+              <label htmlFor="m3u-audio-language" className="block text-sm font-bold text-gray-300 mb-1">Idioma padrão do áudio</label>
               <select
+                id="m3u-audio-language"
                 value={audioLang}
                 onChange={(e) => setAudioLang(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
@@ -602,8 +608,9 @@ export default function AdminSourcesPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">Conteúdo do Arquivo M3U Autorizado</label>
+            <label htmlFor="m3u-content" className="block text-sm font-bold text-gray-300 mb-1">Conteúdo do arquivo M3U autorizado</label>
             <textarea
+              id="m3u-content"
               rows={8}
               value={m3uText}
               onChange={(e) => setM3uText(e.target.value)}

@@ -126,53 +126,56 @@ export default function AdminLoginPage() {
         <form onSubmit={isSetupMode ? handleSetup : handleLogin} className="space-y-4">
           {isSetupMode && (
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">
+              <label htmlFor="admin-name" className="block text-sm font-bold text-gray-300 mb-1">
                 Nome Completo
               </label>
               <div className="relative">
                 <User size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input
+                  id="admin-name"
                   type="text"
                   required
                   placeholder="Administrador Principal"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
+                  className="min-h-11 w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">
+            <label htmlFor="admin-email" className="block text-sm font-bold text-gray-300 mb-1">
               E-mail Administrativo
             </label>
             <div className="relative">
               <Mail size={16} className="absolute left-3 top-3 text-gray-400" />
               <input
+                id="admin-email"
                 type="email"
                 required
                 placeholder="admin@anistream.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
+                className="min-h-11 w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">
+            <label htmlFor="admin-password" className="block text-sm font-bold text-gray-300 mb-1">
               Senha
             </label>
             <div className="relative">
               <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
               <input
+                id="admin-password"
                 type="password"
                 required
                 placeholder="••••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
+                className="min-h-11 w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
               />
             </div>
           </div>
@@ -180,7 +183,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#FF6B00]/20 disabled:opacity-50"
+            className="w-full py-3 rounded-xl bg-[#FF6B00] hover:bg-[#FF8533] text-black font-black text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-[#FF6B00]/20 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 size={16} className="animate-spin" />

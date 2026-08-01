@@ -7,7 +7,7 @@ import { Home, Search } from 'lucide-react';
 export default function NotFound() {
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center space-y-6">
-      <div className="w-20 h-20 rounded-3xl bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/40 flex items-center justify-center text-3xl font-black shadow-2xl animate-bounce">
+      <div className="w-20 h-20 rounded-3xl bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/40 flex items-center justify-center text-3xl font-black shadow-2xl">
         404
       </div>
 

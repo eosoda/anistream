@@ -284,23 +284,25 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
         <form onSubmit={handleUpdate} className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-white/5 border border-white/10 glass-panel space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Título Principal</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
+              <label htmlFor="edit-anime-title" className="block text-xs font-bold text-gray-300 mb-1">Título Principal</label>
+              <input id="edit-anime-title" aria-label="Título principal" type="text" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Título Original / Japonês</label>
-              <input type="text" value={originalTitle} onChange={(e) => setOriginalTitle(e.target.value)} className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
+              <label htmlFor="edit-anime-original-title" className="block text-xs font-bold text-gray-300 mb-1">Título Original / Japonês</label>
+              <input id="edit-anime-original-title" aria-label="Título original" type="text" value={originalTitle} onChange={(e) => setOriginalTitle(e.target.value)} className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Slug URL</label>
-              <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} required className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white font-mono" />
+              <label htmlFor="edit-anime-slug" className="block text-xs font-bold text-gray-300 mb-1">Slug URL</label>
+              <input id="edit-anime-slug" aria-label="Slug URL" type="text" value={slug} onChange={(e) => setSlug(e.target.value)} required className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white font-mono" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Ano de Lançamento</label>
+              <label htmlFor="edit-anime-year" className="block text-xs font-bold text-gray-300 mb-1">Ano de Lançamento</label>
               <input
+                id="edit-anime-year"
+                aria-label="Ano de lançamento"
                 type="number"
                 value={releaseYear}
                 onChange={(e) => setReleaseYear(e.target.value ? parseInt(e.target.value, 10) : '')}
@@ -308,8 +310,8 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white">
+              <label htmlFor="edit-anime-status" className="block text-xs font-bold text-gray-300 mb-1">Status</label>
+              <select id="edit-anime-status" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white">
                 <option value="Em Lançamento">Em Lançamento</option>
                 <option value="Concluído">Concluído</option>
                 <option value="Pausado">Pausado</option>
@@ -318,13 +320,13 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">URL do Poster / Capa</label>
-            <input type="url" value={posterUrl} onChange={(e) => setPosterUrl(e.target.value)} className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
+            <label htmlFor="edit-anime-poster" className="block text-xs font-bold text-gray-300 mb-1">URL do Poster / Capa</label>
+            <input id="edit-anime-poster" aria-label="URL do poster" type="url" value={posterUrl} onChange={(e) => setPosterUrl(e.target.value)} className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">Sinopse</label>
-            <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-4 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
+            <label htmlFor="edit-anime-description" className="block text-xs font-bold text-gray-300 mb-1">Sinopse</label>
+            <textarea id="edit-anime-description" aria-label="Sinopse" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-4 rounded-xl bg-black/50 border border-white/10 text-xs text-white" />
           </div>
 
           <section className="space-y-4 border-t border-white/10 pt-5" aria-labelledby="default-opening-title">
@@ -403,8 +405,10 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[11px] font-bold text-gray-300 mb-1">Temporada</label>
+                <label htmlFor="new-episode-season" className="block text-xs font-bold text-gray-300 mb-1">Temporada</label>
                 <input
+                  id="new-episode-season"
+                  aria-label="Temporada"
                   type="number"
                   min={1}
                   value={epSeason}
@@ -413,10 +417,12 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-gray-300 mb-1">Número</label>
+                <label htmlFor="new-episode-number" className="block text-xs font-bold text-gray-300 mb-1">Número</label>
                 <input
                   type="number"
                   min={1}
+                  id="new-episode-number"
+                  aria-label="Número do episódio"
                   value={epNumber}
                   onChange={(e) => setEpNumber(parseFloat(e.target.value))}
                   className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
@@ -425,8 +431,10 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-gray-300 mb-1">Título do Episódio</label>
+              <label htmlFor="new-episode-title" className="block text-xs font-bold text-gray-300 mb-1">Título do Episódio</label>
               <input
+                id="new-episode-title"
+                aria-label="Título do episódio"
                 type="text"
                 placeholder={`Episódio ${epNumber}`}
                 value={epTitle}

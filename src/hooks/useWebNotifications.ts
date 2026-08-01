@@ -1,15 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export function useWebNotifications() {
-  const [permission, setPermission] = useState<NotificationPermission>('default');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPermission(Notification.permission);
-    }
-  }, []);
+  const [permission, setPermission] = useState<NotificationPermission>(() =>
+    typeof window !== 'undefined' && 'Notification' in window
+      ? Notification.permission
+      : 'default'
+  );
 
   const requestPermission = async () => {
     if (typeof window !== 'undefined' && 'Notification' in window) {

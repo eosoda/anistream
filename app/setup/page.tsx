@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ShieldCheck,
@@ -96,13 +96,13 @@ function SetupWizardForm() {
   const [testingSetupProviderId, setTestingSetupProviderId] = useState<string | null>(null);
   const [setupProviderTestResults, setSetupProviderTestResults] = useState<Record<string, any>>({});
 
-  const fetchSetupProviders = async () => {
+  const fetchSetupProviders = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/providers');
       const data = await res.json();
       if (data.providers) setSetupProviders(data.providers);
     } catch (e) {}
-  };
+  }, []);
 
   // Inicializar a chave de segurança a partir da URL (?key=...) se disponível
   useEffect(() => {
@@ -113,7 +113,7 @@ function SetupWizardForm() {
   }, [searchParams]);
 
   // Check initial system status & DB ping
-  const checkStatus = async () => {
+  const checkStatus = useCallback(async () => {
     setTestingDb(true);
     try {
       const keyQuery = setupKey ? `?key=${encodeURIComponent(setupKey)}` : '';
@@ -131,7 +131,7 @@ function SetupWizardForm() {
       if (setupKey) {
         setKeyValid(data.keyValid);
       }
-      fetchSetupProviders();
+      void fetchSetupProviders();
     } catch {
       setDbConnected(false);
       setPostgresPingMs(null);
@@ -139,11 +139,11 @@ function SetupWizardForm() {
       setTestingDb(false);
       setCheckingStatus(false);
     }
-  };
+  }, [fetchSetupProviders, router, setupKey]);
 
   useEffect(() => {
-    checkStatus();
-  }, [router, setupKey]);
+    void checkStatus();
+  }, [checkStatus]);
 
   // Testar Provedor no Setup
   const handleTestSetupProvider = async (p: any) => {
@@ -338,12 +338,12 @@ Hosts de Mídia     : ${mediaHosts}
           <div className="space-y-6">
             {/* Campo da Chave de Segurança */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-300">
+              <label htmlFor="setup-key" className="block text-xs font-bold text-gray-300">
                 Chave de Instalação (Setup Key)
               </label>
               <div className="relative">
                 <KeyRound size={16} className="absolute left-3 top-3 text-[#FF6B00]" />
-                <input
+                <input id="setup-key"
                   type="text"
                   placeholder="Ex: setup_a8f94b2c9e1d3f5a"
                   value={setupKey}
@@ -425,10 +425,10 @@ Hosts de Mídia     : ${mediaHosts}
         {currentStep === 2 && (
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Nome Completo</label>
+              <label htmlFor="setup-admin-name" className="block text-xs font-bold text-gray-300 mb-1">Nome Completo</label>
               <div className="relative">
                 <User size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input
+                <input id="setup-admin-name"
                   type="text"
                   placeholder="Ex: Administrador Principal"
                   value={adminName}
@@ -439,10 +439,10 @@ Hosts de Mídia     : ${mediaHosts}
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">E-mail do Administrador</label>
+              <label htmlFor="setup-admin-email" className="block text-xs font-bold text-gray-300 mb-1">E-mail do Administrador</label>
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input
+                <input id="setup-admin-email"
                   type="email"
                   placeholder="admin@anistream.com"
                   value={adminEmail}
@@ -453,10 +453,10 @@ Hosts de Mídia     : ${mediaHosts}
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Senha (Mínimo 6 caracteres)</label>
+              <label htmlFor="setup-admin-password" className="block text-xs font-bold text-gray-300 mb-1">Senha (Mínimo 6 caracteres)</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input
+                <input id="setup-admin-password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Digite sua senha de acesso"
                   value={adminPassword}
@@ -492,10 +492,10 @@ Hosts de Mídia     : ${mediaHosts}
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Repetir Senha</label>
+              <label htmlFor="setup-admin-password-confirmation" className="block text-xs font-bold text-gray-300 mb-1">Repetir Senha</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input
+                <input id="setup-admin-password-confirmation"
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Digite a mesma senha novamente"
                   value={confirmPassword}
@@ -565,12 +565,12 @@ Hosts de Mídia     : ${mediaHosts}
         {currentStep === 3 && (
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">
+              <label htmlFor="setup-media-hosts" className="block text-xs font-bold text-gray-300 mb-1">
                 Hosts de Mídia Autorizados (Separados por vírgula)
               </label>
               <div className="relative">
                 <Globe size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input
+                <input id="setup-media-hosts"
                   type="text"
                   placeholder="Ex: cdn.seudominio.com, media.seudominio.com (Opcional - Provedores ativos são autorizados automaticamente)"
                   value={mediaHosts}
@@ -679,9 +679,9 @@ Hosts de Mídia     : ${mediaHosts}
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">
+              <p className="block text-xs font-bold text-gray-300 mb-1">
                 Upload de Arquivo .m3u / .m3u8 do Computador
-              </label>
+              </p>
               <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-white/20 hover:border-[#FF6B00] rounded-2xl cursor-pointer bg-black/40 transition-all">
                 <Upload size={24} className="text-[#FF6B00] mb-1" />
                 <span className="text-xs font-bold text-gray-300">
@@ -698,7 +698,7 @@ Hosts de Mídia     : ${mediaHosts}
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-gray-300">
+                <label htmlFor="setup-m3u-content" className="block text-xs font-bold text-gray-300">
                   Ou Cole o Conteúdo da Playlist M3U Autorizada
                 </label>
                 <button
@@ -711,7 +711,7 @@ Hosts de Mídia     : ${mediaHosts}
                   <span>Validar M3U</span>
                 </button>
               </div>
-              <textarea
+              <textarea id="setup-m3u-content"
                 rows={5}
                 value={m3uContent}
                 onChange={(e) => {
@@ -760,7 +760,7 @@ Hosts de Mídia     : ${mediaHosts}
         {/* Passo 5: Sucesso & Conclusão */}
         {currentStep === 5 && (
           <div className="text-center space-y-6 py-6">
-            <CheckCircle2 size={64} className="text-emerald-400 mx-auto animate-bounce" />
+            <CheckCircle2 size={64} className="text-emerald-400 mx-auto" />
             <div className="space-y-2">
               <h2 className="text-2xl font-black text-white">Instalação Concluída com Sucesso!</h2>
               <p className="text-xs text-gray-300 max-w-md mx-auto">

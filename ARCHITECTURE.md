@@ -117,10 +117,10 @@ O módulo [`src/lib/anime/metadata-fetcher.ts`](file:///c:/Users/sodinha/Documen
 ## 🧱 7. Organização de Componentes
 
 Pasta `components/`:
-- **`anime/`**: Componentes de catálogo (`AnimeCard`, `CompactAnimeCard`, carrosséis e recomendações).
+- **`anime/`**: Componentes de catálogo (`AnimeCard`, `CompactAnimeCard` e carrosséis).
 - **`player/`**: Componentes da experiência de vídeo (`VideoPlayer`, `EpisodeList`).
 - **`catalog/`**: Filtros e pesquisa (`SearchBar`, `SearchFilters`, `QuickMultiFilter`, `ViewToggle`).
-- **`home/`**: Seções da página inicial (`BannerHero`, `ContinueWatchingSection`, `ForYouSection`).
+- **`home/`**: Seções da página inicial (`BannerHero` e `ContinueWatchingSection`).
 - **`layout/`**: Estrutura (`Navbar`, `Footer`, `QueryProvider`, `PwaRegister`).
 - **`admin/`**: Modais e painéis administrativos (`ImportAnimeModal`, `EpisodeSourcesModal`, `AutopilotPanel`).
 - **`ui/`**: Primitivos e componentes atômicos (`SafeImage`, `Tooltip`, `RatingBadge`, `GenreBadge`, `EmptyState`, `LoadingSkeleton`).

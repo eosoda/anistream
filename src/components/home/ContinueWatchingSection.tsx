@@ -91,7 +91,8 @@ export function ContinueWatchingSection() {
                       e.stopPropagation();
                       handleRemoveItem(item.animeId, item.episodeNum, item.animeTitle, item.animeImage);
                     }}
-                    className="p-1.5 rounded-lg bg-black/60 hover:bg-red-500/80 text-gray-400 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                    aria-label="Remover do histórico"
+                    className="grid size-10 place-items-center rounded-lg bg-black/70 text-white/80 opacity-0 transition-[opacity,background-color] hover:bg-red-600 hover:text-white focus-visible:opacity-100 group-hover:opacity-100"
                   >
                     <Trash2 size={14} />
                   </button>

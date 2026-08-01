@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export interface PlaybackProgressItem {
   episodeId: string;
@@ -54,17 +54,16 @@ export function saveStoredProgress(
 }
 
 export function usePlaybackProgress(episodeId: string, animeId?: string) {
-  const [initialTime, setInitialTime] = useState<number>(0);
-  const [progressPercent, setProgressPercent] = useState<number>(0);
-
-  useEffect(() => {
-    if (!episodeId) return;
+  const [initialTime] = useState<number>(() => {
+    if (!episodeId) return 0;
     const saved = getStoredProgress(episodeId);
-    if (saved && saved.currentTime > 5 && saved.currentTime < saved.duration - 10) {
-      setInitialTime(saved.currentTime);
-      setProgressPercent(saved.progressPercent);
-    }
-  }, [episodeId]);
+    return saved && saved.currentTime > 5 && saved.currentTime < saved.duration - 10
+      ? saved.currentTime
+      : 0;
+  });
+  const [progressPercent, setProgressPercent] = useState<number>(() =>
+    episodeId ? getStoredProgress(episodeId)?.progressPercent ?? 0 : 0
+  );
 
   const updateProgress = (currentTime: number, duration: number) => {
     if (duration > 0) {

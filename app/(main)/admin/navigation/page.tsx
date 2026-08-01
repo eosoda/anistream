@@ -18,7 +18,7 @@ import {
   ArrowLeft,
   SlidersHorizontal,
 } from 'lucide-react';
-import { NavItemConfig, PageFeatureConfig, HomeSectionConfig } from '@/app/api/settings/public/route';
+import type { HomeSectionConfig, NavItemConfig, PageFeatureConfig } from '@/types/navigation';
 
 export default function AdminNavigationPage() {
   const [activeTab, setActiveTab] = useState<'navbar' | 'pages' | 'home'>('navbar');
@@ -49,7 +49,8 @@ export default function AdminNavigationPage() {
   };
 
   useEffect(() => {
-    fetchSettings();
+    const timer = window.setTimeout(() => void fetchSettings(), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleSave = async () => {
@@ -138,6 +139,7 @@ export default function AdminNavigationPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin/dashboard"
+            aria-label="Voltar ao painel administrativo"
             className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all mr-2"
           >
             <ArrowLeft size={18} />
@@ -156,7 +158,7 @@ export default function AdminNavigationPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-6 py-3 rounded-2xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs flex items-center gap-2 transition-all shadow-xl shadow-[#FF6B00]/30 hover:scale-105"
+          className="px-6 py-3 rounded-2xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-black font-black text-sm flex items-center gap-2 transition-colors shadow-xl shadow-[#FF6B00]/30"
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           <span>Salvar Alterações</span>
@@ -178,7 +180,7 @@ export default function AdminNavigationPage() {
           onClick={() => setActiveTab('navbar')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
             activeTab === 'navbar'
-              ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/30'
+              ? 'bg-[#FF6B00] text-black shadow-lg shadow-[#FF6B00]/30'
               : 'glass-panel hover:bg-white/10 text-gray-400'
           }`}
         >
@@ -190,7 +192,7 @@ export default function AdminNavigationPage() {
           onClick={() => setActiveTab('pages')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
             activeTab === 'pages'
-              ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/30'
+              ? 'bg-[#FF6B00] text-black shadow-lg shadow-[#FF6B00]/30'
               : 'glass-panel hover:bg-white/10 text-gray-400'
           }`}
         >
@@ -311,10 +313,10 @@ export default function AdminNavigationPage() {
 
                 {!page.enabled && (
                   <div className="space-y-1.5 pt-2 border-t border-white/10">
-                    <label className="text-xs text-gray-300 font-semibold flex items-center gap-1">
+                    <label htmlFor={`disabled-message-${page.id}`} className="text-xs text-gray-300 font-semibold flex items-center gap-1">
                       <span>Mensagem de Aviso Personalizada para o Usuário:</span>
                     </label>
-                    <textarea
+                    <textarea id={`disabled-message-${page.id}`}
                       rows={2}
                       value={page.disabledMessage}
                       onChange={(e) => updatePageMessage(page.id, e.target.value)}

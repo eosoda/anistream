@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ListFilter,
@@ -67,16 +67,11 @@ export default function AnimeListPage() {
   const [quickFilters, setQuickFilters] = useState<QuickFilterState>(DEFAULT_QUICK_FILTERS);
 
   // Persistent view mode state (grid vs compact list)
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
-      if (stored === 'grid' || stored === 'list') {
-        setViewMode(stored);
-      }
-    }
-  }, []);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === 'undefined') return 'grid';
+    const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
+    return stored === 'grid' || stored === 'list' ? stored : 'grid';
+  });
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);

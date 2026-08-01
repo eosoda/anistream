@@ -108,7 +108,7 @@ export function EpisodeList({
                 <button
                   onClick={() => setViewMode('list')}
                   className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
-                    viewMode === 'list' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:text-white'
+                    viewMode === 'list' ? 'bg-[#FF6B00] text-black' : 'text-gray-400 hover:text-white'
                   }`}
                 >
                   Lista
@@ -119,7 +119,7 @@ export function EpisodeList({
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
-                    viewMode === 'grid' ? 'bg-[#FF6B00] text-white' : 'text-gray-400 hover:text-white'
+                    viewMode === 'grid' ? 'bg-[#FF6B00] text-black' : 'text-gray-400 hover:text-white'
                   }`}
                 >
                   Grade
@@ -148,7 +148,7 @@ export function EpisodeList({
                   onClick={() => setActiveRange(idx)}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                     isActive
-                      ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/20'
+                      ? 'bg-[#FF6B00] text-black shadow-md shadow-[#FF6B00]/20'
                       : 'bg-white/5 hover:bg-white/10 text-gray-400 border border-white/5'
                   }`}
                 >

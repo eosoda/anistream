@@ -164,7 +164,7 @@ export default function AdminNewAnimePage() {
             {posterUrl ? (
               <SafeImage src={posterUrl} alt="Poster preview" fill className="object-cover" />
             ) : (
-              <div className="space-y-2 text-gray-500">
+              <div className="space-y-2 text-gray-400">
                 <ImageIcon size={36} className="mx-auto" />
                 <p className="text-xs">Cole a URL do Poster para ver o preview</p>
               </div>
@@ -175,10 +175,10 @@ export default function AdminNewAnimePage() {
         {/* Coluna Direita: Campos do Formulário */}
         <div className="md:col-span-2 space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">
+            <label htmlFor="new-anime-title" className="block text-xs font-bold text-gray-300 mb-1">
               Título do Anime <span className="text-[#FF6B00]">*</span>
             </label>
-            <input
+            <input id="new-anime-title"
               type="text"
               required
               placeholder="Ex: Jujutsu Kaisen"
@@ -199,8 +199,8 @@ export default function AdminNewAnimePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Título Original (Japonês)</label>
-              <input
+              <label htmlFor="new-anime-original-title" className="block text-xs font-bold text-gray-300 mb-1">Título Original (Japonês)</label>
+              <input id="new-anime-original-title"
                 type="text"
                 placeholder="Ex: 呪術廻戦"
                 value={originalTitle}
@@ -210,8 +210,8 @@ export default function AdminNewAnimePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Slug da URL</label>
-              <input
+              <label htmlFor="new-anime-slug" className="block text-xs font-bold text-gray-300 mb-1">Slug da URL</label>
+              <input id="new-anime-slug"
                 type="text"
                 placeholder="ex: jujutsu-kaisen"
                 value={slug}
@@ -223,8 +223,8 @@ export default function AdminNewAnimePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Ano de Lançamento</label>
-              <input
+              <label htmlFor="new-anime-year" className="block text-xs font-bold text-gray-300 mb-1">Ano de Lançamento</label>
+              <input id="new-anime-year"
                 type="number"
                 value={releaseYear}
                 onChange={(e) => setReleaseYear(e.target.value ? parseInt(e.target.value, 10) : '')}
@@ -233,8 +233,8 @@ export default function AdminNewAnimePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">Status</label>
-              <select
+              <label htmlFor="new-anime-status" className="block text-xs font-bold text-gray-300 mb-1">Status</label>
+              <select id="new-anime-status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
@@ -247,8 +247,8 @@ export default function AdminNewAnimePage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">URL do Poster (Capa)</label>
-            <input
+            <label htmlFor="new-anime-poster" className="block text-xs font-bold text-gray-300 mb-1">URL do Poster (Capa)</label>
+            <input id="new-anime-poster"
               type="url"
               placeholder="https://cdn.myanimelist.net/images/anime/..."
               value={posterUrl}
@@ -258,8 +258,8 @@ export default function AdminNewAnimePage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">Sinopse / Descrição</label>
-            <textarea
+            <label htmlFor="new-anime-description" className="block text-xs font-bold text-gray-300 mb-1">Sinopse / Descrição</label>
+            <textarea id="new-anime-description"
               rows={4}
               placeholder="Escreva a sinopse do anime..."
               value={description}
