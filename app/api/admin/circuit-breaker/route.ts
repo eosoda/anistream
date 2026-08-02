@@ -3,16 +3,16 @@ import { globalCircuitBreaker } from '@/lib/api/circuit-breaker';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import { KENJITSU_EXTENSION_IDS } from '@/lib/kenjitsu/types';
 
-const MONITORED_PROVIDERS = ['kenjitsu', ...KENJITSU_EXTENSION_IDS];
+const MONITORED_EXTENSIONS = ['kenjitsu', ...KENJITSU_EXTENSION_IDS];
 
 export async function GET(request: NextRequest) {
   try {
-    const statuses = MONITORED_PROVIDERS.map((provider) => ({
-      provider,
-      state: globalCircuitBreaker.getState(provider),
+    const extensions = MONITORED_EXTENSIONS.map((extensionId) => ({
+      extensionId,
+      state: globalCircuitBreaker.getState(extensionId),
     }));
 
-    return apiSuccess({ providers: statuses });
+    return apiSuccess({ extensions });
   } catch (err: any) {
     return apiError('ADMIN_CIRCUIT_BREAKER_ERROR', err.message, 500);
   }
@@ -21,14 +21,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const provider = body.providerName || 'kenjitsu';
+    const extensionId = body.extensionId || body.providerName || 'kenjitsu';
 
-    globalCircuitBreaker.recordSuccess(provider);
+    globalCircuitBreaker.recordSuccess(extensionId);
 
     return apiSuccess({
-      message: `Circuito para o provedor '${provider}' foi resetado para CLOSED.`,
-      provider,
-      state: globalCircuitBreaker.getState(provider),
+      message: `Circuito da extensão '${extensionId}' foi resetado para CLOSED.`,
+      extensionId,
+      state: globalCircuitBreaker.getState(extensionId),
     });
   } catch (err: any) {
     return apiError('ADMIN_CIRCUIT_BREAKER_RESET_ERROR', err.message, 500);

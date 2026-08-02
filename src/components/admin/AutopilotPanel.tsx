@@ -129,7 +129,7 @@ export function AutopilotPanel() {
             className="px-3.5 py-2 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-bold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-lg shadow-[#FF6B00]/20"
           >
             {scanning ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-            <span>Varrer Provedores</span>
+            <span>Consultar extensões</span>
           </button>
 
           {/* Toggle Chave Robô */}
@@ -164,7 +164,7 @@ export function AutopilotPanel() {
 
         {queue.length === 0 ? (
           <div className="p-6 text-center rounded-2xl bg-black/40 border border-white/10 text-xs text-gray-500">
-            Nenhum anime pendente na fila de revisão. Clique em &quot;Varrer Provedores&quot; para buscar novas mídias.
+            Nenhum anime pendente na fila de revisão. Clique em &quot;Consultar extensões&quot; para buscar novas mídias.
           </div>
         ) : (
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">

@@ -25,10 +25,6 @@ const envSchema = z.object({
     .string()
     .min(16, 'SOURCE_ENCRYPTION_KEY chave de criptografia de no mínimo 16 caracteres')
     .default('32-bytes-encryption-key-for-aes-256-gcm!'),
-  AUTHORIZED_MEDIA_HOSTS: z
-    .string()
-    .default('media.mydomain.com,cdn.mydomain.com,storage.googleapis.com,s3.amazonaws.com')
-    .transform((val) => val.split(',').map((h) => h.trim().toLowerCase())),
   NEXT_PUBLIC_APP_URL: z
     .string()
     .url()

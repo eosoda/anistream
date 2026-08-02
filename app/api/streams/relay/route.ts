@@ -92,12 +92,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // O descritor só pode ser criado pelo servidor (AES-GCM autenticado). Ainda
-  // bloqueamos protocolos e redes privadas, mas CDNs efêmeros não precisam
-  // estar previamente cadastrados na allowlist administrativa.
-  const ssrf = await validateUrlSsrf(descriptor.url, {
-    requireAuthorizedHost: false,
-  });
+  // O descritor só pode ser criado pelo servidor (AES-GCM autenticado).
+  // Hosts efêmeros retornados pelo Kenjitsu passam pela proteção SSRF.
+  const ssrf = await validateUrlSsrf(descriptor.url);
   if (!ssrf.valid) {
     return NextResponse.json(
       { error: `Destino de mídia bloqueado: ${ssrf.reason}` },

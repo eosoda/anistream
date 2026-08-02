@@ -23,7 +23,7 @@ interface ImportAnimeModalProps {
   onSuccess: () => void;
 }
 
-interface JikanSearchResult {
+interface KenjitsuSearchResult {
   malId?: number;
   anilistId?: number;
   title: string;
@@ -48,7 +48,7 @@ export function ImportAnimeModal({
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [importingId, setImportingId] = useState<number | null>(null);
-  const [results, setResults] = useState<JikanSearchResult[]>([]);
+  const [results, setResults] = useState<KenjitsuSearchResult[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Busca instantânea com debounce (350ms)
@@ -93,7 +93,7 @@ export function ImportAnimeModal({
     }
   };
 
-  const handleImport = async (item: JikanSearchResult) => {
+  const handleImport = async (item: KenjitsuSearchResult) => {
     const trackingId = item.malId ?? item.anilistId ?? -1;
     setImportingId(trackingId);
     try {

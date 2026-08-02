@@ -26,8 +26,8 @@ npm run test
 
 ## 📜 2. Scripts de Diagnóstico e Integração (`scratch/`)
 
-- `scratch/test-episode-sources-flow.js` — Script HTTP que testa o cadastro de fontes, varredura em tempo real e alteração de status (`enabled`) no admin.
-- `scratch/test-sources-http-api.js` — Script HTTP que lista os 8 provedores e executa chamadas em `/api/streams/resolve`.
+- `scratch/test-episode-sources-flow.js` — Script HTTP legado; a descoberta atual é live pelo Kenjitsu e não cadastra URLs manuais.
+- `scratch/test-sources-http-api.js` — Script HTTP legado; a resolução atual usa somente o Kenjitsu e suas extensões habilitadas.
 - `scratch/init-admin-and-test.js` — Script de validação da rota de setup, autenticação de admin e resolução de stream.
 
 ---

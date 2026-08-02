@@ -64,7 +64,7 @@ export default function SetupLayout({ children }: { children: React.ReactNode })
             <span>AniStream System Setup & Initialization</span>
           </div>
           <p className="text-[11px] text-gray-500">
-            © {new Date().getFullYear()} AniStream • Configuração de Banco de Dados, Administrador & Fontes
+            © {new Date().getFullYear()} AniStream • Banco de Dados, Administrador & Kenjitsu
           </p>
         </div>
       </footer>

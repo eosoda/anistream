@@ -40,7 +40,7 @@ export async function POST(
 
     if (episodeItems.length === 0) {
       return NextResponse.json(
-        { error: 'O Kenjitsu nao retornou episodios para este anime.', syncedEpisodesCount: 0, createdSourcesCount: 0 },
+        { error: 'O Kenjitsu nao retornou episodios para este anime.', syncedEpisodesCount: 0 },
         { status: 502 },
       );
     }
@@ -60,7 +60,6 @@ export async function POST(
       message: `Sincronizacao de "${anime.title}" concluida pelo Kenjitsu: ${syncedEpisodesCount} episodios.`,
       animeTitle: anime.title,
       syncedEpisodesCount,
-      createdSourcesCount: 0,
       sourceResolution: 'live-kenjitsu',
     });
   } catch (error: any) {

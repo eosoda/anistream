@@ -48,7 +48,7 @@ app/
 - **Filtros de Formato**: Séries TV, Filmes, OVAs, ONAs, Especiais.
 
 ### 5. Favoritos (`app/favoritos/page.tsx`)
-- **Verificação de Novos Episódios**: Consulta automática à API Jikan indicando animes que receberam novos episódios recentemente (`NOVO EP`).
+- **Verificação de Novos Episódios**: Consulta automática ao catálogo Kenjitsu indicando animes que receberam novos episódios recentemente (`NOVO EP`).
 - **Lembretes de Lançamento**: Painel para gerenciar notificações semanais.
 
 ### 6. Detalhes do Anime (`app/anime/[id]/page.tsx`)

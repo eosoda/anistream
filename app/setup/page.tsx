@@ -3,28 +3,24 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ShieldCheck,
-  Database,
-  User,
-  Globe,
-  Upload,
-  CheckCircle2,
   AlertTriangle,
-  Loader2,
-  ArrowRight,
   ArrowLeft,
-  Sparkles,
+  ArrowRight,
+  CheckCircle2,
+  Database,
+  Download,
+  Eye,
+  EyeOff,
+  Film,
+  KeyRound,
+  Loader2,
   Lock,
   Mail,
   RefreshCcw,
-  KeyRound,
-  Eye,
-  EyeOff,
-  Download,
-  Film,
-  Play,
+  ShieldCheck,
+  Sparkles,
+  User,
 } from 'lucide-react';
-import { parseM3uContent } from '@/lib/streams/m3u-parser';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +28,7 @@ function getPasswordStrength(password: string) {
   if (!password) {
     return { label: '', color: 'bg-gray-700', text: 'text-gray-400', percentage: 0 };
   }
+
   let score = 0;
   if (password.length >= 6) score += 1;
   if (password.length >= 10) score += 1;
@@ -39,18 +36,10 @@ function getPasswordStrength(password: string) {
   if (/[0-9]/.test(password)) score += 1;
   if (/[^A-Za-z0-9]/.test(password)) score += 1;
 
-  if (score <= 1) {
-    return { label: 'Fraca (mín. 6 caracteres)', color: 'bg-red-500', text: 'text-red-400', percentage: 20 };
-  }
-  if (score === 2) {
-    return { label: 'Razoável', color: 'bg-amber-500', text: 'text-amber-400', percentage: 40 };
-  }
-  if (score === 3) {
-    return { label: 'Boa', color: 'bg-yellow-400', text: 'text-yellow-400', percentage: 65 };
-  }
-  if (score === 4) {
-    return { label: 'Forte', color: 'bg-[#FF6B00]', text: 'text-[#FF6B00]', percentage: 85 };
-  }
+  if (score <= 1) return { label: 'Fraca (mín. 6 caracteres)', color: 'bg-red-500', text: 'text-red-400', percentage: 20 };
+  if (score === 2) return { label: 'Razoável', color: 'bg-amber-500', text: 'text-amber-400', percentage: 40 };
+  if (score === 3) return { label: 'Boa', color: 'bg-yellow-400', text: 'text-yellow-400', percentage: 65 };
+  if (score === 4) return { label: 'Forte', color: 'bg-[#FF6B00]', text: 'text-[#FF6B00]', percentage: 85 };
   return { label: 'Excelente', color: 'bg-emerald-500', text: 'text-emerald-400', percentage: 100 };
 }
 
@@ -65,14 +54,10 @@ function SetupWizardForm() {
   const [dbConnected, setDbConnected] = useState(false);
   const [postgresPingMs, setPostgresPingMs] = useState<number | null>(null);
   const [stats, setStats] = useState<{
-    adminCount: number;
     animeCount: number;
     episodeCount: number;
-    sourceCount: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // Form State
   const [setupKey, setSetupKey] = useState('');
   const [keyValid, setKeyValid] = useState<boolean | null>(null);
 
@@ -83,55 +68,32 @@ function SetupWizardForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [mediaHosts, setMediaHosts] = useState('');
-  const [m3uContent, setM3uContent] = useState('');
-  const [m3uStats, setM3uStats] = useState<{ totalEntries: number; uniqueAnimes: number } | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [providerName, setProviderName] = useState('authorized-m3u-main');
-
   const [isSeedingPopular, setIsSeedingPopular] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState<string | null>(null);
 
-  const [setupProviders, setSetupProviders] = useState<any[]>([]);
-  const [testingSetupProviderId, setTestingSetupProviderId] = useState<string | null>(null);
-  const [setupProviderTestResults, setSetupProviderTestResults] = useState<Record<string, any>>({});
-
-  const fetchSetupProviders = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/providers');
-      const data = await res.json();
-      if (data.providers) setSetupProviders(data.providers);
-    } catch (e) {}
-  }, []);
-
-  // Inicializar a chave de segurança a partir da URL (?key=...) se disponível
   useEffect(() => {
     const urlKey = searchParams.get('key');
-    if (urlKey) {
-      setSetupKey(urlKey);
-    }
+    // The setup key is an external URL input synchronized into the wizard state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (urlKey) setSetupKey(urlKey);
   }, [searchParams]);
 
-  // Check initial system status & DB ping
   const checkStatus = useCallback(async () => {
     setTestingDb(true);
     try {
       const keyQuery = setupKey ? `?key=${encodeURIComponent(setupKey)}` : '';
-      const res = await fetch(`/api/setup/status${keyQuery}`);
-      const data = await res.json();
+      const response = await fetch(`/api/setup/status${keyQuery}`);
+      const data = await response.json();
 
       if (data.isInitialized) {
         router.replace('/admin/login');
         return;
       }
 
-      setDbConnected(data.dbConnected);
+      setDbConnected(Boolean(data.dbConnected));
       setPostgresPingMs(data.postgresPingMs || 0);
       setStats(data.stats || null);
-      if (setupKey) {
-        setKeyValid(data.keyValid);
-      }
-      void fetchSetupProviders();
+      if (setupKey) setKeyValid(data.keyValid);
     } catch {
       setDbConnected(false);
       setPostgresPingMs(null);
@@ -139,59 +101,46 @@ function SetupWizardForm() {
       setTestingDb(false);
       setCheckingStatus(false);
     }
-  }, [fetchSetupProviders, router, setupKey]);
+  }, [router, setupKey]);
 
   useEffect(() => {
+    // The initial request synchronizes this client view with the setup API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void checkStatus();
   }, [checkStatus]);
 
-  // Testar Provedor no Setup
-  const handleTestSetupProvider = async (p: any) => {
-    setTestingSetupProviderId(p.id);
+  const handleCompleteSetup = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      const res = await fetch('/api/admin/providers/test', {
+      const response = await fetch('/api/setup/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: p.id, url: p.url }),
+        body: JSON.stringify({
+          setupKey,
+          admin: {
+            name: adminName,
+            email: adminEmail,
+            password: adminPassword,
+          },
+        }),
       });
-      const data = await res.json();
-      setSetupProviderTestResults((prev) => ({ ...prev, [p.id]: data }));
-    } catch (err: any) {
-      setSetupProviderTestResults((prev) => ({ ...prev, [p.id]: { ok: false, error: err.message } }));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Falha na inicialização da aplicação');
+
+      setCurrentStep(4);
+      window.setTimeout(() => router.push('/admin/extensions'), 2000);
+    } catch (setupError) {
+      setError(setupError instanceof Error ? setupError.message : 'Falha na inicialização da aplicação');
     } finally {
-      setTestingSetupProviderId(null);
+      setLoading(false);
     }
   };
 
-  // Alternar Provedor no Setup
-  const handleToggleSetupProvider = async (id: string, enabled: boolean) => {
-    try {
-      await fetch('/api/admin/providers', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, enabled }),
-      });
-      fetchSetupProviders();
-    } catch (e) {}
-  };
-
-  // Validação prévia de M3U
-  const handleValidateM3u = () => {
-    if (!m3uContent || !m3uContent.trim()) {
-      setM3uStats(null);
-      return;
-    }
-    const items = parseM3uContent(m3uContent);
-    const uniqueTitles = new Set(items.map((i) => i.normalizedTitle));
-    setM3uStats({
-      totalEntries: items.length,
-      uniqueAnimes: uniqueTitles.size,
-    });
-  };
-
-  // Baixar Resumo do Setup (.txt)
   const handleDownloadSummary = () => {
-    const summaryText = `===================================================================
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const summary = `===================================================================
 AniStream - Resumo da Instalação do Sistema
 Data de Instalação: ${new Date().toLocaleString('pt-BR')}
 ===================================================================
@@ -202,17 +151,17 @@ E-mail             : ${adminEmail}
 Status da Conta    : Ativa (Super Admin)
 
 [CONFIGURAÇÕES DO SISTEMA]
-URL da Aplicação   : ${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-Painel Admin       : ${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/admin/login
-Hosts de Mídia     : ${mediaHosts}
+URL da Aplicação   : ${origin}
+Painel Admin       : ${origin}/admin/login
+Catálogo e mídia   : API Kenjitsu self-hosted
 
 [IMPORTANTE]
 - Guarde este arquivo em local seguro.
-- Para gerenciar animes, playlists e servidores de streaming, acesse o painel administrativo.
+- Ative ou desative extensões no painel "Extensões Kenjitsu".
 ===================================================================
 `;
 
-    const blob = new Blob([summaryText], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([summary], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -223,645 +172,228 @@ Hosts de Mídia     : ${mediaHosts}
     URL.revokeObjectURL(url);
   };
 
-  // Seed de Animes Populares
   const handleSeedPopularAnimes = async () => {
     setIsSeedingPopular(true);
     setSeedSuccess(null);
     try {
-      const res = await fetch('/api/setup/seed-popular', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Falha ao popular catálogo');
-      setSeedSuccess(`Sucesso! ${data.seededCount || 25} animes populares foram adicionados ao seu catálogo.`);
-    } catch (err: any) {
-      setError(err.message);
+      const response = await fetch('/api/setup/seed-popular', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Falha ao popular catálogo');
+      setSeedSuccess(`Sucesso! ${data.seededCount || 25} animes populares foram adicionados ao catálogo.`);
+    } catch (seedError) {
+      setError(seedError instanceof Error ? seedError.message : 'Falha ao popular catálogo');
     } finally {
       setIsSeedingPopular(false);
     }
   };
 
-  // Upload M3U File Handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      setM3uContent(content);
-    };
-    reader.readAsText(file);
-  };
-
-  // Handle final installation submission
-  const handleCompleteSetup = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch('/api/setup/initialize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          setupKey,
-          admin: {
-            name: adminName,
-            email: adminEmail,
-            password: adminPassword,
-          },
-          mediaHosts,
-          m3uContent,
-          providerName,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Falha na inicialização da aplicação');
-      }
-
-      setCurrentStep(5); // Success step
-      setTimeout(() => {
-        router.push('/admin/extensions');
-      }, 2000);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (checkingStatus) {
     return (
-      <div className="py-20 text-white flex flex-col items-center justify-center gap-3">
-        <Loader2 size={36} className="text-[#FF6B00] animate-spin" />
+      <div className="flex flex-col items-center justify-center gap-3 py-20 text-white">
+        <Loader2 size={36} className="animate-spin text-[#FF6B00]" />
         <p className="text-xs font-bold text-gray-400">Verificando status do sistema...</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full flex items-center justify-center py-4 sm:py-6">
-      <div className="w-full max-w-2xl p-8 rounded-3xl bg-white/5 border border-white/10 glass-panel shadow-2xl space-y-8 relative overflow-hidden">
-        {/* Header com Progresso */}
+    <div className="flex w-full items-center justify-center py-4 sm:py-6">
+      <div className="glass-panel relative w-full max-w-2xl space-y-8 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl">
         <div className="space-y-4 text-center">
-          <div className="inline-flex p-3 rounded-2xl bg-[#FF6B00]/20 text-[#FF6B00]">
+          <div className="inline-flex rounded-2xl bg-[#FF6B00]/20 p-3 text-[#FF6B00]">
             <Sparkles size={32} />
           </div>
           <h1 className="text-3xl font-black text-white">Assistente de Instalação Inicial</h1>
           <p className="text-xs text-gray-400">
-            Configure seu banco de dados, chave de segurança e conta mestre em poucas etapas
+            Configure o banco de dados, a chave de segurança e a conta mestre em poucas etapas.
           </p>
-
-          {/* Barra de Progresso */}
-          <div className="grid grid-cols-5 gap-2 pt-2">
-            {[1, 2, 3, 4, 5].map((step) => (
+          <div className="grid grid-cols-4 gap-2 pt-2" aria-label="Progresso da instalação">
+            {[1, 2, 3, 4].map((step) => (
               <div
                 key={step}
-                className={`h-2 rounded-full transition-all duration-500 ${
-                  currentStep >= step ? 'bg-[#FF6B00]' : 'bg-white/10'
-                }`}
+                className={`h-2 rounded-full transition-all duration-500 ${currentStep >= step ? 'bg-[#FF6B00]' : 'bg-white/10'}`}
               />
             ))}
           </div>
         </div>
 
-        {/* Mensagem de Erro */}
         {error && (
-          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold text-center">
+          <div role="alert" className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-xs font-bold text-red-400">
             {error}
           </div>
         )}
 
-        {/* Passo 1: Validação de Segurança & Banco de Dados */}
         {currentStep === 1 && (
           <div className="space-y-6">
-            {/* Campo da Chave de Segurança */}
             <div className="space-y-2">
               <label htmlFor="setup-key" className="block text-xs font-bold text-gray-300">
                 Chave de Instalação (Setup Key)
               </label>
               <div className="relative">
                 <KeyRound size={16} className="absolute left-3 top-3 text-[#FF6B00]" />
-                <input id="setup-key"
+                <input
+                  id="setup-key"
                   type="text"
                   placeholder="Ex: setup_a8f94b2c9e1d3f5a"
                   value={setupKey}
-                  onChange={(e) => {
-                    setSetupKey(e.target.value);
+                  onChange={(event) => {
+                    setSetupKey(event.target.value);
                     setKeyValid(null);
                   }}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs font-mono text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
+                  className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-4 text-xs font-mono text-white placeholder-gray-500 focus:border-[#FF6B00] focus:outline-none"
                 />
               </div>
-              <p className="text-[10px] text-gray-400">
-                Consulte os logs do container Docker (`docker logs anistream_app`) para visualizar a chave randômica impressa na inicialização.
+              <p className={`text-[10px] ${keyValid === false ? 'text-red-400' : 'text-gray-400'}`}>
+                Consulte os logs do container Docker (<code>docker logs anistream_selfhosted_app</code>) para visualizar a chave.
               </p>
             </div>
 
-            {/* Status da Conexão PostgreSQL */}
-            <div className="p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4">
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Database size={24} className="text-[#FF6B00]" />
                   <div>
-                    <h3 className="text-sm font-bold text-white">Conexão PostgreSQL</h3>
+                    <h2 className="text-sm font-bold text-white">Conexão PostgreSQL</h2>
                     <p className="text-xs text-gray-400">
-                      {dbConnected
-                        ? `Conectado! Latência: ${postgresPingMs}ms`
-                        : 'Falha ao conectar no PostgreSQL. Verifique DATABASE_URL.'}
+                      {dbConnected ? `Conectado! Latência: ${postgresPingMs}ms` : 'Falha ao conectar. Verifique DATABASE_URL.'}
                     </p>
                   </div>
                 </div>
-
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={checkStatus}
+                    type="button"
+                    onClick={() => void checkStatus()}
                     disabled={testingDb}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10"
-                    title="Testar Conexão em Tempo Real"
+                    aria-label="Testar conexão com o banco"
+                    className="rounded-xl border border-white/10 bg-white/10 p-2 text-white hover:bg-white/20"
                   >
                     <RefreshCcw size={16} className={testingDb ? 'animate-spin' : ''} />
                   </button>
-
-                  {dbConnected ? (
-                    <CheckCircle2 size={24} className="text-emerald-400" />
-                  ) : (
-                    <AlertTriangle size={24} className="text-red-400" />
-                  )}
+                  {dbConnected ? <CheckCircle2 size={24} className="text-emerald-400" /> : <AlertTriangle size={24} className="text-red-400" />}
                 </div>
               </div>
 
               {stats && (
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center">
-                  <div className="p-2 rounded-xl bg-white/5">
-                    <span className="block text-[10px] text-gray-400 uppercase font-bold">Animes</span>
-                    <span className="text-xs font-mono font-bold text-white">{stats.animeCount}</span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white/5">
-                    <span className="block text-[10px] text-gray-400 uppercase font-bold">Episódios</span>
-                    <span className="text-xs font-mono font-bold text-white">{stats.episodeCount}</span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white/5">
-                    <span className="block text-[10px] text-gray-400 uppercase font-bold">Fontes</span>
-                    <span className="text-xs font-mono font-bold text-white">{stats.sourceCount}</span>
-                  </div>
+                <div className="grid grid-cols-3 gap-2 border-t border-white/10 pt-2 text-center">
+                  <div className="rounded-xl bg-white/5 p-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Animes</span><span className="text-xs font-mono font-bold text-white">{stats.animeCount}</span></div>
+                  <div className="rounded-xl bg-white/5 p-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Episódios</span><span className="text-xs font-mono font-bold text-white">{stats.episodeCount}</span></div>
+                  <div className="rounded-xl bg-white/5 p-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Kenjitsu</span><span className="text-xs font-mono font-bold text-emerald-400">Ativo</span></div>
                 </div>
               )}
             </div>
 
             <button
+              type="button"
               disabled={!dbConnected || !setupKey.trim()}
               onClick={() => setCurrentStep(2)}
-              className="w-full py-3.5 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6B00] py-3.5 text-xs font-black text-white transition-all hover:bg-[#FF6B00]/80 disabled:opacity-50"
             >
-              <span>Avançar para Conta do Administrador</span>
-              <ArrowRight size={16} />
+              <span>Avançar para Conta do Administrador</span><ArrowRight size={16} />
             </button>
           </div>
         )}
 
-        {/* Passo 2: Conta do Administrador */}
         {currentStep === 2 && (
           <div className="space-y-4">
             <div>
-              <label htmlFor="setup-admin-name" className="block text-xs font-bold text-gray-300 mb-1">Nome Completo</label>
+              <label htmlFor="setup-admin-name" className="mb-1 block text-xs font-bold text-gray-300">Nome Completo</label>
               <div className="relative">
                 <User size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input id="setup-admin-name"
-                  type="text"
-                  placeholder="Ex: Administrador Principal"
-                  value={adminName}
-                  onChange={(e) => setAdminName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
-                />
+                <input id="setup-admin-name" type="text" placeholder="Ex: Administrador Principal" value={adminName} onChange={(event) => setAdminName(event.target.value)} className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-4 text-xs text-white placeholder-gray-500 focus:border-[#FF6B00] focus:outline-none" />
               </div>
             </div>
-
             <div>
-              <label htmlFor="setup-admin-email" className="block text-xs font-bold text-gray-300 mb-1">E-mail do Administrador</label>
+              <label htmlFor="setup-admin-email" className="mb-1 block text-xs font-bold text-gray-300">E-mail do Administrador</label>
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input id="setup-admin-email"
-                  type="email"
-                  placeholder="admin@anistream.com"
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
-                />
+                <input id="setup-admin-email" type="email" placeholder="admin@anistream.com" value={adminEmail} onChange={(event) => setAdminEmail(event.target.value)} className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-4 text-xs text-white placeholder-gray-500 focus:border-[#FF6B00] focus:outline-none" />
               </div>
             </div>
-
             <div>
-              <label htmlFor="setup-admin-password" className="block text-xs font-bold text-gray-300 mb-1">Senha (Mínimo 6 caracteres)</label>
+              <label htmlFor="setup-admin-password" className="mb-1 block text-xs font-bold text-gray-300">Senha (mínimo 6 caracteres)</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input id="setup-admin-password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Digite sua senha de acesso"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
-                />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-white transition-all"
-                  title={showPassword ? 'Ocultar senha' : 'Exibir senha'}
-                >
+                <input id="setup-admin-password" type={showPassword ? 'text' : 'password'} placeholder="Digite sua senha de acesso" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-10 text-xs text-white placeholder-gray-500 focus:border-[#FF6B00] focus:outline-none" />
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar senha' : 'Exibir senha'} className="absolute right-3 top-3 text-gray-400 hover:text-white">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               {adminPassword && (
                 <div className="mt-2 space-y-1">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-gray-400">Força da Senha:</span>
-                    <span className={`font-bold ${getPasswordStrength(adminPassword).text}`}>
-                      {getPasswordStrength(adminPassword).label}
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 ${getPasswordStrength(adminPassword).color}`}
-                      style={{ width: `${getPasswordStrength(adminPassword).percentage}%` }}
-                    />
-                  </div>
+                  <div className="flex items-center justify-between text-[11px]"><span className="text-gray-400">Força da senha:</span><span className={`font-bold ${getPasswordStrength(adminPassword).text}`}>{getPasswordStrength(adminPassword).label}</span></div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10"><div className={`h-full transition-all ${getPasswordStrength(adminPassword).color}`} style={{ width: `${getPasswordStrength(adminPassword).percentage}%` }} /></div>
                 </div>
               )}
             </div>
-
             <div>
-              <label htmlFor="setup-admin-password-confirmation" className="block text-xs font-bold text-gray-300 mb-1">Repetir Senha</label>
+              <label htmlFor="setup-admin-password-confirmation" className="mb-1 block text-xs font-bold text-gray-300">Repetir Senha</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input id="setup-admin-password-confirmation"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Digite a mesma senha novamente"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full pl-10 pr-10 py-2.5 rounded-xl bg-black/50 border text-xs text-white placeholder-gray-500 focus:outline-none ${
-                    confirmPassword && confirmPassword !== adminPassword
-                      ? 'border-red-500/60 focus:border-red-500'
-                      : confirmPassword && confirmPassword === adminPassword
-                      ? 'border-emerald-500/60 focus:border-emerald-500'
-                      : 'border-white/10 focus:border-[#FF6B00]'
-                  }`}
-                />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-white transition-all"
-                  title={showConfirmPassword ? 'Ocultar senha' : 'Exibir senha'}
-                >
+                <input id="setup-admin-password-confirmation" type={showConfirmPassword ? 'text' : 'password'} placeholder="Digite a mesma senha novamente" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className={`w-full rounded-xl border bg-black/50 py-2.5 pl-10 pr-10 text-xs text-white placeholder-gray-500 focus:outline-none ${confirmPassword && confirmPassword !== adminPassword ? 'border-red-500/60' : confirmPassword ? 'border-emerald-500/60' : 'border-white/10'}`} />
+                <button type="button" tabIndex={-1} onClick={() => setShowConfirmPassword((visible) => !visible)} aria-label={showConfirmPassword ? 'Ocultar confirmação' : 'Exibir confirmação'} className="absolute right-3 top-3 text-gray-400 hover:text-white">
                   {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              {confirmPassword && (
-                <div className="mt-1 flex items-center gap-1.5 text-[11px]">
-                  {confirmPassword === adminPassword ? (
-                    <>
-                      <CheckCircle2 size={13} className="text-emerald-400" />
-                      <span className="text-emerald-400 font-semibold">As senhas coincidem</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle size={13} className="text-red-400" />
-                      <span className="text-red-400 font-semibold">As senhas não coincidem</span>
-                    </>
-                  )}
-                </div>
-              )}
+              {confirmPassword && <p className={`mt-1 text-[11px] font-semibold ${confirmPassword === adminPassword ? 'text-emerald-400' : 'text-red-400'}`}>{confirmPassword === adminPassword ? 'As senhas coincidem' : 'As senhas não coincidem'}</p>}
             </div>
 
             <div className="flex items-center justify-between pt-4">
-              <button
-                onClick={() => setCurrentStep(1)}
-                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2"
-              >
-                <ArrowLeft size={16} />
-                <span>Voltar</span>
-              </button>
-
-              <button
-                disabled={
-                  !adminName.trim() ||
-                  !adminEmail.trim() ||
-                  adminPassword.length < 6 ||
-                  confirmPassword !== adminPassword
-                }
-                onClick={() => setCurrentStep(3)}
-                className="px-6 py-2.5 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-bold text-xs flex items-center gap-2 disabled:opacity-50"
-              >
-                <span>Avançar para Configuração de Hosts</span>
-                <ArrowRight size={16} />
-              </button>
+              <button type="button" onClick={() => setCurrentStep(1)} className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/20"><ArrowLeft size={16} />Voltar</button>
+              <button type="button" disabled={!adminName.trim() || !adminEmail.trim() || adminPassword.length < 6 || confirmPassword !== adminPassword} onClick={() => setCurrentStep(3)} className="flex items-center gap-2 rounded-xl bg-[#FF6B00] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#FF6B00]/80 disabled:opacity-50"><span>Avançar para Integração Kenjitsu</span><ArrowRight size={16} /></button>
             </div>
           </div>
         )}
 
-        {/* Passo 3: Configuração de Hosts Autorizados */}
         {currentStep === 3 && (
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="setup-media-hosts" className="block text-xs font-bold text-gray-300 mb-1">
-                Hosts de Mídia Autorizados (Separados por vírgula)
-              </label>
-              <div className="relative">
-                <Globe size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input id="setup-media-hosts"
-                  type="text"
-                  placeholder="Ex: cdn.seudominio.com, media.seudominio.com (Opcional - Provedores ativos são autorizados automaticamente)"
-                  value={mediaHosts}
-                  onChange={(e) => setMediaHosts(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
-                />
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1">
-                Apenas URLs pertencentes a estes domínios serão aceitas pelo proxy de mídia SSRF.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between pt-4">
-              <button
-                onClick={() => setCurrentStep(2)}
-                className="px-4 py-2.5 rounded-xl bg-white/10 text-white font-bold text-xs flex items-center gap-2"
-              >
-                <ArrowLeft size={16} />
-                <span>Voltar</span>
-              </button>
-
-              <button
-                onClick={() => setCurrentStep(4)}
-                className="px-6 py-2.5 rounded-xl bg-[#FF6B00] text-white font-bold text-xs flex items-center gap-2"
-              >
-                <span>Avançar para Extensões Kenjitsu</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Passo 4: Importação e Fontes de Mídia Configuráveis */}
-        {currentStep === 4 && (
           <div className="space-y-5">
             <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
               <div className="flex items-start gap-3">
                 <Sparkles size={22} className="mt-0.5 text-[#FF6B00]" />
                 <div>
-                  <h3 className="text-sm font-bold text-white">Catálogo e fontes Kenjitsu</h3>
+                  <h2 className="text-sm font-bold text-white">Catálogo e fontes Kenjitsu</h2>
                   <p className="mt-1 text-xs leading-5 text-gray-400">
-                    O catálogo, os episódios e os sources serão consultados exclusivamente pela API Kenjitsu self-hosted.
-                    As extensões podem ser ativadas, desativadas e testadas depois em /admin/extensions.
+                    O catálogo, os episódios e as fontes serão consultados exclusivamente pela API Kenjitsu self-hosted.
+                    As extensões podem ser ativadas, desativadas e testadas em <code>/admin/extensions</code>.
                   </p>
                 </div>
               </div>
             </div>
-
             <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs text-emerald-300">
               <CheckCircle2 size={18} />
-              <span>Não é necessário importar playlists ou cadastrar URLs manuais durante a instalação.</span>
+              <span>Não é necessário cadastrar hosts, importar playlists ou inserir URLs manuais.</span>
             </div>
-
             <div className="flex items-center justify-between pt-4">
-              <button
-                onClick={() => setCurrentStep(3)}
-                className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white"
-              >
-                <ArrowLeft size={16} />
-                <span>Voltar</span>
-              </button>
-
-              <button
-                disabled={loading}
-                onClick={handleCompleteSetup}
-                className="flex items-center gap-2 rounded-xl bg-[#FF6B00] px-6 py-2.5 text-xs font-bold text-white disabled:opacity-50"
-              >
+              <button type="button" onClick={() => setCurrentStep(2)} className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/20"><ArrowLeft size={16} />Voltar</button>
+              <button type="button" disabled={loading} onClick={() => void handleCompleteSetup()} className="flex items-center gap-2 rounded-xl bg-[#FF6B00] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#FF6B00]/80 disabled:opacity-50">
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                <span>Concluir Instalação</span>
+                Concluir Instalação
               </button>
             </div>
           </div>
         )}
 
-        {false && currentStep === 4 && (
-          <div className="space-y-5">
-            {/* Seção de Provedores Configuráveis */}
-            <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center justify-between border-b border-white/10 pb-2">
-                <span>Provedores de Mídia Pré-Configurados ({setupProviders.length})</span>
-                <span className="text-[10px] text-[#FF6B00]">Configuráveis & Testáveis</span>
-              </h3>
-
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {setupProviders.map((p) => {
-                  const testRes = setupProviderTestResults[p.id];
-                  const isTesting = testingSetupProviderId === p.id;
-
-                  return (
-                    <div
-                      key={p.id}
-                      className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="space-y-0.5 max-w-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-white text-xs">{p.name}</span>
-                          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[9px] font-mono text-gray-300">
-                            {p.type}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-400 font-mono truncate">{p.url}</p>
-
-                        {testRes && (
-                          <div className="text-[10px] font-bold">
-                            {testRes.ok ? (
-                              <span className="text-emerald-400">
-                                HTTP {testRes.status} ({testRes.latencyMs}ms OK)
-                              </span>
-                            ) : (
-                              <span className="text-red-400">Falha na conexão</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleTestSetupProvider(p)}
-                          disabled={isTesting}
-                          className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] flex items-center gap-1"
-                        >
-                          {isTesting ? (
-                            <Loader2 size={12} className="animate-spin text-[#FF6B00]" />
-                          ) : (
-                            <Play size={12} className="text-[#FF6B00]" />
-                          )}
-                          <span>Testar</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleToggleSetupProvider(p.id, !p.enabled)}
-                          className={`px-2 py-1 rounded-lg font-bold text-[10px] uppercase border ${
-                            p.enabled
-                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                              : 'bg-red-500/20 text-red-400 border-red-500/30'
-                          }`}
-                        >
-                          {p.enabled ? 'Ativo' : 'Off'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <p className="block text-xs font-bold text-gray-300 mb-1">
-                Upload de Arquivo .m3u / .m3u8 do Computador
-              </p>
-              <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-white/20 hover:border-[#FF6B00] rounded-2xl cursor-pointer bg-black/40 transition-all">
-                <Upload size={24} className="text-[#FF6B00] mb-1" />
-                <span className="text-xs font-bold text-gray-300">
-                  {fileName ? `Arquivo: ${fileName}` : 'Clique para selecionar arquivo .m3u ou .m3u8'}
-                </span>
-                <input
-                  type="file"
-                  accept=".m3u,.m3u8"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label htmlFor="setup-m3u-content" className="block text-xs font-bold text-gray-300">
-                  Ou Cole o Conteúdo da Playlist M3U Autorizada
-                </label>
-                <button
-                  type="button"
-                  onClick={handleValidateM3u}
-                  disabled={!m3uContent.trim()}
-                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] flex items-center gap-1.5 transition-all disabled:opacity-40"
-                >
-                  <Sparkles size={12} className="text-[#FF6B00]" />
-                  <span>Validar M3U</span>
-                </button>
-              </div>
-              <textarea id="setup-m3u-content"
-                rows={5}
-                value={m3uContent}
-                onChange={(e) => {
-                  setM3uContent(e.target.value);
-                  if (m3uStats) setM3uStats(null);
-                }}
-                placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-logo=&quot;https://cdn.exemplo.com/poster.jpg&quot;,Anime Exemplo S01E01&#10;https://media.exemplo.com/s01e01/master.m3u8"
-                className="w-full p-4 rounded-2xl bg-black/60 border border-white/10 text-xs font-mono text-gray-200"
-              />
-
-              {m3uStats && (
-                <div className="mt-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center justify-between">
-                  <span>Prévia M3U Analisada:</span>
-                  <span>{m3uStats?.uniqueAnimes} animes / {m3uStats?.totalEntries} episódios encontrados</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between pt-4">
-              <button
-                onClick={() => setCurrentStep(3)}
-                className="px-4 py-2.5 rounded-xl bg-white/10 text-white font-bold text-xs flex items-center gap-2"
-              >
-                <ArrowLeft size={16} />
-                <span>Voltar</span>
-              </button>
-
-              <button
-                disabled={loading}
-                onClick={handleCompleteSetup}
-                className="px-6 py-2.5 rounded-xl bg-[#FF6B00] text-white font-bold text-xs flex items-center gap-2 disabled:opacity-50"
-              >
-                {loading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <>
-                    <ShieldCheck size={16} />
-                    <span>Concluir Instalação</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Passo 5: Sucesso & Conclusão */}
-        {currentStep === 5 && (
-          <div className="text-center space-y-6 py-6">
-            <CheckCircle2 size={64} className="text-emerald-400 mx-auto" />
+        {currentStep === 4 && (
+          <div className="space-y-6 py-6 text-center">
+            <CheckCircle2 size={64} className="mx-auto text-emerald-400" />
             <div className="space-y-2">
-              <h2 className="text-2xl font-black text-white">Instalação Concluída com Sucesso!</h2>
-              <p className="text-xs text-gray-300 max-w-md mx-auto">
-                A aplicação foi configurada e seu administrador mestre foi cadastrado.
-              </p>
+              <h2 className="text-2xl font-black text-white">Instalação concluída com sucesso!</h2>
+              <p className="mx-auto max-w-md text-xs text-gray-300">O administrador mestre foi cadastrado e o app está pronto para usar o Kenjitsu self-hosted.</p>
             </div>
-
-            {/* Ações de Conclusão */}
-            <div className="p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4 max-w-lg mx-auto text-left">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 border-b border-white/10 pb-2">
-                Ações Recomendadas de Conclusão
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={handleDownloadSummary}
-                  className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs flex items-center gap-2.5 transition-all group"
-                >
-                  <div className="p-2 rounded-lg bg-[#FF6B00]/20 text-[#FF6B00] group-hover:scale-110 transition-transform">
-                    <Download size={16} />
-                  </div>
-                  <div className="text-left">
-                    <span className="block text-white font-bold">Baixar Resumo</span>
-                    <span className="block text-[10px] text-gray-400">Salvar credenciais (.txt)</span>
-                  </div>
+            <div className="mx-auto max-w-lg space-y-4 rounded-2xl border border-white/10 bg-black/40 p-5 text-left">
+              <h3 className="border-b border-white/10 pb-2 text-xs font-bold uppercase tracking-wider text-gray-400">Ações recomendadas</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button type="button" onClick={handleDownloadSummary} className="group flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 p-3 text-left text-xs font-bold text-white hover:bg-white/10">
+                  <div className="rounded-lg bg-[#FF6B00]/20 p-2 text-[#FF6B00]"><Download size={16} /></div>
+                  <div><span className="block">Baixar resumo</span><span className="block text-[10px] text-gray-400">Salvar dados da instalação</span></div>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={handleSeedPopularAnimes}
-                  disabled={isSeedingPopular}
-                  className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs flex items-center gap-2.5 transition-all group disabled:opacity-50"
-                >
-                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
-                    {isSeedingPopular ? <Loader2 size={16} className="animate-spin" /> : <Film size={16} />}
-                  </div>
-                  <div className="text-left">
-                    <span className="block text-white font-bold">Populares Top 25</span>
-                    <span className="block text-[10px] text-gray-400">Importar via catalogo Kenjitsu</span>
-                  </div>
+                <button type="button" onClick={() => void handleSeedPopularAnimes()} disabled={isSeedingPopular} className="group flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 p-3 text-left text-xs font-bold text-white hover:bg-white/10 disabled:opacity-50">
+                  <div className="rounded-lg bg-emerald-500/20 p-2 text-emerald-400">{isSeedingPopular ? <Loader2 size={16} className="animate-spin" /> : <Film size={16} />}</div>
+                  <div><span className="block">Populares Top 25</span><span className="block text-[10px] text-gray-400">Importar via catálogo Kenjitsu</span></div>
                 </button>
               </div>
-
-              {seedSuccess && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold text-center">
-                  {seedSuccess}
-                </div>
-              )}
+              {seedSuccess && <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-center text-xs font-bold text-emerald-400">{seedSuccess}</div>}
             </div>
-
-            <div className="pt-2">
-              <button
-                onClick={() => router.push('/admin/dashboard')}
-                className="px-8 py-3.5 rounded-xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs inline-flex items-center gap-2 shadow-lg shadow-[#FF6B00]/30 transition-all"
-              >
-                <span>Ir para o Painel Administrativo</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
+            <button type="button" onClick={() => router.push('/admin/extensions')} className="inline-flex items-center gap-2 rounded-xl bg-[#FF6B00] px-8 py-3.5 text-xs font-black text-white shadow-lg shadow-[#FF6B00]/30 hover:bg-[#FF6B00]/80"><span>Ir para Extensões Kenjitsu</span><ArrowRight size={16} /></button>
           </div>
         )}
       </div>
@@ -873,8 +405,8 @@ export default function SetupWizardPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="py-20 text-white flex flex-col items-center justify-center gap-3">
-          <Loader2 size={36} className="text-[#FF6B00] animate-spin" />
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-white">
+          <Loader2 size={36} className="animate-spin text-[#FF6B00]" />
           <p className="text-xs font-bold text-gray-400">Carregando assistente de instalação...</p>
         </div>
       }

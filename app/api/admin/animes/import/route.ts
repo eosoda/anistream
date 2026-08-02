@@ -127,8 +127,7 @@ export async function POST(request: NextRequest) {
       message: `Anime "${mainTitle}" importado com ${importedEpisodesCount} episodios do Kenjitsu.`,
       anime,
       episodesCount: importedEpisodesCount,
-      sourcesCount: 0,
-      sources: 'As fontes permanecem live e serao resolvidas pelo Kenjitsu no playback.',
+      sourceResolution: 'live-kenjitsu',
     });
   } catch (error: any) {
     return NextResponse.json({ error: 'Erro ao importar anime', details: error.message }, { status: 502 });

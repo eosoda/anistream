@@ -6,8 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Film,
-  Radio,
-  TestTube2,
   Navigation,
   ChevronLeft,
   ChevronRight,
@@ -52,22 +50,10 @@ export function AdminSidebar({
       icon: <Film size={18} />,
     },
     {
-      name: 'Fontes & Servidores',
-      href: '/admin/sources',
-      exact: true,
-      icon: <Radio size={18} />,
-    },
-    {
       name: 'Extensões Kenjitsu',
       href: '/admin/extensions',
       exact: true,
       icon: <Puzzle size={18} />,
-    },
-    {
-      name: 'Testar extensões',
-      href: '/admin/extensions',
-      exact: false,
-      icon: <TestTube2 size={18} />,
     },
     {
       name: 'Navegação & Links',

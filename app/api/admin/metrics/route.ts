@@ -9,23 +9,16 @@ export async function GET(request: NextRequest) {
   if (!auth.authenticated) return auth.errorResponse!;
 
   try {
-    const [animeCount, episodeCount, totalSourcesCount, activeSourcesCount, healthLogs, recentSources, settings, health] = await Promise.all([
+    const [animeCount, episodeCount, healthLogs, settings, health] = await Promise.all([
       prisma.anime.count(),
       prisma.episode.count(),
-      prisma.episodeSource.count(),
-      prisma.episodeSource.count({ where: { enabled: true } }),
       prisma.providerHealthLog.findMany({ take: 20, orderBy: { checkedAt: 'desc' } }),
-      prisma.episodeSource.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: { episode: { include: { anime: { select: { title: true } } } } },
-      }),
       getKenjitsuExtensionSettings(),
       kenjitsuClient.getExtensionHealth().catch(() => ({ data: [] })),
     ]);
 
     const healthById = new Map((health.data || []).map((item) => [item.id, item]));
-    const providerStats = settings.map((setting) => {
+    const extensionStats = settings.map((setting) => {
       const manifest = healthById.get(setting.id);
       const status = setting.lastTestStatus || (manifest ? 'degraded' : 'down');
       return {
@@ -37,19 +30,19 @@ export async function GET(request: NextRequest) {
         enabled: setting.enabled,
       };
     });
+    const enabledExtensionsCount = extensionStats.filter((extension) => extension.enabled).length;
 
     return NextResponse.json({
       kpis: {
         animeCount,
         episodeCount,
-        totalSourcesCount,
-        activeSourcesCount,
-        inactiveSourcesCount: totalSourcesCount - activeSourcesCount,
-        overallHealthScore: providerStats.length ? Math.round(providerStats.reduce((total, item) => total + item.successRate, 0) / providerStats.length) : 0,
+        totalExtensionsCount: extensionStats.length,
+        enabledExtensionsCount,
+        disabledExtensionsCount: extensionStats.length - enabledExtensionsCount,
+        overallHealthScore: extensionStats.length ? Math.round(extensionStats.reduce((total, item) => total + item.successRate, 0) / extensionStats.length) : 0,
       },
-      providerStats,
+      extensionStats,
       healthLogs,
-      recentSources: recentSources.map((source: any) => ({ ...source, trafficBytes: Number(source.trafficBytes || 0) })),
       source: 'kenjitsu',
     });
   } catch (error: any) {

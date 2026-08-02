@@ -37,7 +37,7 @@ export async function POST(
       ])
     ).filter(Boolean);
 
-    // Disparar busca de mídias em tempo real através dos provedores autorizados
+    // Disparar busca de mídias em tempo real através das extensões Kenjitsu habilitadas
     const result = await defaultStreamResolver.resolveEpisodeStream({
       animeId: episode.animeId,
       season: episode.season || 1,
@@ -84,7 +84,7 @@ export async function POST(
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: 'Erro ao buscar fontes nos provedores', details: err.message },
+      { error: 'Erro ao consultar mídias nas extensões Kenjitsu', details: err.message },
       { status: 500 }
     );
   }

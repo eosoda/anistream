@@ -50,7 +50,6 @@ services:
       SOURCE_ENCRYPTION_KEY: ${SOURCE_ENCRYPTION_KEY:-32-bytes-encryption-key-for-aes-256-gcm!}
       INITIAL_SETUP_KEY: ${INITIAL_SETUP_KEY:-}
       SETUP_KEY: ${SETUP_KEY:-}
-      AUTHORIZED_MEDIA_HOSTS: ${AUTHORIZED_MEDIA_HOSTS:-media.mydomain.com,cdn.mydomain.com,storage.googleapis.com,s3.amazonaws.com}
       KENJITSU_BASE_URL: ${KENJITSU_BASE_URL:-http://kenjitsu:3000}
       KENJITSU_API_KEY: ${KENJITSU_API_KEY:-}
       KENJITSU_REQUEST_TIMEOUT_MS: ${KENJITSU_REQUEST_TIMEOUT_MS:-10000}

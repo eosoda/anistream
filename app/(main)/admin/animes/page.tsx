@@ -116,14 +116,14 @@ export default function AdminAnimesPage() {
         showToast({
           type: 'success',
           title: 'Sincronização Concluída! 🔄',
-          message: data.message || `Episódios e fontes de "${title}" sincronizados com sucesso.`,
+          message: data.message || `Episódios de "${title}" sincronizados pelo Kenjitsu.`,
         });
         fetchAnimes(search, page);
       } else {
         showToast({
           type: 'error',
           title: 'Falha na Sincronização',
-          message: data.error || 'Erro ao sincronizar episódios e fontes.',
+          message: data.error || 'Erro ao sincronizar episódios pelo Kenjitsu.',
         });
       }
     } catch (err: any) {
@@ -146,7 +146,7 @@ export default function AdminAnimesPage() {
   const handleDelete = async (id: string, title: string) => {
     const confirmed = await confirm({
       title: 'Excluir anime e episódios?',
-      description: `“${title}” e todos os episódios e fontes associados serão excluídos permanentemente.`,
+      description: `“${title}” e todos os episódios associados serão excluídos permanentemente.`,
       confirmText: 'Excluir anime',
       cancelText: 'Cancelar',
       variant: 'danger',
@@ -319,7 +319,7 @@ export default function AdminAnimesPage() {
                   onClick={() => handleSyncAnime(anime.id, anime.title)}
                   disabled={syncingId === anime.id}
                   className="py-2 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white font-bold text-xs flex items-center justify-center gap-1 transition-all border border-emerald-500/20"
-                  title="Sincronizar Episódios e Fontes"
+                  title="Sincronizar episódios pelo Kenjitsu"
                 >
                   {syncingId === anime.id ? (
                     <Loader2 size={14} className="animate-spin" />

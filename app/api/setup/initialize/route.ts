@@ -38,12 +38,9 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
-      message: 'Aplicacao configurada com sucesso.',
+      message: 'Aplicacao configurada com sucesso. O catalogo e as fontes serao consultados pelo Kenjitsu self-hosted.',
       admin: { id: newAdmin.id, email: newAdmin.email, name: newAdmin.name },
-      m3uImportSummary: {
-        disabled: true,
-        message: 'Playlists M3U nao sao mais usadas. As fontes sao resolvidas ao vivo pelas extensoes Kenjitsu.',
-      },
+      integration: 'kenjitsu',
     });
     response.cookies.set('admin_token', sessionToken, {
       httpOnly: true,

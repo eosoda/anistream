@@ -34,9 +34,6 @@ function run() {
   const sourceEncryptionKey = generateSecureToken('enc', 32);
   const initialSetupKey = generateSecureToken('setup', 12);
 
-  const mediaHosts = 'media.mydomain.com,cdn.mydomain.com,storage.googleapis.com,s3.amazonaws.com';
-  const metadataApiUrl = 'https://api.jikan.moe/v4';
-  const metadataApiKey = '';
   const appUrl = 'http://localhost:3000';
 
   const envContent = `# ===================================================================
@@ -62,10 +59,11 @@ SOURCE_ENCRYPTION_KEY="${sourceEncryptionKey}"
 INITIAL_SETUP_KEY="${initialSetupKey}"
 SETUP_KEY="${initialSetupKey}"
 
-# Segurança de Mídia e APIs
-AUTHORIZED_MEDIA_HOSTS="${mediaHosts}"
-AUTHORIZED_METADATA_API_URL="${metadataApiUrl}"
-AUTHORIZED_METADATA_API_KEY="${metadataApiKey}"
+# API de catálogo, episódios e mídia
+KENJITSU_BASE_URL="http://localhost:3001"
+KENJITSU_API_KEY=""
+KENJITSU_REQUEST_TIMEOUT_MS="10000"
+KENJITSU_CACHE_TTL_SECONDS="300"
 
 # URL Base da Aplicação
 NEXT_PUBLIC_APP_URL="${appUrl}"
