@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
-import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId } from './types';
+import { KENJITSU_EXTENSION_IDS, KENJITSU_NSFW_EXTENSION_IDS, type KenjitsuExtensionId } from './types';
 
 export const KENJITSU_EXTENSION_SETTING_KEY = 'kenjitsu_extensions';
 
@@ -16,7 +16,7 @@ export interface KenjitsuExtensionSetting {
 const defaults: KenjitsuExtensionSetting[] = KENJITSU_EXTENSION_IDS.map((id) => ({
   id,
   enabled: true,
-  nsfw: false,
+  nsfw: KENJITSU_NSFW_EXTENSION_IDS.includes(id as (typeof KENJITSU_NSFW_EXTENSION_IDS)[number]),
 }));
 
 function normalize(value: unknown): KenjitsuExtensionSetting[] {

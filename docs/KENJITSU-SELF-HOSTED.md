@@ -30,7 +30,7 @@ Serviços:
 
 O Compose compila `kenjitsu/Dockerfile.selfhosted` usando os dois forks irmãos como contexto. A imagem final não possui symlink para o host.
 
-## Smoke dos cinco provedores nativos
+## Smoke do inventário Kenjitsu
 
 Com o Kenjitsu saudável:
 
@@ -38,7 +38,9 @@ Com o Kenjitsu saudável:
 npm run test:kenjitsu
 ```
 
-O script executa busca, detalhes, episódios e sources em `anizone`, `anikoto`, `anidb`, `anibd` e `animeheaven`. O painel `/admin/extensions` controla habilitação, NSFW, health e teste individual.
+O script primeiro exige que as 37 extensões estejam registradas no endpoint de health. Por padrão, executa busca, detalhes, episódios e sources nas cinco extensões nativas e nas 30 portas públicas; as duas fontes NSFW (`hentaistube` e `muitohentai`) ficam fora do smoke padrão e só entram com `KENJITSU_SMOKE_INCLUDE_NSFW=true`. Para testar uma seleção menor, use `KENJITSU_SMOKE_EXTENSIONS=anizone,animefire`.
+
+O painel `/admin/extensions` controla habilitação, NSFW, health, versão e teste individual.
 
 ## Atualizar dos upstreams
 
@@ -49,7 +51,7 @@ git fetch upstream --tags
 git log --oneline HEAD..upstream/main
 ```
 
-As atualizações entram em branches próprias e PRs draft. O merge só é liberado depois de `tsc`, testes unitários, build Docker e smoke dos cinco provedores. As portas dos módulos de `extensions-source` serão feitas em PRs separados por grupo, preservando a origem e facilitando revisões/updates futuros.
+As atualizações entram em branches próprias e PRs draft. O merge só é liberado depois de `tsc`, testes unitários, build Docker e smoke do inventário/extensões habilitadas. As 32 portas dos módulos de `extensions-source` estão divididas em quatro PRs encadeados por grupo, preservando a origem e facilitando revisões/updates futuros.
 
 ## Ordem dos PRs
 

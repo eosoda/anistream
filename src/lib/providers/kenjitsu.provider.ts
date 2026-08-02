@@ -10,7 +10,7 @@ import type {
 import { kenjitsuClient } from '@/lib/kenjitsu/client';
 import { resolveAnilistId } from '@/lib/kenjitsu/catalog';
 import { getEnabledKenjitsuExtensions } from '@/lib/kenjitsu/settings';
-import type { KenjitsuExtensionId, KenjitsuProviderEpisode } from '@/lib/kenjitsu/types';
+import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId, type KenjitsuProviderEpisode } from '@/lib/kenjitsu/types';
 
 const EXTENSION_LABELS: Record<KenjitsuExtensionId, string> = {
   anizone: 'AniZone',
@@ -18,6 +18,38 @@ const EXTENSION_LABELS: Record<KenjitsuExtensionId, string> = {
   anidb: 'AniDB',
   anibd: 'AniBD',
   animeheaven: 'AnimeHeaven',
+  anikyuu: 'Anikyuu',
+  animefire: 'Anime Fire',
+  animeito: 'Animeito',
+  animeplay: 'Anime Play',
+  animeplayer: 'AnimePlayer',
+  animeq: 'AnimeQ',
+  animesbr: 'Animes BR',
+  animescx: 'Animes CX',
+  animesdigital: 'Animes Digital',
+  animesdrive: 'Animes Drive',
+  animesgames: 'Animes Games',
+  animesgratis: 'Top Animes',
+  animesonlinecc: 'Animes Online CC',
+  animesonlinecloud: 'Animes Online Cloud',
+  animesonlinevip: 'Animes Online Vip',
+  animesotaku: 'Anime Core',
+  animesroll: 'Animes ROLL',
+  anitube: 'Anitube',
+  betteranimeio: 'BetterAnimeIo',
+  darkmahou: 'DarkMahou',
+  dattebayobr: 'Dattebayo BR',
+  donghuanosekai: 'Donghua no Sekai',
+  doramogo: 'Doramogo',
+  funanimetv: 'Fun Anime TV',
+  goyabu: 'Goyabu',
+  hentaistube: 'HentaisTube',
+  meusanimes: 'Meus Animes',
+  muitohentai: 'Muito Hentai',
+  pifansubs: 'Pi Fansubs',
+  smartanimes: 'SmartAnimes',
+  sushianimes: 'Sushi Animes',
+  tomato: 'Tomato',
 };
 
 function sourceType(url: string, isM3u8?: boolean | null, type?: string | null): StreamType {
@@ -127,7 +159,7 @@ export class KenjitsuProvider implements AnimeProvider {
       return {
         providerId: this.id,
         name: this.name,
-        status: active === 5 ? 'healthy' : active > 0 ? 'degraded' : 'down',
+        status: active === KENJITSU_EXTENSION_IDS.length ? 'healthy' : active > 0 ? 'degraded' : 'down',
         latencyMs: Date.now() - startedAt,
         lastChecked: new Date().toISOString(),
         errorMessage: active === 0 ? 'Nenhuma extensão retornada pelo Kenjitsu.' : undefined,

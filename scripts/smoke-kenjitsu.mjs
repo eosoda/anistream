@@ -1,7 +1,18 @@
 const baseUrl = (process.env.KENJITSU_SMOKE_URL || process.env.KENJITSU_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
 const query = process.env.KENJITSU_SMOKE_QUERY || 'Naruto';
 const apiKey = process.env.KENJITSU_API_KEY || '';
-const extensionIds = ['anizone', 'anikoto', 'anidb', 'anibd', 'animeheaven'];
+const allExtensionIds = [
+  'anizone', 'anikoto', 'anidb', 'anibd', 'animeheaven',
+  'anikyuu', 'animefire', 'animeito', 'animeplay', 'animeplayer', 'animeq', 'animesbr', 'animescx',
+  'animesdigital', 'animesdrive', 'animesgames', 'animesgratis', 'animesonlinecc', 'animesonlinecloud',
+  'animesonlinevip', 'animesotaku', 'animesroll', 'anitube', 'betteranimeio', 'darkmahou', 'dattebayobr',
+  'donghuanosekai', 'doramogo', 'funanimetv', 'goyabu', 'hentaistube', 'meusanimes', 'muitohentai',
+  'pifansubs', 'smartanimes', 'sushianimes', 'tomato',
+];
+const nsfwExtensionIds = new Set(['hentaistube', 'muitohentai']);
+const extensionIds = process.env.KENJITSU_SMOKE_EXTENSIONS
+  ? process.env.KENJITSU_SMOKE_EXTENSIONS.split(',').map(value => value.trim()).filter(Boolean)
+  : allExtensionIds.filter(extensionId => process.env.KENJITSU_SMOKE_INCLUDE_NSFW === 'true' || !nsfwExtensionIds.has(extensionId));
 
 async function getJson(path) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -15,6 +26,14 @@ async function getJson(path) {
 }
 
 const failures = [];
+
+const health = await getJson('/api/extensions/health');
+const registeredIds = new Set((health.data || []).map(extension => extension.id));
+const missingIds = allExtensionIds.filter(extensionId => !registeredIds.has(extensionId));
+if (missingIds.length) {
+  throw new Error(`inventário incompleto: ${missingIds.join(', ')}`);
+}
+console.log(`[OK] inventário: ${allExtensionIds.length} extensões registradas no Kenjitsu.`);
 
 async function runExtensionSmoke(extensionId) {
   let lastError = null;

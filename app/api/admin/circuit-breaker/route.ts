@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
 import { globalCircuitBreaker } from '@/lib/api/circuit-breaker';
 import { apiSuccess, apiError } from '@/lib/api/response';
+import { KENJITSU_EXTENSION_IDS } from '@/lib/kenjitsu/types';
 
-const MONITORED_PROVIDERS = ['kenjitsu', 'anizone', 'anikoto', 'anidb', 'anibd', 'animeheaven'];
+const MONITORED_PROVIDERS = ['kenjitsu', ...KENJITSU_EXTENSION_IDS];
 
 export async function GET(request: NextRequest) {
   try {

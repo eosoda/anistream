@@ -11,7 +11,7 @@ interface ExtensionItem {
   lastTestStatus?: 'healthy' | 'degraded' | 'down' | null;
   lastLatencyMs?: number | null;
   lastError?: string | null;
-  manifest?: { name?: string; version?: string; source?: string; capabilities?: string[] } | null;
+  manifest?: { name?: string; version?: string; source?: string; capabilities?: string[]; upstream?: { module?: string; repository?: string } } | null;
 }
 
 export default function AdminExtensionsPage() {
@@ -75,7 +75,7 @@ export default function AdminExtensionsPage() {
           <div className="rounded-2xl bg-[#FF6B00]/20 p-3 text-[#FF6B00]"><Activity size={28} /></div>
           <div>
             <h1 className="text-2xl font-black">Extensões do Kenjitsu</h1>
-            <p className="mt-1 text-sm text-gray-400">Fontes nativas gerenciadas pelo fork self-hosted. Alterações valem sem reiniciar o Kenjitsu.</p>
+            <p className="mt-1 text-sm text-gray-400">Fontes nativas e portadas gerenciadas pelo fork self-hosted. Alterações valem sem reiniciar o Kenjitsu.</p>
           </div>
         </div>
       </header>
@@ -99,11 +99,12 @@ export default function AdminExtensionsPage() {
                 <div className="flex flex-wrap gap-2 text-[11px] text-gray-400">
                   <span className="rounded-lg bg-black/30 px-2 py-1">{extension.manifest?.source || 'builtin'}</span>
                   <span className="rounded-lg bg-black/30 px-2 py-1">{extension.manifest?.capabilities?.join(' · ') || 'search · info · sources'}</span>
+                  {extension.manifest?.upstream?.module && <span className="rounded-lg bg-black/30 px-2 py-1">{extension.manifest.upstream.module}</span>}
                   {extension.lastLatencyMs != null && <span className="rounded-lg bg-black/30 px-2 py-1">{extension.lastLatencyMs}ms</span>}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => void patch(extension.id, { enabled: !extension.enabled })} disabled={testing} className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold ${extension.enabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-gray-400'}`}><Power size={14} /> {extension.enabled ? 'Ativa' : 'Desativada'}</button>
-                  <button onClick={() => void patch(extension.id, { nsfw: !extension.nsfw })} disabled={testing} className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold ${extension.nsfw ? 'bg-rose-500/20 text-rose-300' : 'bg-white/10 text-gray-400'}`}><ShieldOff size={14} /> {extension.nsfw ? 'NSFW permitido' : 'NSFW bloqueado'}</button>
+                  <button onClick={() => void patch(extension.id, { nsfw: !extension.nsfw })} disabled={testing} className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold ${extension.nsfw ? 'bg-rose-500/20 text-rose-300' : 'bg-white/10 text-gray-400'}`}><ShieldOff size={14} /> {extension.nsfw ? 'NSFW bloqueado' : 'NSFW permitido'}</button>
                   <button onClick={() => void test(extension.id)} disabled={testing} className="inline-flex items-center gap-2 rounded-xl border border-[#FF6B00]/30 bg-[#FF6B00]/10 px-3 py-2 text-xs font-bold text-[#FF6B00]">{testing ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />} Testar</button>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-gray-500">
