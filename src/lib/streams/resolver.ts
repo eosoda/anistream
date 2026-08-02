@@ -14,6 +14,13 @@ import { ExternalApisProvider } from '../providers/external-apis.provider';
 
 export class StreamResolver {
   private providers: AnimeProvider[] = [];
+  private readonly fastCache = new Map<
+    string,
+    { expiresAt: number; result: ResolveStreamResult }
+  >();
+  private readonly fastInFlight = new Map<string, Promise<ResolveStreamResult>>();
+  private readonly fastCacheTtlMs = 60_000;
+  private readonly fastCacheMaxEntries = 200;
 
   constructor(customProviders?: AnimeProvider[]) {
     if (customProviders && customProviders.length > 0) {
@@ -35,132 +42,272 @@ export class StreamResolver {
 
   async resolveEpisodeStream(
     input: EpisodeLookupInput,
-    timeoutPerProviderMs = 9000
+    timeoutPerProviderMs = input.resolutionMode === 'fast' ? 4500 : 9000,
+    options: { mode?: 'fast' | 'complete'; validationTimeoutMs?: number } = {}
   ): Promise<ResolveStreamResult> {
-    const attempts: ProviderAttempt[] = [];
-    const rawSourcesMap = new Map<string, StreamSource>();
+    const mode = options.mode ?? input.resolutionMode ?? 'complete';
 
-    // Buscar anime e todos os seus aliases no banco se animeId for informado
-    if (input.animeId && (!input.animeTitle || !input.aliases || input.aliases.length === 0)) {
+    if (mode === 'fast') {
+      const cacheKey = this.getFastCacheKey(input);
+      const cached = this.fastCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) {
+        return {
+          ...cached.result,
+          attempts: cached.result.attempts.map((attempt) => ({ ...attempt })),
+          cacheHit: true,
+        };
+      }
+      if (cached) this.fastCache.delete(cacheKey);
+
+      const inFlight = this.fastInFlight.get(cacheKey);
+      if (inFlight) {
+        const result = await inFlight;
+        return {
+          ...result,
+          attempts: result.attempts.map((attempt) => ({ ...attempt })),
+          cacheHit: true,
+        };
+      }
+
+      const promise = this.resolveFast(
+        input,
+        timeoutPerProviderMs,
+        options.validationTimeoutMs ?? 1800
+      );
+      this.fastInFlight.set(cacheKey, promise);
+
       try {
-        const { prisma } = await import('../db/prisma');
-        const dbAnime = await prisma.anime.findFirst({
-          where: {
-            OR: [
-              { id: input.animeId },
-              { slug: input.animeId },
-              {
-                identifiers: {
-                  some: { value: input.animeId },
-                },
-              },
-            ],
-          },
-          include: { aliases: true },
-        });
-
-        if (dbAnime) {
-          input.animeTitle = input.animeTitle || dbAnime.title;
-          input.originalTitle = input.originalTitle || dbAnime.originalTitle || undefined;
-          const aliasValues = dbAnime.aliases.map((a: any) => a.value);
-          input.aliases = Array.from(
-            new Set([
-              ...(input.aliases || []),
-              dbAnime.title,
-              dbAnime.originalTitle || '',
-              ...aliasValues,
-            ])
-          ).filter(Boolean);
-        }
-      } catch (e) {
-        // Ignorar falhas pontuais de DB
+        const result = await promise;
+        if (result.selected) this.storeFastCache(cacheKey, result);
+        return result;
+      } finally {
+        this.fastInFlight.delete(cacheKey);
       }
     }
 
-    // 1. Consultar provedores autorizados em paralelo com Promise.allSettled
-    const providerPromises = this.providers.map(async (provider) => {
+    return this.resolveComplete(input, timeoutPerProviderMs);
+  }
+
+  private getFastCacheKey(input: EpisodeLookupInput): string {
+    return [
+      input.animeId.trim().toLowerCase(),
+      input.season,
+      input.episode,
+      input.preferredAudio || 'pt-BR',
+      input.preferredProvider?.trim().toLowerCase() || 'default',
+    ].join('|');
+  }
+
+  private storeFastCache(key: string, result: ResolveStreamResult): void {
+    while (this.fastCache.size >= this.fastCacheMaxEntries) {
+      const oldestKey = this.fastCache.keys().next().value as string | undefined;
+      if (!oldestKey) break;
+      this.fastCache.delete(oldestKey);
+    }
+    this.fastCache.set(key, {
+      expiresAt: Date.now() + this.fastCacheTtlMs,
+      result: {
+        ...result,
+        attempts: result.attempts.map((attempt) => ({ ...attempt })),
+        cacheHit: false,
+      },
+    });
+  }
+
+  private async enrichInput(input: EpisodeLookupInput): Promise<void> {
+    if (!input.animeId || (input.animeTitle && input.aliases?.length)) return;
+
+    try {
+      const { prisma } = await import('../db/prisma');
+      const dbAnime = await prisma.anime.findFirst({
+        where: {
+          OR: [
+            { id: input.animeId },
+            { slug: input.animeId },
+            { identifiers: { some: { value: input.animeId } } },
+          ],
+        },
+        include: { aliases: true },
+      });
+
+      if (dbAnime) {
+        input.animeTitle = input.animeTitle || dbAnime.title;
+        input.originalTitle = input.originalTitle || dbAnime.originalTitle || undefined;
+        const aliasValues = dbAnime.aliases.map((alias: { value: string }) => alias.value);
+        input.aliases = Array.from(
+          new Set([
+            ...(input.aliases || []),
+            dbAnime.title,
+            dbAnime.originalTitle || '',
+            ...aliasValues,
+          ])
+        ).filter(Boolean);
+      }
+    } catch {
+      // A source lookup must remain usable when the local metadata database is unavailable.
+    }
+  }
+
+  private matchesPreferredProvider(source: StreamSource, preferredProvider?: string): boolean {
+    if (!preferredProvider) return true;
+    const preferred = preferredProvider.trim().toLocaleLowerCase('pt-BR');
+    const provider = source.provider.trim().toLocaleLowerCase('pt-BR');
+    return provider === preferred || provider.includes(preferred) || preferred.includes(provider);
+  }
+
+  private async resolveFast(
+    input: EpisodeLookupInput,
+    timeoutPerProviderMs: number,
+    validationTimeoutMs: number
+  ): Promise<ResolveStreamResult> {
+    const attempts: ProviderAttempt[] = [];
+    await this.enrichInput(input);
+    const sharedController = new AbortController();
+
+    const tasks = this.providers.map(async (provider) => {
       const startTime = Date.now();
       const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        timeoutPerProviderMs
-      );
+      const timeoutId = setTimeout(() => controller.abort(), timeoutPerProviderMs);
+      const abortFromWinner = () => controller.abort(sharedController.signal.reason);
+      sharedController.signal.addEventListener('abort', abortFromWinner, { once: true });
 
       try {
-        const sources = await provider.getEpisodeSources(
-          input,
-          controller.signal
+        const sources = await provider.getEpisodeSources(input, controller.signal);
+        const scopedSources = sources.filter((source) =>
+          this.matchesPreferredProvider(source, input.preferredProvider)
         );
-        clearTimeout(timeoutId);
-        const durationMs = Date.now() - startTime;
 
+        if (!scopedSources.length) {
+          throw new Error('Nenhuma fonte retornada pelo provedor');
+        }
+
+        // Validate a small, ordered window only. The complete pass is reserved for
+        // the alternatives request, so the first playable source can win quickly.
+        const candidates = scopedSources.slice(0, 6);
+        const validations = await Promise.all(
+          candidates.map(async (source) => ({
+            source,
+            validation: await validateStreamSource(source, validationTimeoutMs),
+          }))
+        );
+        const playable = validations.find(({ validation }) => validation.valid);
+        if (!playable) {
+          throw new Error('Nenhuma fonte reproduzível no primeiro lote');
+        }
+
+        clearTimeout(timeoutId);
+        sharedController.signal.removeEventListener('abort', abortFromWinner);
         attempts.push({
           provider: provider.id,
           success: true,
-          durationMs,
-          sourceCount: sources.length,
+          durationMs: Date.now() - startTime,
+          sourceCount: scopedSources.length,
         });
 
-        return sources;
+        return {
+          selected: playable.source,
+          alternatives: scopedSources.filter((source) => source.id !== playable.source.id),
+        };
       } catch (err: any) {
         clearTimeout(timeoutId);
-        const durationMs = Date.now() - startTime;
-
+        sharedController.signal.removeEventListener('abort', abortFromWinner);
         attempts.push({
           provider: provider.id,
           success: false,
-          durationMs,
+          durationMs: Date.now() - startTime,
           sourceCount: 0,
           error:
-            err.name === 'AbortError'
+            err?.name === 'AbortError'
               ? `Timeout de ${timeoutPerProviderMs}ms excedido`
-              : err.message,
+              : err?.message || 'Falha ao consultar provedor',
         });
+        throw err;
+      }
+    });
 
+    try {
+      const winner = await Promise.any(tasks);
+      sharedController.abort(new DOMException('Outra fonte reproduzível foi encontrada', 'AbortError'));
+      return {
+        selected: winner.selected,
+        alternatives: winner.alternatives,
+        attempts,
+        phase: 'fast',
+        alternativesPending: true,
+        cacheHit: false,
+      };
+    } catch {
+      return {
+        selected: null,
+        alternatives: [],
+        attempts,
+        phase: 'fast',
+        alternativesPending: false,
+        cacheHit: false,
+      };
+    }
+  }
+
+  private async resolveComplete(
+    input: EpisodeLookupInput,
+    timeoutPerProviderMs: number
+  ): Promise<ResolveStreamResult> {
+    const attempts: ProviderAttempt[] = [];
+    const rawSourcesMap = new Map<string, StreamSource>();
+    await this.enrichInput(input);
+
+    const providerPromises = this.providers.map(async (provider) => {
+      const startTime = Date.now();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutPerProviderMs);
+
+      try {
+        const sources = await provider.getEpisodeSources(input, controller.signal);
+        clearTimeout(timeoutId);
+        attempts.push({
+          provider: provider.id,
+          success: true,
+          durationMs: Date.now() - startTime,
+          sourceCount: sources.length,
+        });
+        return sources;
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        attempts.push({
+          provider: provider.id,
+          success: false,
+          durationMs: Date.now() - startTime,
+          sourceCount: 0,
+          error:
+            err?.name === 'AbortError'
+              ? `Timeout de ${timeoutPerProviderMs}ms excedido`
+              : err?.message || 'Falha ao consultar provedor',
+        });
         return [];
       }
     });
 
     const results = await Promise.allSettled(providerPromises);
-
-    // 2. Coletar todas as fontes dos provedores bem-sucedidos
     for (const result of results) {
       if (result.status === 'fulfilled' && Array.isArray(result.value)) {
         for (const source of result.value) {
-          // Deduplicar por URL
-          if (!rawSourcesMap.has(source.url)) {
-            rawSourcesMap.set(source.url, source);
-          }
+          if (!rawSourcesMap.has(source.url)) rawSourcesMap.set(source.url, source);
         }
       }
     }
 
     const allSources = Array.from(rawSourcesMap.values());
-
-    // 3. Validar fontes em servidor (HLS manifest / MP4 byte range)
     const validSources: { source: StreamSource; latencyMs: number }[] = [];
+    await Promise.allSettled(
+      allSources.map(async (source) => {
+        const validation = await validateStreamSource(source, 3500);
+        if (validation.valid) validSources.push({ source, latencyMs: validation.latencyMs });
+      })
+    );
 
-    const validationPromises = allSources.map(async (source) => {
-      const validation = await validateStreamSource(source, 3500);
-      if (validation.valid) {
-        validSources.push({
-          source,
-          latencyMs: validation.latencyMs,
-        });
-      }
-    });
-
-    await Promise.allSettled(validationPromises);
-
-    // 4. Ordenar fontes conforme as regras estritas
     const preferredAudio = input.preferredAudio || 'pt-BR';
-
     const sortedSources = validSources
-      .map(({ source, latencyMs }) => ({
-        source,
-        latencyMs,
-        score: calculateSourceScore(source, latencyMs, preferredAudio),
-      }))
+      .map(({ source, latencyMs }) => ({ source, latencyMs, score: calculateSourceScore(source, latencyMs, preferredAudio) }))
       .sort((a, b) => b.score - a.score)
       .map((item) => item.source);
     const fallbackSources = [...allSources].sort(
@@ -168,25 +315,16 @@ export class StreamResolver {
         calculateSourceScore(b, timeoutPerProviderMs, preferredAudio) -
         calculateSourceScore(a, timeoutPerProviderMs, preferredAudio)
     );
-
-    const selected =
-      sortedSources.length > 0
-        ? sortedSources[0]
-        : fallbackSources.length > 0
-        ? fallbackSources[0]
-        : null;
-
-    const alternatives =
-      sortedSources.length > 1
-        ? sortedSources.slice(1)
-        : fallbackSources.length > 1
-        ? fallbackSources.slice(1)
-        : [];
+    const selected = sortedSources[0] || fallbackSources[0] || null;
+    const alternatives = sortedSources.length > 1 ? sortedSources.slice(1) : fallbackSources.slice(1);
 
     return {
       selected,
       alternatives,
       attempts,
+      phase: 'complete',
+      alternativesPending: false,
+      cacheHit: false,
     };
   }
 }

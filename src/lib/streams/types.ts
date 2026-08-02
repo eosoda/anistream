@@ -38,6 +38,8 @@ export interface EpisodeLookupInput {
   episode: number;
   preferredAudio?: AudioLanguage;
   preferredProvider?: string;
+  /** Hint used by the resolver to avoid waiting for every provider. */
+  resolutionMode?: 'fast' | 'complete';
   animeTitle?: string;
   originalTitle?: string;
   aliases?: string[];
@@ -84,6 +86,9 @@ export interface ResolveStreamResult {
   selected: StreamSource | null;
   alternatives: StreamSource[];
   attempts: ProviderAttempt[];
+  phase?: 'fast' | 'complete';
+  alternativesPending?: boolean;
+  cacheHit?: boolean;
 }
 
 export interface ProviderHealth {

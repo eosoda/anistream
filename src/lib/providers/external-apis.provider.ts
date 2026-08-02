@@ -130,24 +130,45 @@ export class ExternalApisProvider implements AnimeProvider {
         (provider: { type: string }) =>
           provider.type === 'ANIME_SDK' || provider.type === 'CONSUMET'
       );
-      const sdkResults = await Promise.allSettled(
-        sdkProviders.map(
-          async (provider: { name: string; priority: number; type: string }) => {
-            if (provider.type === 'CONSUMET') {
-              const key = getConsumetProviderKey(provider.name);
-              return key
-                ? resolveConsumetSources(key, input, provider.priority, signal)
-                : [];
-            }
-            const key = getAnimeSdkProviderKey(provider.name);
-            return key
-              ? resolveAnimeSdkSources(key, input, provider.priority, signal)
-              : [];
-          }
-        )
-      );
-      for (const result of sdkResults) {
-        if (result.status === 'fulfilled') sources.push(...result.value);
+      const resolveSdkProvider = async (provider: { name: string; priority: number; type: string }) => {
+        if (provider.type === 'CONSUMET') {
+          const key = getConsumetProviderKey(provider.name);
+          return key
+            ? resolveConsumetSources(key, input, provider.priority, signal)
+            : [];
+        }
+        const key = getAnimeSdkProviderKey(provider.name);
+        return key
+          ? resolveAnimeSdkSources(key, input, provider.priority, signal)
+          : [];
+      };
+
+      if (input.resolutionMode === 'fast' && sdkProviders.length > 0) {
+        try {
+          const firstSdkSources = await Promise.any(
+            sdkProviders.map(async (provider: { name: string; priority: number; type: string }) => {
+              const providerSources = await resolveSdkProvider(provider);
+              if (!providerSources.length) throw new Error('Provedor sem fontes');
+              return providerSources;
+            })
+          );
+          sources.push(...firstSdkSources);
+        } catch {
+          // O caminho completo abaixo ainda tenta embeds/scrapers autorizados.
+        }
+      } else {
+        const sdkResults = await Promise.allSettled(
+          sdkProviders.map((provider: { name: string; priority: number; type: string }) => resolveSdkProvider(provider))
+        );
+        for (const result of sdkResults) {
+          if (result.status === 'fulfilled') sources.push(...result.value);
+        }
+      }
+
+      // No modo rápido, não bloqueamos a resposta em scrapers sequenciais.
+      // As APIs restantes ficam para a rota de alternativas completa.
+      if (input.resolutionMode === 'fast') {
+        return sources.filter((source) => source.type !== 'embed');
       }
 
       for (const p of dbProviders) {

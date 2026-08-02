@@ -43,6 +43,19 @@ function titleOf(value: unknown): string {
   );
 }
 
+function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    return Promise.reject(signal.reason ?? new DOMException('Operação cancelada', 'AbortError'));
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason ?? new DOMException('Operação cancelada', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+  });
+}
+
 export async function resolveConsumetSources(
   key: ConsumetProviderKey,
   input: EpisodeLookupInput,
@@ -64,7 +77,7 @@ export async function resolveConsumetSources(
 
   let results: Awaited<ReturnType<typeof provider.search>>['results'] = [];
   for (const query of queries) {
-    const search = await provider.search(query);
+    const search = await withAbort(provider.search(query), signal);
     results = search.results ?? [];
     if (results.length) break;
   }
@@ -74,13 +87,13 @@ export async function resolveConsumetSources(
     results.find((result) =>
       normalizedTargets.has(normalizeAnimeTitle(titleOf(result.title)))
     ) ?? results[0];
-  const info = await provider.fetchAnimeInfo(exact.id);
+  const info = await withAbort(provider.fetchAnimeInfo(exact.id), signal);
   const episode =
     info.episodes?.find((candidate) => Number(candidate.number) === input.episode) ??
     null;
   if (!episode) return [];
 
-  const resolved = await provider.fetchEpisodeSources(episode.id);
+  const resolved = await withAbort(provider.fetchEpisodeSources(episode.id), signal);
   return (resolved.sources ?? []).map((source, index) => ({
     id: `consumet-${key}-${episode.id}-${index}`,
     provider: 'AnimeUnity',

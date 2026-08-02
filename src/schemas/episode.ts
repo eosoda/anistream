@@ -9,6 +9,7 @@ export const EpisodeLookupInputSchema = z
     episodeNumber: z.number().min(0.1, 'Número do episódio inválido').optional(),
     preferredAudio: AudioLanguageSchema.optional(),
     preferredProvider: z.string().trim().min(1).max(120).optional(),
+    resolutionMode: z.enum(['fast', 'complete']).optional(),
     animeTitle: z.string().trim().min(1).optional(),
     originalTitle: z.string().trim().min(1).optional(),
     aliases: z.array(z.string().trim().min(1)).optional(),

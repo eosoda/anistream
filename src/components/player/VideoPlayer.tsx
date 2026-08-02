@@ -69,6 +69,11 @@ interface ResolvedStream {
   subtitles?: ResolvedSubTrack[];
   alternatives?: ResolvedAlternative[];
   availableProviders?: string[];
+  resolution?: {
+    phase: 'fast' | 'complete';
+    alternativesPending: boolean;
+    cacheHit: boolean;
+  };
   opening?: {
     startSeconds: number;
     endSeconds: number;
@@ -141,6 +146,11 @@ export function VideoPlayer({
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const hlsRef = useRef<InstanceType<typeof Hls> | null>(null);
   const retryCountRef = useRef<number>(0);
+  const isPlayingRef = useRef(false);
+  const hasRenderedFrameRef = useRef(false);
+  const previousSourceKeyRef = useRef<string | null>(null);
+  const pendingSourceTimeRef = useRef<number | null>(null);
+  const handleVideoErrorRef = useRef<(customReason?: string) => void>(() => {});
 
   const { saveProgress } = useWatchProgress();
   const { showToast } = useToast();
@@ -223,6 +233,12 @@ export function VideoPlayer({
 
   const [activeServerId, setActiveServerId] = useState<string | null>(null);
   const activeServer = React.useMemo(() => serverList.find((server) => server.id === activeServerId) ?? serverList[0], [activeServerId, serverList]);
+  const activeServerIdValue = activeServer?.id ?? null;
+  const activeServerSrc = activeServer?.src ?? null;
+  const activeServerType = activeServer?.type ?? null;
+  const activeSourceKey = activeServerSrc
+    ? `${activeServerIdValue ?? 'source'}:${activeServerType ?? 'hls'}:${activeServerSrc}`
+    : null;
   const activeSourceGroup = React.useMemo(
     () => sourceGroups.find((group) => group.variants.some((variant) => variant.id === activeServer?.id)) ?? sourceGroups[0],
     [activeServer?.id, sourceGroups]
@@ -236,6 +252,8 @@ export function VideoPlayer({
   );
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
+  const [isSwitchingSource, setIsSwitchingSource] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -309,10 +327,28 @@ export function VideoPlayer({
     [activeServer, serverList, showToast]
   );
 
+  useEffect(() => {
+    handleVideoErrorRef.current = handleVideoError;
+  }, [handleVideoError]);
+
   // Carregamento dinâmico do HLS.js para streams .m3u8 com fallback nativo MP4
   useEffect(() => {
     const videoEl = videoRef.current;
-    if (!videoEl || !activeServer?.src) return;
+    if (!videoEl || !activeServerSrc || !activeSourceKey) return;
+
+    const previousSourceKey = previousSourceKeyRef.current;
+    const previousTime = Number.isFinite(videoEl.currentTime) ? videoEl.currentTime : 0;
+    const shouldResume = isPlayingRef.current || !videoEl.paused;
+    const isSourceChange = previousSourceKey !== null && previousSourceKey !== activeSourceKey;
+
+    if (isSourceChange && previousTime > 0) {
+      pendingSourceTimeRef.current = previousTime;
+      setIsSwitchingSource(true);
+    }
+
+    previousSourceKeyRef.current = activeSourceKey;
+    hasRenderedFrameRef.current = false;
+    setHasRenderedFrame(false);
 
     retryCountRef.current = 0;
 
@@ -321,22 +357,29 @@ export function VideoPlayer({
       hlsRef.current = null;
     }
 
-    const srcUrl = activeServer.src;
-    const isHls = activeServer.type === 'hls' || srcUrl.includes('.m3u8');
+    const srcUrl = activeServerSrc;
+    const isHls = activeServerType === 'hls' || srcUrl.includes('.m3u8');
+    videoEl.pause();
+    isPlayingRef.current = shouldResume;
+    let createdHls: InstanceType<typeof Hls> | null = null;
 
     if (isHls && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 90,
+        maxBufferLength: 30,
+        autoStartLoad: true,
       });
 
+      createdHls = hls;
       hlsRef.current = hls;
-      hls.loadSource(srcUrl);
       hls.attachMedia(videoEl);
+      hls.loadSource(srcUrl);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (isPlaying) {
+        hls.startLoad();
+        if (shouldResume || isPlayingRef.current) {
           videoEl.play().catch(() => {});
         }
       });
@@ -349,7 +392,7 @@ export function VideoPlayer({
                 retryCountRef.current += 1;
                 hls.startLoad();
               } else {
-                handleVideoError('Falha contínua de conexão com servidor CDN');
+                handleVideoErrorRef.current('Falha contínua de conexão com servidor CDN');
               }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
@@ -357,29 +400,31 @@ export function VideoPlayer({
                 retryCountRef.current += 1;
                 hls.recoverMediaError();
               } else {
-                handleVideoError('Formato de fluxo de vídeo corrompido');
+                handleVideoErrorRef.current('Formato de fluxo de vídeo corrompido');
               }
               break;
             default:
-              handleVideoError('Erro fatal na transmissão HLS');
+              handleVideoErrorRef.current('Erro fatal na transmissão HLS');
               break;
           }
         }
       });
     } else {
       videoEl.src = srcUrl;
-      if (isPlaying) {
+      videoEl.preload = 'auto';
+      videoEl.load();
+      if (shouldResume) {
         videoEl.play().catch(() => {});
       }
     }
 
     return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
+      if (createdHls && hlsRef.current === createdHls) {
+        createdHls.destroy();
         hlsRef.current = null;
       }
     };
-  }, [activeServer, handleVideoError, isPlaying]);
+  }, [activeSourceKey, activeServerSrc, activeServerType]);
 
   // Picture-in-Picture event listeners
   useEffect(() => {
@@ -537,6 +582,20 @@ export function VideoPlayer({
       const dur = videoRef.current.duration;
       latestPlaybackRef.current.duration = dur;
       setDuration(dur);
+
+      const pendingSourceTime = pendingSourceTimeRef.current;
+      if (pendingSourceTime != null && Number.isFinite(dur) && dur > 0) {
+        const restoredTime = Math.min(Math.max(0, pendingSourceTime), Math.max(0, dur - 0.25));
+        videoRef.current.currentTime = restoredTime;
+        latestPlaybackRef.current.currentTime = restoredTime;
+        setCurrentTime(restoredTime);
+        pendingSourceTimeRef.current = null;
+        resumeHandledRef.current = true;
+        setResumePrompt({ show: false, time: 0 });
+        setIsSwitchingSource(false);
+        return;
+      }
+
       if (resumeHandledRef.current) {
         if (currentTime > 0 && currentTime < dur) videoRef.current.currentTime = currentTime;
         return;
@@ -615,27 +674,28 @@ export function VideoPlayer({
   }, [animeId, animeImage, animeTitle, episodeNum, episodeTitle, saveProgress]);
 
   const togglePlay = useCallback(() => {
-    if (!videoRef.current) return;
-    if (isPlaying) {
-      videoRef.current.pause();
-      setIsPlaying(false);
+    const video = videoRef.current;
+    if (!video) return;
+    const currentlyPlaying = isPlayingRef.current && !video.paused;
+    if (currentlyPlaying) {
+      video.pause();
+      isPlayingRef.current = false;
       saveProgress({
         animeId,
         animeTitle,
         animeImage,
         episodeNum,
         episodeTitle,
-        currentTime: videoRef.current.currentTime,
-        duration: videoRef.current.duration || duration,
+        currentTime: video.currentTime,
+        duration: video.duration || duration,
       });
     } else {
-      videoRef.current.play().catch(() => {});
-      setIsPlaying(true);
+      video.play().catch(() => {});
       if (resumePrompt.show) {
         setResumePrompt((prev) => ({ ...prev, show: false }));
       }
     }
-  }, [isPlaying, saveProgress, animeId, animeTitle, animeImage, episodeNum, episodeTitle, duration, resumePrompt.show]);
+  }, [saveProgress, animeId, animeTitle, animeImage, episodeNum, episodeTitle, duration, resumePrompt.show]);
 
   const handleResume = (resumeTime: number) => {
     if (videoRef.current) {
@@ -935,7 +995,6 @@ export function VideoPlayer({
                       } else {
                         onProviderChange?.(providerName);
                       }
-                      setIsPlaying(false);
                       setShowServerPicker(false);
                     }}
                     className={`flex min-h-11 items-center justify-between gap-3 rounded-[10px] px-3 text-left text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00] ${
@@ -1125,6 +1184,13 @@ export function VideoPlayer({
             </div>
           )}
 
+          {(isSwitchingSource || (isResolving && resolvedStream?.resolution?.alternativesPending)) && serverList.length > 0 && (
+            <div className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-[10px] border border-white/10 bg-black/65 px-3 py-2 text-xs font-semibold text-zinc-200 backdrop-blur-md">
+              <Loader2 size={14} className="animate-spin text-[#FF7A1A]" />
+              <span>{isSwitchingSource ? 'Carregando outra fonte…' : 'Procurando outras fontes…'}</span>
+            </div>
+          )}
+
           {/* Elemento de Vídeo ou iFrame Embed ou Mensagem de Indisponibilidade */}
           {serverList.length === 0 ? (
             <div className="flex h-full w-full flex-col items-center justify-center space-y-3 bg-[#09090D] p-6 text-center">
@@ -1158,8 +1224,28 @@ export function VideoPlayer({
           ) : (
             <video
               ref={videoRef}
-              poster={animeImage}
+              preload="auto"
+              poster={hasRenderedFrame ? undefined : animeImage}
               onLoadedMetadata={handleLoadedMetadata}
+              onLoadedData={() => {
+                hasRenderedFrameRef.current = true;
+                setHasRenderedFrame(true);
+              }}
+              onCanPlay={() => setIsSwitchingSource(false)}
+              onPlay={() => {
+                isPlayingRef.current = true;
+                setIsPlaying(true);
+              }}
+              onPlaying={() => {
+                hasRenderedFrameRef.current = true;
+                setHasRenderedFrame(true);
+                setIsSwitchingSource(false);
+              }}
+              onPause={() => {
+                isPlayingRef.current = false;
+                setIsPlaying(false);
+                hlsRef.current?.startLoad();
+              }}
               onTimeUpdate={handleTimeUpdate}
               onEnded={handleEpisodeCompletion}
               onError={() => handleVideoError()}

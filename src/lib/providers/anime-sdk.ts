@@ -32,10 +32,12 @@ export const ANIME_SDK_PROVIDERS = [
 
 export type AnimeSdkProviderKey = (typeof ANIME_SDK_PROVIDERS)[number]['key'];
 
-function createProvider(key: AnimeSdkProviderKey, signal?: AbortSignal): BaseProvider {
+function createProvider(key: AnimeSdkProviderKey, signal?: AbortSignal, fast = false): BaseProvider {
   const http = new HttpClient({
-    timeoutMs: 12_000,
-    retry: { maxAttempts: 2, initialDelayMs: 200 },
+    timeoutMs: fast ? 4_500 : 12_000,
+    retry: fast
+      ? { maxAttempts: 1, initialDelayMs: 0 }
+      : { maxAttempts: 2, initialDelayMs: 200 },
   });
 
   if (signal?.aborted) {
@@ -72,7 +74,7 @@ export async function resolveAnimeSdkSources(
   priority: number,
   signal?: AbortSignal
 ): Promise<StreamSource[]> {
-  const provider = createProvider(key, signal);
+  const provider = createProvider(key, signal, input.resolutionMode === 'fast');
   const queries = [
     input.animeTitle,
     input.originalTitle,
@@ -81,6 +83,7 @@ export async function resolveAnimeSdkSources(
 
   let hits: Awaited<ReturnType<BaseProvider['search']>> = [];
   for (const query of queries) {
+    if (signal?.aborted) throw signal.reason ?? new DOMException('Operação cancelada', 'AbortError');
     hits = await provider.search(query, { signal });
     if (hits.length) break;
   }
@@ -97,6 +100,7 @@ export async function resolveAnimeSdkSources(
       )
     ) ?? hits[0];
 
+  if (signal?.aborted) throw signal.reason ?? new DOMException('Operação cancelada', 'AbortError');
   const units = await provider.fetchContentUnits(media.id, { signal });
   const unit =
     units.find((candidate) => candidate.number === input.episode) ??
@@ -105,6 +109,7 @@ export async function resolveAnimeSdkSources(
 
   const preferredLanguage =
     input.preferredAudio === 'en' ? 'dub' : input.preferredAudio === 'ja' ? 'sub' : undefined;
+  if (signal?.aborted) throw signal.reason ?? new DOMException('Operação cancelada', 'AbortError');
   const resolved = await provider.resolveStream(unit.id, preferredLanguage, { signal });
   if (resolved.type !== 'video') return [];
 

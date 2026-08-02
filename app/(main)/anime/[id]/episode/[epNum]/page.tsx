@@ -3,7 +3,7 @@
 import React, { use, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ChevronLeft, ChevronRight, List, CheckCircle2, Clock } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
 import { DetailSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -21,6 +21,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
   const { progressMap } = useWatchProgress();
   const [preferredProvider, setPreferredProvider] = React.useState<string | null>(null);
   const [isProviderPreferenceReady, setIsProviderPreferenceReady] = React.useState(false);
+  const metadataRetryRef = React.useRef(false);
   const {
     ref: episodeScrollRef,
     elementRef: episodeScrollElementRef,
@@ -36,6 +37,10 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
 
     return () => window.clearTimeout(timeoutId);
   }, []);
+
+  useEffect(() => {
+    metadataRetryRef.current = false;
+  }, [animeId, epNum, preferredProvider]);
 
   // Fetch Anime Main Info
   const { data: anime, isLoading: isLoadingAnime } = useQuery({
@@ -56,6 +61,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
     data: streamResult,
     isLoading: isResolvingStream,
     isFetching: isRefreshingStream,
+    refetch: refetchStream,
   } = useQuery({
     queryKey: ['streamResolve', animeId, epNum, preferredProvider],
     queryFn: async () => {
@@ -72,6 +78,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
             originalTitle: anime?.title_japanese,
             aliases: anime?.titles?.map((title) => title.title).filter(Boolean),
             preferredProvider: preferredProvider || undefined,
+            resolutionMode: 'fast',
           }),
         });
         const data = await res.json();
@@ -93,8 +100,75 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
         };
       }
     },
-    enabled: !isNaN(animeId) && !isNaN(epNum) && Boolean(anime) && isProviderPreferenceReady,
+    enabled: !isNaN(animeId) && !isNaN(epNum) && isProviderPreferenceReady,
+    placeholderData: keepPreviousData,
   });
+
+  // O primeiro pedido usa apenas o identificador e o banco local. Se ele nÃ£o
+  // encontrar uma fonte e o Jikan terminar depois, repetimos uma Ãºnica vez
+  // com os tÃ­tulos enriquecidos, sem criar um waterfall para toda navegaÃ§Ã£o.
+  useEffect(() => {
+    if (
+      !anime ||
+      isResolvingStream ||
+      streamResult?.data ||
+      metadataRetryRef.current
+    ) {
+      return;
+    }
+    metadataRetryRef.current = true;
+    void refetchStream();
+  }, [anime, isResolvingStream, refetchStream, streamResult?.data]);
+
+  const alternativesQuery = useQuery({
+    queryKey: ['streamAlternatives', animeId, epNum, preferredProvider],
+    queryFn: async () => {
+      const response = await fetch('/api/streams/resolve/alternatives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          animeId: String(animeId),
+          season: 1,
+          episode: epNum,
+          episodeNumber: epNum,
+          animeTitle: anime?.title_english || anime?.title,
+          originalTitle: anime?.title_japanese,
+          aliases: anime?.titles?.map((title) => title.title).filter(Boolean),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message || 'Não foi possível buscar outras fontes.');
+      return payload.data || payload;
+    },
+    enabled: Boolean(streamResult?.data?.resolution?.alternativesPending),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const resolvedStream = React.useMemo(() => {
+    const baseStream = streamResult?.data;
+    const additional = alternativesQuery.data;
+    if (!baseStream || !additional) return baseStream;
+
+    const alternativesById = new Map(
+      [...(baseStream.alternatives || []), ...(additional.alternatives || [])].map((alternative) => [alternative.sourceId, alternative])
+    );
+    return {
+      ...baseStream,
+      alternatives: Array.from(alternativesById.values()),
+      availableProviders: additional.availableProviders || baseStream.availableProviders,
+      resolution: alternativesQuery.isError
+        ? {
+            ...(baseStream.resolution || { phase: 'fast' as const, cacheHit: false }),
+            alternativesPending: false,
+          }
+        : additional.resolution || {
+            phase: 'complete' as const,
+            alternativesPending: false,
+            cacheHit: false,
+          },
+    };
+  }, [alternativesQuery.data, alternativesQuery.isError, streamResult?.data]);
 
   const episodeList = React.useMemo(() => {
     const fetchedEpisodes = episodes || [];
@@ -185,9 +259,9 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
         episodeNum={epNum}
         episodeTitle={currentEp?.title}
         nextEpNum={nextEp}
-        resolvedStream={streamResult?.data}
+        resolvedStream={resolvedStream}
         streamStatusMessage={streamResult?.error}
-        isResolving={isResolvingStream || isRefreshingStream}
+        isResolving={isResolvingStream || isRefreshingStream || alternativesQuery.isFetching}
         onNextEpisode={() => {
           if (nextEp) {
             router.push(`/anime/${animeId}/episode/${nextEp}`);
