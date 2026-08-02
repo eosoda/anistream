@@ -259,8 +259,8 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
           // If the anime is currently airing, fetch its latest episode data from Jikan
           if (isAiring) {
             try {
-              const { jikanService } = await import('@/services/jikan');
-              const episodes: JikanEpisode[] = await jikanService.getAnimeEpisodes(anime.mal_id);
+              const { kenjitsuService } = await import('@/services/kenjitsu');
+              const episodes: JikanEpisode[] = await kenjitsuService.getAnimeEpisodes(anime.mal_id);
 
               if (episodes && episodes.length > 0) {
                 // Latest episode is usually the last in the array

@@ -6,6 +6,13 @@ const envSchema = z.object({
     .url('DATABASE_URL deve ser uma URL de conexão válida')
     .default('postgresql://user:password@localhost:5432/anistream_db?schema=public'),
   REDIS_URL: z.string().optional(),
+  KENJITSU_BASE_URL: z
+    .string()
+    .url('KENJITSU_BASE_URL deve ser uma URL vÃ¡lida')
+    .default('http://localhost:3001'),
+  KENJITSU_API_KEY: z.string().optional(),
+  KENJITSU_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(10000),
+  KENJITSU_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(86400).default(300),
   ADMIN_SESSION_SECRET: z
     .string()
     .min(16, 'ADMIN_SESSION_SECRET deve ter pelo menos 16 caracteres')

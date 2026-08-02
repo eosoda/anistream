@@ -1,35 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import { getAnimeCatalog } from '@/lib/kenjitsu/catalog';
+import { KenjitsuRequestError } from '@/lib/kenjitsu/client';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
   try {
-    const anime = await prisma.anime.findFirst({
-      where: {
-        OR: [{ id: id }, { slug: id }],
-      },
-      include: {
-        aliases: true,
-        identifiers: true,
-      },
-    });
-
-    if (!anime) {
-      return NextResponse.json(
-        { error: 'Anime não encontrado' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ anime });
-  } catch (err: any) {
+    const anime = await getAnimeCatalog(decodeURIComponent(id));
+    return NextResponse.json({ anime }, { headers: { 'Cache-Control': 'private, max-age=300' } });
+  } catch (error) {
+    const status = error instanceof KenjitsuRequestError ? error.status : 502;
     return NextResponse.json(
-      { error: 'Erro ao obter anime', message: err.message },
-      { status: 500 }
+      { error: 'Não foi possível obter os detalhes pelo Kenjitsu.' },
+      { status: status >= 400 && status < 600 ? status : 502 },
     );
   }
 }

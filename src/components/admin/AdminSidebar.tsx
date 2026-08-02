@@ -19,6 +19,7 @@ import {
   DatabaseBackup,
   PlugZap,
   Rocket,
+  Puzzle,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -55,6 +56,12 @@ export function AdminSidebar({
       href: '/admin/sources',
       exact: true,
       icon: <Radio size={18} />,
+    },
+    {
+      name: 'Extensões Kenjitsu',
+      href: '/admin/extensions',
+      exact: true,
+      icon: <Puzzle size={18} />,
     },
     {
       name: 'Testador de Mídia',

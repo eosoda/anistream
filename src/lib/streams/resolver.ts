@@ -1,7 +1,4 @@
 import { AnimeProvider } from '../providers/provider.interface';
-import { LocalDatabaseProvider } from '../providers/local-database.provider';
-import { ConfiguredJsonProvider } from '../providers/configured-json.provider';
-import { AuthorizedM3uProvider } from '../providers/authorized-m3u.provider';
 import {
   EpisodeLookupInput,
   ResolveStreamResult,
@@ -10,7 +7,7 @@ import {
 } from './types';
 import { validateStreamSource } from './validator';
 
-import { ExternalApisProvider } from '../providers/external-apis.provider';
+import { KenjitsuProvider } from '../providers/kenjitsu.provider';
 
 export class StreamResolver {
   private providers: AnimeProvider[] = [];
@@ -26,13 +23,7 @@ export class StreamResolver {
     if (customProviders && customProviders.length > 0) {
       this.providers = customProviders;
     } else {
-      // Registrar provedores padrão autorizados
-      this.providers = [
-        new ExternalApisProvider(),
-        new LocalDatabaseProvider(),
-        new ConfiguredJsonProvider(),
-        new AuthorizedM3uProvider(),
-      ];
+      this.providers = [new KenjitsuProvider()];
     }
   }
 

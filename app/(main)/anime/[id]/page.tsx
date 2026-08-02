@@ -27,7 +27,6 @@ import {
   Info,
 } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
-import { anilistService } from '@/services/anilist';
 import { RatingBadge } from '@/components/ui/RatingBadge';
 import { GenreBadge } from '@/components/ui/GenreBadge';
 import { EpisodeList } from '@/components/player/EpisodeList';
@@ -62,13 +61,6 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
   const { data: anime, isLoading: isLoadingAnime, error } = useReactQuery({
     queryKey: ['animeDetail', animeId],
     queryFn: () => jikanService.getAnimeById(animeId),
-    enabled: !isNaN(animeId),
-  });
-
-  // 2. Fetch Extra Banner Image from AniList Fallback
-  const { data: aniListMedia } = useReactQuery({
-    queryKey: ['aniListMedia', animeId],
-    queryFn: () => anilistService.getMediaByMalId(animeId),
     enabled: !isNaN(animeId),
   });
 
@@ -123,7 +115,6 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
 
   // High-res backdrop
   const bannerUrl =
-    aniListMedia?.bannerImage ||
     anime.bannerImage ||
     anime.trailer?.images?.maximum_image_url ||
     anime.images?.jpg?.large_image_url;

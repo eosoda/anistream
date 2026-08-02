@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { generatePlaybackToken } from '@/lib/security/playback-token';
 import { encryptData } from '@/lib/security/crypto';
 import { EpisodeLookupInput, ResolveStreamResult, StreamSource } from './types';
+import { getEnabledKenjitsuExtensions } from '@/lib/kenjitsu/settings';
 
 export type EnabledProvider = {
   id: string;
@@ -38,7 +39,8 @@ function buildPlaybackUrl(
 
   if (
     source.requiresProxy &&
-    (source.id.startsWith('xpass-') ||
+    (source.id.startsWith('kenjitsu:') ||
+      source.id.startsWith('xpass-') ||
       source.id.startsWith('anime-sdk-') ||
       source.id.startsWith('consumet-'))
   ) {
@@ -64,19 +66,8 @@ export async function prepareStreamResolveContext(
     aliases: rawInput.aliases ? [...rawInput.aliases] : undefined,
   };
 
-  const [enabledProviders, defaultProviderSetting, localAnime] = await Promise.all([
-    prisma.mediaProvider.findMany({
-      where: {
-        enabled: true,
-        type: { in: ['ANIME_SDK', 'CONSUMET', 'EXTERNAL_API', 'EMBED'] },
-      },
-      orderBy: { priority: 'desc' },
-      select: { id: true, name: true },
-    }).catch(() => [] as EnabledProvider[]),
-    prisma.systemSetting.findUnique({
-      where: { key: 'default_stream_provider_id' },
-      select: { value: true },
-    }).catch(() => null),
+  const [enabledExtensions, localAnime] = await Promise.all([
+    getEnabledKenjitsuExtensions().catch(() => []),
     prisma.anime.findFirst({
       where: {
         OR: [
@@ -95,18 +86,11 @@ export async function prepareStreamResolveContext(
     }).catch(() => null),
   ]);
 
-  const adminDefaultProvider =
-    enabledProviders.find((provider: EnabledProvider) => provider.id === defaultProviderSetting?.value) ??
-    enabledProviders[0] ??
-    null;
-  const requestedProvider = input.preferredProvider;
-  const requestedProviderExists = enabledProviders.some(
-    (provider: EnabledProvider) =>
-      provider.name.toLocaleLowerCase('pt-BR') === requestedProvider?.toLocaleLowerCase('pt-BR')
-  );
-  input.preferredProvider = requestedProviderExists
-    ? requestedProvider
-    : adminDefaultProvider?.name;
+  const enabledProviders: EnabledProvider[] = enabledExtensions.map((id) => ({ id, name: id }));
+  const adminDefaultProvider = enabledProviders[0] ?? null;
+  if (input.preferredProvider && !enabledProviders.some((provider) => provider.id === input.preferredProvider)) {
+    input.preferredProvider = undefined;
+  }
 
   if (localAnime && !input.animeTitle) {
     input.animeTitle = localAnime.title;

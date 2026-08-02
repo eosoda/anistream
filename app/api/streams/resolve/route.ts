@@ -43,45 +43,14 @@ export async function POST(request: NextRequest) {
       ...parseResult.data,
       resolutionMode: 'fast',
     });
-    const preferredCandidates = Array.from(
-      new Set(
-        [
-          context.input.preferredProvider,
-          context.adminDefaultProvider?.name,
-          undefined,
-        ].filter((value): value is string | undefined => value !== null)
-      )
+    const result = await defaultStreamResolver.resolveEpisodeStream(
+      { ...context.input, resolutionMode: 'fast' },
+      9000,
+      { mode: 'fast', validationTimeoutMs: 1800 }
     );
-
-    let result = null;
-    for (const preferredProvider of preferredCandidates) {
-      const candidateInput = {
-        ...context.input,
-        preferredProvider,
-        resolutionMode: 'fast' as const,
-      };
-      const candidateResult = await defaultStreamResolver.resolveEpisodeStream(
-        candidateInput,
-        4500,
-        { mode: 'fast', validationTimeoutMs: 1800 }
-      );
-      if (candidateResult.selected) {
-        result = candidateResult;
-        break;
-      }
-      result = candidateResult;
-    }
 
     // Apenas quando o caminho rápido falha, fazemos a resolução completa de
     // scrapers/arquivos configurados para não penalizar episódios saudáveis.
-    if (!result?.selected) {
-      result = await defaultStreamResolver.resolveEpisodeStream(
-        { ...context.input, preferredProvider: undefined, resolutionMode: 'complete' },
-        9000,
-        { mode: 'complete' }
-      );
-    }
-
     if (!result?.selected) {
       return apiError(
         'NO_SOURCES_AVAILABLE',
