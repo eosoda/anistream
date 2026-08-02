@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { globalCircuitBreaker } from '@/lib/api/circuit-breaker';
 import { apiSuccess, apiError } from '@/lib/api/response';
 
-const MONITORED_PROVIDERS = ['jikan-api', 'anilist-api', 'local-database-search'];
+const MONITORED_PROVIDERS = ['kenjitsu', 'anizone', 'anikoto', 'anidb', 'anibd', 'animeheaven'];
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const provider = body.providerName || 'jikan-api';
+    const provider = body.providerName || 'kenjitsu';
 
     globalCircuitBreaker.recordSuccess(provider);
 

@@ -1,7 +1,9 @@
+import { prisma } from '@/lib/db/prisma';
 import type { JikanAnime, JikanCharacter, JikanEpisode, JikanRelation } from '@/types/anime';
 import type { LocalAnimeSearchItem, LocalAnimeSearchResponse } from '@/types/local-search';
 import { kenjitsuClient, KenjitsuRequestError } from './client';
-import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId, type KenjitsuMetaAnime } from './types';
+import { getEnabledKenjitsuExtensions } from './settings';
+import type { KenjitsuMetaAnime } from './types';
 
 type AnimeInputId = string | number;
 
@@ -23,7 +25,7 @@ function mapMetaToJikan(meta: KenjitsuMetaAnime, requestedId?: AnimeInputId): Ji
   const anilistId = meta.anilistId ?? undefined;
   const requestedNumeric = requestedId != null && /^\d+$/.test(String(requestedId)) ? Number(requestedId) : undefined;
   const publicId = requestedNumeric ?? anilistId ?? meta.malId ?? 0;
-  const title = meta.title?.english || meta.title?.romaji || meta.title?.native || 'Sem título';
+  const title = meta.title?.english || meta.title?.romaji || meta.title?.native || 'Sem titulo';
   const originalTitle = meta.title?.native || meta.title?.romaji || null;
   const poster = meta.image || '';
   const releaseDate = parseDate(meta.releaseDate);
@@ -66,7 +68,7 @@ function mapMetaToJikan(meta: KenjitsuMetaAnime, requestedId?: AnimeInputId): Ji
     aired: { from: releaseDate, to: parseDate(meta.endDate), string: meta.releaseDate || '' },
     duration: meta.duration ? `${meta.duration} min per ep` : null,
     rating: null,
-    score: meta.score ?? null,
+    score: meta.score != null ? meta.score / 10 : null,
     scored_by: null,
     rank: null,
     popularity: null,
@@ -95,17 +97,23 @@ function mapSearchItem(meta: KenjitsuMetaAnime): LocalAnimeSearchItem {
   return {
     malId: publicId,
     anilistId: meta.anilistId ?? null,
-    title: meta.title?.english || meta.title?.romaji || meta.title?.native || 'Sem título',
+    title: meta.title?.english || meta.title?.romaji || meta.title?.native || 'Sem titulo',
     originalTitle: meta.title?.native || meta.title?.romaji || null,
     posterUrl: meta.image || null,
     year: meta.year ?? null,
-    rating: meta.score ?? null,
+    rating: meta.score != null ? meta.score / 10 : null,
     status: normalizeStatus(meta.status),
     episodeCount: meta.episodes ?? 0,
   };
 }
 
-function responsePagination(payload: { hasNextPage?: boolean; currentPage?: number; lastPage?: number; total?: number; perPage?: number }) {
+function responsePagination(payload: {
+  hasNextPage?: boolean;
+  currentPage?: number;
+  lastPage?: number;
+  total?: number;
+  perPage?: number;
+}) {
   const currentPage = payload.currentPage || 1;
   const totalPages = payload.lastPage || (payload.hasNextPage ? currentPage + 1 : currentPage);
   return {
@@ -115,6 +123,75 @@ function responsePagination(payload: { hasNextPage?: boolean; currentPage?: numb
     hasNextPage: Boolean(payload.hasNextPage),
     hasPreviousPage: currentPage > 1,
   };
+}
+
+export interface KenjitsuCatalogFilters {
+  status?: 'airing' | 'complete' | 'upcoming' | 'all';
+  minScore?: number;
+  type?: 'tv' | 'movie' | 'ova' | 'special' | 'ona' | 'all';
+  orderBy?: 'score' | 'popularity' | 'title' | 'start_date';
+  sort?: 'asc' | 'desc';
+  letter?: string;
+  genres?: string;
+  audioLanguage?: 'all' | 'subbed_pt' | 'dubbed_pt' | 'pt_br';
+}
+
+const MAL_GENRE_NAMES: Record<string, string> = {
+  '1': 'Action',
+  '2': 'Adventure',
+  '4': 'Comedy',
+  '8': 'Drama',
+  '10': 'Fantasy',
+  '22': 'Romance',
+  '24': 'Sci-Fi',
+  '36': 'Slice of Life',
+  '37': 'Supernatural',
+  '41': 'Thriller',
+  '62': 'Isekai',
+};
+
+function matchesFilters(meta: KenjitsuMetaAnime, filters?: KenjitsuCatalogFilters): boolean {
+  if (!filters) return true;
+  const status = meta.status?.toUpperCase();
+  if (filters.status === 'airing' && status !== 'RELEASING') return false;
+  if (filters.status === 'complete' && status !== 'FINISHED') return false;
+  if (filters.status === 'upcoming' && status !== 'NOT_YET_RELEASED') return false;
+  if (filters.minScore && (meta.score == null || meta.score < filters.minScore * 10)) return false;
+  if (filters.type && filters.type !== 'all' && meta.format?.toLowerCase() !== filters.type) return false;
+
+  const title = meta.title?.english || meta.title?.romaji || meta.title?.native || '';
+  if (filters.letter && filters.letter !== 'all') {
+    const first = title.trim().charAt(0).toLowerCase();
+    if (filters.letter === '#') {
+      if (!first || /[a-z]/.test(first)) return false;
+    } else if (first !== filters.letter.toLowerCase()) {
+      return false;
+    }
+  }
+
+  if (filters.genres) {
+    const requested = filters.genres
+      .split(',')
+      .map((value) => MAL_GENRE_NAMES[value.trim()] || value.trim().toLowerCase());
+    const available = (meta.genres || []).map((genre) => genre.toLowerCase());
+    if (!requested.some((genre) => available.includes(genre.toLowerCase()))) return false;
+  }
+
+  return true;
+}
+
+function sortCatalog(items: KenjitsuMetaAnime[], filters?: KenjitsuCatalogFilters): KenjitsuMetaAnime[] {
+  if (!filters?.orderBy) return items;
+  const direction = filters.sort === 'asc' ? 1 : -1;
+  return [...items].sort((a, b) => {
+    if (filters.orderBy === 'title') {
+      const aTitle = a.title?.english || a.title?.romaji || a.title?.native || '';
+      const bTitle = b.title?.english || b.title?.romaji || b.title?.native || '';
+      return aTitle.localeCompare(bTitle) * direction;
+    }
+    if (filters.orderBy === 'start_date') return ((a.year || 0) - (b.year || 0)) * direction;
+    return ((a.score || 0) - (b.score || 0)) * direction;
+  });
 }
 
 async function resolveAnilistId(input: AnimeInputId): Promise<number> {
@@ -132,21 +209,51 @@ async function resolveAnilistId(input: AnimeInputId): Promise<number> {
     if (exactAnilist?.anilistId) return Number(exactAnilist.anilistId);
   }
 
-  throw new KenjitsuRequestError('Anime não encontrado no catálogo do Kenjitsu', 404);
+  const localAnime = await prisma.anime.findFirst({
+    where: {
+      OR: [{ id: value }, { slug: value }, { identifiers: { some: { value } } }],
+    },
+    include: { identifiers: true },
+  }).catch(() => null);
+
+  const localAnilistId = localAnime?.identifiers.find(
+    (identifier: { provider: string; value: string }) => ['anilist', 'kenjitsu'].includes(identifier.provider.toLowerCase()) && /^\d+$/.test(identifier.value),
+  );
+  if (localAnilistId) return Number(localAnilistId.value);
+
+  const legacyId = localAnime?.identifiers.find((identifier: { provider: string; value: string }) => /^\d+$/.test(identifier.value));
+  if (legacyId) {
+    const candidates = await kenjitsuClient.searchMetadata(legacyId.value, 1, 50);
+    const match = candidates.data?.find(
+      (item) => Number(item.malId) === Number(legacyId.value) || Number(item.anilistId) === Number(legacyId.value),
+    );
+    if (match?.anilistId) return Number(match.anilistId);
+  }
+
+  throw new KenjitsuRequestError('Anime nao encontrado no catalogo do Kenjitsu', 404);
 }
 
-export async function searchAnimeCatalog(query: string, page = 1, limit = 24): Promise<LocalAnimeSearchResponse> {
+export async function searchAnimeCatalog(
+  query: string,
+  page = 1,
+  limit = 24,
+  filters?: KenjitsuCatalogFilters,
+): Promise<LocalAnimeSearchResponse> {
   const payload = query.trim()
-    ? await kenjitsuClient.searchMetadata(query.trim(), page, limit)
+    ? await kenjitsuClient.searchMetadata(query.trim(), page, Math.min(50, Math.max(limit, 24)))
     : await kenjitsuClient.getTop('popular', page, limit);
-  const items = (payload.data || []).map(mapSearchItem);
-  return { data: items, pagination: responsePagination(payload as unknown as { hasNextPage?: boolean; currentPage?: number; lastPage?: number; total?: number; perPage?: number }) };
+  const filtered = sortCatalog((payload.data || []).filter((item) => matchesFilters(item, filters)), filters);
+  const items = filtered.slice(0, limit).map(mapSearchItem);
+  return {
+    data: items,
+    pagination: responsePagination({ ...payload, perPage: limit, total: filtered.length }),
+  };
 }
 
 export async function getAnimeCatalog(input: AnimeInputId): Promise<JikanAnime> {
   const anilistId = await resolveAnilistId(input);
   const payload = await kenjitsuClient.getMetadata(anilistId);
-  if (!payload.data) throw new KenjitsuRequestError('Detalhes não retornados pelo Kenjitsu', 502, payload);
+  if (!payload.data) throw new KenjitsuRequestError('Detalhes nao retornados pelo Kenjitsu', 502, payload);
   return mapMetaToJikan(payload.data, input);
 }
 
@@ -169,10 +276,10 @@ export async function getAnimeCharacters(input: AnimeInputId): Promise<JikanChar
           person: {
             mal_id: 0,
             url: '',
-            images: { jpg: { image_url: String(actor.image || ''), small_image_url: String(actor.image || ''), large_image_url: String(actor.image || '') } },
-            name: String(actor.name || ''),
+            images: { jpg: { image_url: String((actor as any).image || ''), small_image_url: String((actor as any).image || ''), large_image_url: String((actor as any).image || '') } },
+            name: String((actor as any).name || ''),
           },
-          language: String(actor.language || ''),
+          language: String((actor as any).language || ''),
         }))
       : [],
   }));
@@ -184,11 +291,11 @@ export async function getAnimeRelations(input: AnimeInputId): Promise<JikanRelat
   const raw = Array.isArray(payload.data) ? payload.data : [];
   const grouped = new Map<string, JikanRelation['entry']>();
   raw.forEach((item, index) => {
-    const relation = String((item as { relationType?: unknown }).relationType || 'Related');
+    const relation = String((item as any).relationType || 'Related');
     const entry = {
-      mal_id: Number((item as { malId?: unknown }).malId || (item as { anilistId?: unknown }).anilistId || index + 1),
-      type: String((item as { type?: unknown }).type || 'anime'),
-      name: String((item as { title?: { english?: string; romaji?: string } }).title?.english || (item as { title?: { romaji?: string } }).title?.romaji || 'Anime relacionado'),
+      mal_id: Number((item as any).malId || (item as any).anilistId || index + 1),
+      type: String((item as any).type || 'anime'),
+      name: String((item as any).title?.english || (item as any).title?.romaji || 'Anime relacionado'),
       url: '',
     };
     grouped.set(relation, [...(grouped.get(relation) || []), entry]);
@@ -198,20 +305,16 @@ export async function getAnimeRelations(input: AnimeInputId): Promise<JikanRelat
 
 export async function getAnimeEpisodes(input: AnimeInputId): Promise<JikanEpisode[]> {
   const anilistId = await resolveAnilistId(input);
+  const extensionIds = await getEnabledKenjitsuExtensions();
   const mappings = await Promise.allSettled(
-    KENJITSU_EXTENSION_IDS.map(async (extensionId) => {
+    extensionIds.map(async (extensionId) => {
       const mapping = await kenjitsuClient.getMapping(anilistId, extensionId);
       if (!mapping.provider?.id) return [] as JikanEpisode[];
       const info = await kenjitsuClient.getExtensionInfo(extensionId, mapping.provider.id);
       const providerEpisodes = info.providerEpisodes || info.data?.providerEpisodes || [];
       return providerEpisodes.flatMap((episode) => {
         if (episode.episodeNumber == null) return [];
-        return [{
-          mal_id: Number(episode.episodeNumber),
-          title: episode.title || `Episódio ${episode.episodeNumber}`,
-          aired: null,
-          url: episode.episodeId || null,
-        }];
+        return [{ mal_id: Number(episode.episodeNumber), title: episode.title || `Episodio ${episode.episodeNumber}`, aired: null, url: episode.episodeId || null }];
       });
     }),
   );
@@ -221,9 +324,7 @@ export async function getAnimeEpisodes(input: AnimeInputId): Promise<JikanEpisod
     if (result.status !== 'fulfilled') return;
     result.value.forEach((episode) => {
       const current = episodes.get(episode.mal_id);
-      if (!current || (current.title?.startsWith('Episódio ') && !episode.title?.startsWith('Episódio '))) {
-        episodes.set(episode.mal_id, episode);
-      }
+      if (!current || (current.title?.startsWith('Episodio ') && !episode.title?.startsWith('Episodio '))) episodes.set(episode.mal_id, episode);
     });
   });
   return Array.from(episodes.values()).sort((a, b) => a.mal_id - b.mal_id);

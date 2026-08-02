@@ -54,7 +54,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/lista/importar" className="hover:text-[#FF6B00] transition-colors">
-                  Importar Lista MAL
+                  Importar Lista
                 </Link>
               </li>
               <li>
@@ -73,23 +73,23 @@ export function Footer() {
             <ul className="space-y-2 text-xs font-semibold">
               <li>
                 <a
-                  href="https://jikan.moe"
+                  href="https://kenjitsu-docs.vercel.app/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 hover:text-[#FF6B00] transition-colors"
                 >
-                  Jikan REST API v4
+                  Kenjitsu self-hosted API
                   <ExternalLink size={12} />
                 </a>
               </li>
               <li>
                 <a
-                  href="https://anilist.co"
+                  href="https://github.com/eosoda/kenjitsu"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 hover:text-[#FF6B00] transition-colors"
                 >
-                  AniList GraphQL API
+                  Fork do Kenjitsu
                   <ExternalLink size={12} />
                 </a>
               </li>

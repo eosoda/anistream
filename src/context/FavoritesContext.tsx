@@ -228,7 +228,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     });
   }, [newEpisodesMap]);
 
-  // Verify airing dates and latest episodes via Jikan API
+  // Verify airing dates and latest episodes via Kenjitsu
   const checkNewEpisodes = useCallback(
     async (forceRefresh = false) => {
       if (favorites.length === 0) {
@@ -256,7 +256,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
             anime.status === 'Currently Airing' ||
             anime.status === 'Airing';
 
-          // If the anime is currently airing, fetch its latest episode data from Jikan
+          // If the anime is currently airing, fetch its latest episode data from Kenjitsu
           if (isAiring) {
             try {
               const { kenjitsuService } = await import('@/services/kenjitsu');
@@ -293,15 +293,8 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
                   lastChecked: now,
                 };
               } else {
-                // Fallback if episodes list is empty or API response lacks individual episode details
-                const lastSeenEp = seenRecords[anime.mal_id]?.lastSeenEp || 0;
-                const estimatedEpNum = (anime.episodes || 1) + 1;
-                const isNew = !seenRecords[anime.mal_id] || estimatedEpNum > lastSeenEp;
-
                 updatedMap[anime.mal_id] = {
-                  hasNewEpisode: isNew,
-                  latestEpisodeNum: anime.episodes || 1,
-                  latestEpisodeTitle: 'Novo episódio da semana',
+                  hasNewEpisode: false,
                   isAiring: true,
                   broadcastString: anime.broadcast?.string || undefined,
                   lastChecked: now,
@@ -309,10 +302,9 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
               }
             } catch (err) {
               console.warn(`Could not check episodes for anime ${anime.mal_id}:`, err);
-              // Fallback based on airing flag
               if (isAiring && !updatedMap[anime.mal_id]) {
                 updatedMap[anime.mal_id] = {
-                  hasNewEpisode: !seenRecords[anime.mal_id],
+                  hasNewEpisode: false,
                   isAiring: true,
                   broadcastString: anime.broadcast?.string || undefined,
                   lastChecked: now,

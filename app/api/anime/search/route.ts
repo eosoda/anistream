@@ -19,7 +19,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await searchAnimeCatalog(query, page, limit);
+    const result = await searchAnimeCatalog(query, page, limit, {
+      status: request.nextUrl.searchParams.get('status') as 'airing' | 'complete' | 'upcoming' | 'all' | undefined,
+      minScore: Number(request.nextUrl.searchParams.get('minScore') || 0) || undefined,
+      type: request.nextUrl.searchParams.get('type') as 'tv' | 'movie' | 'ova' | 'special' | 'ona' | 'all' | undefined,
+      orderBy: request.nextUrl.searchParams.get('orderBy') as 'score' | 'popularity' | 'title' | 'start_date' | undefined,
+      sort: request.nextUrl.searchParams.get('sort') as 'asc' | 'desc' | undefined,
+      letter: request.nextUrl.searchParams.get('letter') || undefined,
+      genres: request.nextUrl.searchParams.get('genres') || undefined,
+      audioLanguage: request.nextUrl.searchParams.get('audioLanguage') as 'all' | 'subbed_pt' | 'dubbed_pt' | 'pt_br' | undefined,
+    });
     return NextResponse.json(result, {
       headers: { 'Cache-Control': 'private, max-age=60' },
     });

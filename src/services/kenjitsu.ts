@@ -37,9 +37,12 @@ export const kenjitsuService = {
     query: string,
     page = 1,
     limit = 24,
-    _filters?: SearchAnimeFilters,
+    filters?: SearchAnimeFilters,
   ): Promise<{ data: JikanAnime[]; pagination: any }> {
     const params = new URLSearchParams({ q: query.trim(), page: String(page), limit: String(limit) });
+    Object.entries(filters || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '' && value !== 'all') params.set(key, String(value));
+    });
     const result = await requestJson<LocalAnimeSearchResponse>(`/api/anime/search?${params.toString()}`);
     return {
       data: result.data.map(localSearchItemToAnime),
@@ -94,11 +97,24 @@ export const kenjitsuService = {
   },
 
   async getGenres(): Promise<JikanGenre[]> {
-    return [];
+    const genres = [
+      ['1', 'Action'], ['2', 'Adventure'], ['4', 'Comedy'], ['8', 'Drama'], ['10', 'Fantasy'],
+      ['22', 'Romance'], ['24', 'Sci-Fi'], ['36', 'Slice of Life'], ['37', 'Supernatural'],
+      ['41', 'Thriller'], ['62', 'Isekai'],
+    ];
+    return genres.map(([mal_id, name]) => ({ mal_id: Number(mal_id), type: 'anime', name, url: '' }));
   },
 
-  async getAnimeByGenre(_genreId: number, page = 1, limit = 24): Promise<{ data: JikanAnime[]; pagination: any }> {
-    return requestJson(`/api/anime/catalog?kind=popular&page=${page}&limit=${limit}`);
+  async getAnimeByGenre(genreId: number, page = 1, limit = 24): Promise<{ data: JikanAnime[]; pagination: any }> {
+    const params = new URLSearchParams({ q: '', page: String(page), limit: String(limit), genres: String(genreId) });
+    const result = await requestJson<LocalAnimeSearchResponse>(`/api/anime/search?${params.toString()}`);
+    return {
+      data: result.data.map(localSearchItemToAnime),
+      pagination: {
+        current_page: result.pagination.currentPage,
+        has_next_page: result.pagination.hasNextPage,
+        items: { total: result.pagination.totalItems, per_page: limit },
+      },
+    };
   },
 };
-

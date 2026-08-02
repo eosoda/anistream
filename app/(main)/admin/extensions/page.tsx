@@ -35,6 +35,8 @@ export default function AdminExtensionsPage() {
     }
   };
 
+  // The initial fetch synchronizes this client view with the admin API.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, []);
 
   const patch = async (id: string, change: { enabled?: boolean; nsfw?: boolean }) => {

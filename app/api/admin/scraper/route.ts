@@ -1,72 +1,53 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { encryptData } from '@/lib/security/crypto';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { defaultStreamResolver } from '@/lib/streams/resolver';
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
+
   try {
-    const body = await req.json();
-    const { animeTitle, episodeNumber, providerName = 'auto-scraper-main', sourceUrl } = body;
-
+    const body = await request.json();
+    const { animeTitle, episodeNumber } = body;
     if (!animeTitle || !episodeNumber) {
-      return NextResponse.json(
-        { error: 'Título do anime e número do episódio são obrigatórios.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Titulo do anime e numero do episodio sao obrigatorios.' }, { status: 400 });
     }
 
-    // 1. Buscar anime no PostgreSQL
     const anime = await prisma.anime.findFirst({
       where: {
         OR: [
-          { normalizedTitle: { contains: animeTitle.toLowerCase() } },
-          { title: { contains: animeTitle, mode: 'insensitive' } },
+          { normalizedTitle: { contains: String(animeTitle).toLowerCase() } },
+          { title: { contains: String(animeTitle), mode: 'insensitive' } },
         ],
       },
-      include: {
-        episodes: {
-          where: { number: parseFloat(episodeNumber) },
-        },
-      },
+      include: { aliases: true },
+    });
+    if (!anime) return NextResponse.json({ error: 'Anime nao encontrado no catalogo local.' }, { status: 404 });
+
+    const resolution = await defaultStreamResolver.resolveEpisodeStream({
+      animeId: anime.id,
+      season: 1,
+      episode: Number(episodeNumber),
+      animeTitle: anime.title,
+      originalTitle: anime.originalTitle || undefined,
+      aliases: [anime.title, anime.originalTitle || '', ...anime.aliases.map((alias: { value: string }) => alias.value)].filter(Boolean),
+      resolutionMode: 'complete',
     });
 
-    if (!anime || anime.episodes.length === 0) {
-      return NextResponse.json(
-        { error: `Anime ou episódio ${episodeNumber} não encontrado no banco.` },
-        { status: 404 }
-      );
+    if (!resolution.selected) {
+      return NextResponse.json({ error: 'Nenhuma fonte live disponivel no Kenjitsu.', attempts: resolution.attempts }, { status: 502 });
     }
-
-    const episode = anime.episodes[0];
-
-    const simulatedStreamUrl = sourceUrl || `https://kenjitsu.koyeb.app/stream/${anime.slug}/ep-${episodeNumber}/master.m3u8`;
-    const encryptedUrl = encryptData(simulatedStreamUrl);
-
-    // 3. Salvar como nova EpisodeSource
-    const newSource = await prisma.episodeSource.create({
-      data: {
-        episodeId: episode.id,
-        provider: providerName,
-        urlEncrypted: encryptedUrl,
-        type: 'hls',
-        quality: '1080p',
-        audioLanguage: 'ja',
-        enabled: true,
-        priority: 50,
-      },
-    });
-
-    const safeSource = {
-      ...newSource,
-      trafficBytes: Number(newSource.trafficBytes || 0),
-    };
 
     return NextResponse.json({
       success: true,
-      message: `Link extraído com sucesso para ${anime.title} - Episódio ${episodeNumber}`,
-      source: safeSource,
-      streamUrl: simulatedStreamUrl,
+      message: `Fonte live encontrada para ${anime.title} - Episodio ${episodeNumber}.`,
+      source: resolution.selected,
+      alternatives: resolution.alternatives,
+      attempts: resolution.attempts,
+      persisted: false,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Erro ao resolver fonte pelo Kenjitsu', details: error.message }, { status: 502 });
   }
 }

@@ -282,7 +282,7 @@ Hosts de Mídia     : ${mediaHosts}
 
       setCurrentStep(5); // Success step
       setTimeout(() => {
-        router.push('/admin/sources');
+        router.push('/admin/extensions');
       }, 2000);
     } catch (err: any) {
       setError(err.message);
@@ -596,7 +596,7 @@ Hosts de Mídia     : ${mediaHosts}
                 onClick={() => setCurrentStep(4)}
                 className="px-6 py-2.5 rounded-xl bg-[#FF6B00] text-white font-bold text-xs flex items-center gap-2"
               >
-                <span>Avançar para Importação M3U</span>
+                <span>Avançar para Extensões Kenjitsu</span>
                 <ArrowRight size={16} />
               </button>
             </div>
@@ -605,6 +605,47 @@ Hosts de Mídia     : ${mediaHosts}
 
         {/* Passo 4: Importação e Fontes de Mídia Configuráveis */}
         {currentStep === 4 && (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+              <div className="flex items-start gap-3">
+                <Sparkles size={22} className="mt-0.5 text-[#FF6B00]" />
+                <div>
+                  <h3 className="text-sm font-bold text-white">Catálogo e fontes Kenjitsu</h3>
+                  <p className="mt-1 text-xs leading-5 text-gray-400">
+                    O catálogo, os episódios e os sources serão consultados exclusivamente pela API Kenjitsu self-hosted.
+                    As extensões podem ser ativadas, desativadas e testadas depois em /admin/extensions.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs text-emerald-300">
+              <CheckCircle2 size={18} />
+              <span>Não é necessário importar playlists ou cadastrar URLs manuais durante a instalação.</span>
+            </div>
+
+            <div className="flex items-center justify-between pt-4">
+              <button
+                onClick={() => setCurrentStep(3)}
+                className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white"
+              >
+                <ArrowLeft size={16} />
+                <span>Voltar</span>
+              </button>
+
+              <button
+                disabled={loading}
+                onClick={handleCompleteSetup}
+                className="flex items-center gap-2 rounded-xl bg-[#FF6B00] px-6 py-2.5 text-xs font-bold text-white disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                <span>Concluir Instalação</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {false && currentStep === 4 && (
           <div className="space-y-5">
             {/* Seção de Provedores Configuráveis */}
             <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
@@ -725,7 +766,7 @@ Hosts de Mídia     : ${mediaHosts}
               {m3uStats && (
                 <div className="mt-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center justify-between">
                   <span>Prévia M3U Analisada:</span>
-                  <span>{m3uStats.uniqueAnimes} animes / {m3uStats.totalEntries} episódios encontrados</span>
+                  <span>{m3uStats?.uniqueAnimes} animes / {m3uStats?.totalEntries} episódios encontrados</span>
                 </div>
               )}
             </div>
@@ -800,7 +841,7 @@ Hosts de Mídia     : ${mediaHosts}
                   </div>
                   <div className="text-left">
                     <span className="block text-white font-bold">Populares Top 25</span>
-                    <span className="block text-[10px] text-gray-400">Importar via Jikan API</span>
+                    <span className="block text-[10px] text-gray-400">Importar via catalogo Kenjitsu</span>
                   </div>
                 </button>
               </div>

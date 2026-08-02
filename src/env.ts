@@ -29,11 +29,6 @@ const envSchema = z.object({
     .string()
     .default('media.mydomain.com,cdn.mydomain.com,storage.googleapis.com,s3.amazonaws.com')
     .transform((val) => val.split(',').map((h) => h.trim().toLowerCase())),
-  AUTHORIZED_METADATA_API_URL: z
-    .string()
-    .url()
-    .default('https://api.jikan.moe/v4'),
-  AUTHORIZED_METADATA_API_KEY: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z
     .string()
     .url()

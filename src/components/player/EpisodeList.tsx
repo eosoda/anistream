@@ -25,16 +25,7 @@ export function EpisodeList({
   const [searchFilter, setSearchFilter] = useState('');
   const { progressMap } = useWatchProgress();
 
-  // If Jikan returned no episodes, but we know totalEpisodes (or default 12), fallback list
-  const effectiveEpisodes: JikanEpisode[] =
-    episodes && episodes.length > 0
-      ? episodes
-      : Array.from({ length: totalEpisodes && totalEpisodes > 0 ? Math.min(totalEpisodes, 100) : 12 }).map(
-          (_, i) => ({
-            mal_id: i + 1,
-            title: `Episódio ${i + 1}`,
-          })
-        );
+  const effectiveEpisodes: JikanEpisode[] = episodes || [];
 
   const [activeRange, setActiveRange] = useState(0); // index of range chunk (50 episodes per range)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');

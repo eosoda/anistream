@@ -29,9 +29,6 @@ export async function POST(
       return NextResponse.json({ error: 'Episódio não encontrado.' }, { status: 404 });
     }
 
-    const jikanIdent = episode.anime.identifiers.find((i: any) => i.provider === 'jikan');
-    const malId = jikanIdent ? parseInt(jikanIdent.value, 10) : 0;
-
     const aliases = Array.from(
       new Set([
         episode.anime.title,
@@ -42,7 +39,7 @@ export async function POST(
 
     // Disparar busca de mídias em tempo real através dos provedores autorizados
     const result = await defaultStreamResolver.resolveEpisodeStream({
-      animeId: String(malId || episode.animeId),
+      animeId: episode.animeId,
       season: episode.season || 1,
       episode: episode.number || 1,
       animeTitle: episode.anime.title,

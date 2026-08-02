@@ -466,7 +466,7 @@ export function EpisodeSourcesModal({
                 <div className="py-20 flex flex-col items-center justify-center gap-3">
                   <Loader2 size={36} className="text-[#FF6B00] animate-spin" />
                   <p className="text-xs font-bold text-gray-400">
-                    Sincronizando com provedores externos (AniZone, Miruro, Consumet, 2Embed)...
+                    Consultando extensoes Kenjitsu habilitadas em tempo real...
                   </p>
                 </div>
               ) : candidates.length === 0 ? (
@@ -548,7 +548,7 @@ export function EpisodeSourcesModal({
                 <input
                   id="manual-provider"
                   type="text"
-                  placeholder="Ex: AniZone HD, M3U Servidor 1, 2Embed..."
+                  placeholder="Ex: AniZone, AniKoto, AniDB..."
                   value={manualProvider}
                   onChange={(e) => setManualProvider(e.target.value)}
                   className="w-full px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"

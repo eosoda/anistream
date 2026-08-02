@@ -1,198 +1,88 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { autoAuthorizeHostnames, invalidateAuthorizedHostsCache } from '@/lib/security/allowed-hosts';
-import { ANIME_SDK_PROVIDERS } from '@/lib/providers/anime-sdk';
-import { CONSUMET_PROVIDERS } from '@/lib/providers/consumet';
+import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/env';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { kenjitsuClient } from '@/lib/kenjitsu/client';
+import {
+  getKenjitsuExtensionSettings,
+  saveKenjitsuExtensionSettings,
+  type KenjitsuExtensionSetting,
+} from '@/lib/kenjitsu/settings';
+import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId } from '@/lib/kenjitsu/types';
 
-// 8 Provedores padrão pré-configurados inicializáveis
-const DEFAULT_PROVIDERS = [
-  ...ANIME_SDK_PROVIDERS.filter((provider) => provider.enabled).map(
-    (provider) => ({
-      name: provider.name,
-      type: 'ANIME_SDK',
-      url: provider.url,
-      priority: provider.priority,
-      enabled: true,
+async function providerSnapshot() {
+  const [settings, health] = await Promise.all([
+    getKenjitsuExtensionSettings(),
+    kenjitsuClient.getExtensionHealth().catch(() => ({ data: [] })),
+  ]);
+  const healthById = new Map((health.data || []).map((item) => [item.id, item]));
+  return settings.map((setting) => {
+    const manifest = healthById.get(setting.id);
+    return {
+      id: setting.id,
+      name: manifest?.name || setting.id,
+      type: 'KENJITSU_EXTENSION',
+      url: `${env.KENJITSU_BASE_URL}/api/extensions/${setting.id}`,
+      priority: KENJITSU_EXTENSION_IDS.length - KENJITSU_EXTENSION_IDS.indexOf(setting.id),
+      enabled: setting.enabled,
+      nsfw: setting.nsfw,
       autoIndex: false,
-    })
-  ),
-  ...CONSUMET_PROVIDERS.filter((provider) => provider.enabled).map(
-    (provider) => ({
-      name: provider.name,
-      type: 'CONSUMET',
-      url: provider.url,
-      priority: provider.priority,
-      enabled: true,
-      autoIndex: false,
-    })
-  ),
-  {
-    name: 'XPass / 2Embed',
-    type: 'EMBED',
-    url: 'https://play.xpass.top',
-    priority: 60,
-    enabled: true,
-    autoIndex: false,
-  },
-];
+      version: manifest?.version || 'unknown',
+      capabilities: manifest?.capabilities || ['search', 'info', 'sources'],
+      source: manifest?.source || 'self-hosted',
+      lastTestedAt: setting.lastTestedAt || null,
+      lastStatus: setting.lastTestStatus || null,
+      lastLatencyMs: setting.lastLatencyMs || null,
+      lastError: setting.lastError || null,
+    };
+  });
+}
 
-// GET: Listar todos os provedores cadastrados (ou popular com padrões se necessário)
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
   try {
-    // Remover provedores fictícios ou descontinuados legados
-    await prisma.mediaProvider.deleteMany({
-      where: {
-        OR: [
-          { url: { contains: 'mydomain.com' } },
-          { url: { contains: 'exemplo.com' } },
-          { url: { contains: 'example.com' } },
-          { name: { contains: 'TVmaze' } },
-          { name: { contains: 'Miruro' } },
-          { name: { contains: 'ApiPlayer' } },
-        ],
-      },
-    });
-
-    // Estes adaptadores legados deixaram de entregar mídia reproduzível.
-    // Mantemos os registros e o histórico de testes no painel, mas não os
-    // consultamos durante a reprodução.
-    await prisma.mediaProvider.updateMany({
-      where: {
-        name: {
-          in: [
-            'AniZone / Kenjitsu API',
-            'Kenjitsu / AniZone',
-            'GogoAnime (Consumet)',
-            'Consumet / Gogoanime API',
-            'HiAnime / Zoro',
-            'Anify API',
-            'AnimesOnline Scraper',
-            'WarezCDN / Superflix',
-            '2Embed Player',
-            'Xpass Player',
-            'Catálogo M3U Autorizado',
-            'Anikoto',
-          ],
-        },
-      },
-      data: { enabled: false },
-    });
-
-    let providers = await prisma.mediaProvider.findMany({
-      orderBy: { priority: 'desc' },
-    });
-
-    // Se novos provedores não existirem, popular
-    const existingNames = new Set(providers.map((p: any) => p.name));
-    for (const p of DEFAULT_PROVIDERS) {
-      if (!existingNames.has(p.name)) {
-        await prisma.mediaProvider.create({ data: p });
-      }
-    }
-
-    providers = await prisma.mediaProvider.findMany({
-      orderBy: { priority: 'desc' },
-    });
-    const defaultProviderSetting = await prisma.systemSetting.findUnique({
-      where: { key: 'default_stream_provider_id' },
-      select: { value: true },
-    });
-
-    return NextResponse.json({
-      providers,
-      defaultProviderId: defaultProviderSetting?.value || providers.find((provider: { enabled: boolean }) => provider.enabled)?.id || null,
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const providers = await providerSnapshot();
+    return NextResponse.json({ providers, defaultProviderId: providers.find((provider) => provider.enabled)?.id || null, source: 'kenjitsu' });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 502 });
   }
 }
 
-// POST: Criar novo provedor de mídia
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
+  return NextResponse.json({ error: 'Fontes customizadas foram desativadas; use as extensoes do Kenjitsu.' }, { status: 410 });
+}
+
+export async function PATCH(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
+
   try {
-    const body = await req.json();
-    const { name, type = 'M3U', url, priority = 100, enabled = true, autoIndex = true } = body;
+    const body = await request.json();
+    const id = String(body.id || '') as KenjitsuExtensionId;
+    if (!KENJITSU_EXTENSION_IDS.includes(id)) return NextResponse.json({ error: 'Extensao Kenjitsu invalida.' }, { status: 400 });
 
-    if (!name || !url) {
-      return NextResponse.json({ error: 'Nome e URL do provedor são obrigatórios.' }, { status: 400 });
-    }
-
-    const provider = await prisma.mediaProvider.create({
-      data: {
-        name,
-        type,
-        url,
-        priority: Number(priority),
-        enabled: Boolean(enabled),
-        autoIndex: Boolean(autoIndex),
-      },
-    });
-
-    // Auto-autorizar o hostname da URL do provedor e invalidar o cache em memória
-    await autoAuthorizeHostnames([url]);
-    invalidateAuthorizedHostsCache();
-
-    return NextResponse.json({ success: true, provider });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const settings = await getKenjitsuExtensionSettings();
+    const updated = settings.map((setting): KenjitsuExtensionSetting =>
+      setting.id === id
+        ? {
+            ...setting,
+            ...(typeof body.enabled === 'boolean' ? { enabled: body.enabled } : {}),
+            ...(typeof body.nsfw === 'boolean' ? { nsfw: body.nsfw } : {}),
+          }
+        : setting,
+    );
+    await saveKenjitsuExtensionSettings(updated);
+    const providers = await providerSnapshot();
+    return NextResponse.json({ success: true, provider: providers.find((provider) => provider.id === id), providers });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 502 });
   }
 }
 
-// PATCH: Alternar status (enabled / autoIndex) ou editar provedor
-export async function PATCH(req: Request) {
-  try {
-    const body = await req.json();
-    const { id, enabled, autoIndex, name, url, priority, setAsDefault } = body;
-
-    if (!id) return NextResponse.json({ error: 'ID do provedor é obrigatório.' }, { status: 400 });
-
-    const updateData: any = {};
-    if (enabled !== undefined) updateData.enabled = Boolean(enabled);
-    if (autoIndex !== undefined) updateData.autoIndex = Boolean(autoIndex);
-    if (name) updateData.name = name;
-    if (url) updateData.url = url;
-    if (priority !== undefined) updateData.priority = Number(priority);
-
-    const updated = await prisma.mediaProvider.update({
-      where: { id },
-      data: updateData,
-    });
-
-    if (setAsDefault === true) {
-      if (!updated.enabled) {
-        return NextResponse.json({ error: 'Ative o provedor antes de defini-lo como padrão.' }, { status: 400 });
-      }
-      await prisma.systemSetting.upsert({
-        where: { key: 'default_stream_provider_id' },
-        create: { key: 'default_stream_provider_id', value: updated.id },
-        update: { value: updated.id },
-      });
-    }
-
-    if (url) {
-      await autoAuthorizeHostnames([url]);
-    }
-    invalidateAuthorizedHostsCache();
-
-    return NextResponse.json({ success: true, provider: updated });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
-
-// DELETE: Remover um provedor
-export async function DELETE(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-
-    if (!id) return NextResponse.json({ error: 'ID do provedor é obrigatório.' }, { status: 400 });
-
-    await prisma.mediaProvider.delete({ where: { id } });
-    invalidateAuthorizedHostsCache();
-
-    return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
+export async function DELETE(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
+  return NextResponse.json({ error: 'Extensoes sao gerenciadas no fork self-hosted do Kenjitsu e nao podem ser removidas pelo app.' }, { status: 410 });
 }

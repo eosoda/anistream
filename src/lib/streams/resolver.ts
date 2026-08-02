@@ -301,13 +301,8 @@ export class StreamResolver {
       .map(({ source, latencyMs }) => ({ source, latencyMs, score: calculateSourceScore(source, latencyMs, preferredAudio) }))
       .sort((a, b) => b.score - a.score)
       .map((item) => item.source);
-    const fallbackSources = [...allSources].sort(
-      (a, b) =>
-        calculateSourceScore(b, timeoutPerProviderMs, preferredAudio) -
-        calculateSourceScore(a, timeoutPerProviderMs, preferredAudio)
-    );
-    const selected = sortedSources[0] || fallbackSources[0] || null;
-    const alternatives = sortedSources.length > 1 ? sortedSources.slice(1) : fallbackSources.slice(1);
+    const selected = sortedSources[0] || null;
+    const alternatives = sortedSources.slice(1);
 
     return {
       selected,

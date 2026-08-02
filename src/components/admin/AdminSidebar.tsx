@@ -64,8 +64,8 @@ export function AdminSidebar({
       icon: <Puzzle size={18} />,
     },
     {
-      name: 'Testador de Mídia',
-      href: '/admin/sources/tester',
+      name: 'Testar extensões',
+      href: '/admin/extensions',
       exact: false,
       icon: <TestTube2 size={18} />,
     },

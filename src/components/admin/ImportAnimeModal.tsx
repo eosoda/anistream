@@ -143,7 +143,7 @@ export function ImportAnimeModal({
               <Sparkles size={24} />
             </div>
             <div>
-              <h3 id={titleId} className="text-xl font-black text-white">Importar Anime (AniList / MAL)</h3>
+              <h3 id={titleId} className="text-xl font-black text-white">Importar Anime pelo Kenjitsu</h3>
               <p className="text-xs text-gray-400">
                 Selecione um anime para importar metadados, capas e episódios para o PostgreSQL
               </p>

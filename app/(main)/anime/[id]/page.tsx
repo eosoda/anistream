@@ -94,7 +94,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
       <div className="max-w-4xl mx-auto px-4 py-16">
         <EmptyState
           title="Anime não encontrado"
-          description="Não foi possível carregar os detalhes deste anime. O título pode não existir ou a API do Jikan pode estar temporariamente sob alta demanda."
+          description="Nao foi possivel carregar os detalhes deste anime pelo catalogo Kenjitsu. Tente novamente."
           actionHref="/populares"
           actionText="Explorar Catálogo Popular"
         />

@@ -116,7 +116,7 @@ export function AutopilotPanel() {
               )}
             </h2>
             <p className="text-xs text-gray-400">
-              Varre provedores ativos, busca dados oficiais (Jikan/AniList) e cria as páginas de animes/episódios.
+              Consulta extensoes Kenjitsu habilitadas e cria as paginas de animes/episodios.
             </p>
           </div>
         </div>
@@ -194,7 +194,7 @@ export function AutopilotPanel() {
                   <button
                     onClick={() => handleReviewItem(item.id, 'APPROVED')}
                     className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold flex items-center gap-1 shadow-lg shadow-emerald-500/20"
-                    title="Aprovar e Buscar Dados Oficiais (Jikan)"
+                    title="Aprovar e buscar dados pelo Kenjitsu"
                   >
                     <Check size={14} />
                     <span>Aprovar & Criar</span>

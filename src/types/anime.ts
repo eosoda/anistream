@@ -91,7 +91,7 @@ export interface JikanAnime {
   explicit_genres: JikanGenre[];
   themes: JikanGenre[];
   demographics: JikanGenre[];
-  // Enhanced banner image from AniList fallback
+  // Banner image provided by the Kenjitsu metadata response
   bannerImage?: string | null;
   kenjitsu?: { anilistId?: number | null; malId?: number | null };
 }

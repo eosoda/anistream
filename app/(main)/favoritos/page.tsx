@@ -118,7 +118,7 @@ export default function FavoritesPage() {
             </h1>
           </div>
           <p className="text-sm text-gray-400 mt-1">
-            Seus animes salvos e verificação automática de novos episódios via API Jikan.
+            Seus animes salvos e verificação automática de novos episódios via API Kenjitsu.
           </p>
         </div>
 
@@ -186,7 +186,7 @@ export default function FavoritesPage() {
                 </span>
               </div>
               <p className="text-xs text-emerald-200/80 mt-0.5">
-                Animes favoritados receberam novos episódios recentemente. Verificados via Jikan.
+                Animes favoritados receberam novos episódios recentemente. Verificados via Kenjitsu.
               </p>
             </div>
           </div>

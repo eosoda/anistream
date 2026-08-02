@@ -39,10 +39,7 @@ function buildPlaybackUrl(
 
   if (
     source.requiresProxy &&
-    (source.id.startsWith('kenjitsu:') ||
-      source.id.startsWith('xpass-') ||
-      source.id.startsWith('anime-sdk-') ||
-      source.id.startsWith('consumet-'))
+    source.id.startsWith('kenjitsu:')
   ) {
     const payload = encryptData(
       JSON.stringify({

@@ -1,4 +1,5 @@
 import { env } from '@/env';
+import { redisGetJson, redisSetJson } from '@/lib/cache/redis';
 import type {
   KenjitsuExtensionHealth,
   KenjitsuExtensionId,
@@ -46,6 +47,14 @@ async function requestJson<T>(path: string, ttlMs = 0): Promise<T> {
   }
   if (cached) responseCache.delete(key);
 
+  if (ttlMs > 0) {
+    const distributed = await redisGetJson<T>(`kenjitsu:${key}`);
+    if (distributed !== null) {
+      responseCache.set(key, { expiresAt: Date.now() + ttlMs, value: distributed });
+      return distributed;
+    }
+  }
+
   const pending = inFlightRequests.get(key);
   if (pending) return pending as Promise<T>;
 
@@ -76,6 +85,7 @@ async function requestJson<T>(path: string, ttlMs = 0): Promise<T> {
 
       if (ttlMs > 0) {
         responseCache.set(key, { expiresAt: Date.now() + ttlMs, value: payload });
+        await redisSetJson(`kenjitsu:${key}`, payload, ttlMs / 1000);
       }
       return payload as T;
     } catch (error) {
