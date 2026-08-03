@@ -4,6 +4,7 @@ import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { normalizeAnimeTitle } from '@/lib/anime/normalize-title';
 import { searchAnimeMetadata } from '@/lib/anime/metadata-fetcher';
 import { getAnimeEpisodes } from '@/lib/kenjitsu/catalog';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -121,6 +122,15 @@ export async function POST(request: NextRequest) {
       });
       importedEpisodesCount++;
     }
+
+    void recordAdminAudit({
+      actorId: auth.userId,
+      action: 'anime.imported',
+      resourceType: 'anime',
+      resourceId: anime.id,
+      summary: `Anime “${mainTitle}” importado pelo Kenjitsu.`,
+      metadata: { importedEpisodesCount, sourceResolution: 'live-kenjitsu', malId: meta.malId || null, anilistId: meta.anilistId || null },
+    });
 
     return NextResponse.json({
       success: true,

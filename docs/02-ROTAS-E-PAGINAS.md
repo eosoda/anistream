@@ -1,59 +1,53 @@
-# 02. Rotas e Páginas (App Router) — AniStream 🗺️
+# 02. Rotas e páginas
 
-O AniStream utiliza o **Next.js 15 App Router** localizado na pasta `app/`. A estrutura de rotas organiza as páginas principais da aplicação.
+O AniStream usa o Next.js App Router em `app/`. As páginas públicas consultam o catálogo local e o Kenjitsu; as páginas administrativas exigem sessão.
 
----
+## Rotas públicas
 
-## 🗺️ Mapeamento de Rotas
+| Rota | Função |
+| :--- | :--- |
+| `/` | Home, destaques, lançamentos e continuar assistindo. |
+| `/lista` | Catálogo geral com ordenação e visualizações. |
+| `/lista/importar` | Importação assistida de uma lista do usuário. |
+| `/calendario` | Calendário semanal de lançamentos. |
+| `/pesquisa` | Busca e filtros avançados. |
+| `/populares` | Ranking e filtros de popularidade. |
+| `/temporadas` | Animes por temporada e ano. |
+| `/filmes` | Catálogo de filmes. |
+| `/favoritos` | Favoritos, progresso e lembretes. |
+| `/anime/[id]` | Detalhes, episódios, personagens e relações. |
+| `/anime/[id]/episode/[epNum]` | Player e navegação de episódio. |
+| `/changelog` | Releases e comunicados de versão. |
+| `/manutencao` | Estado público durante manutenção. |
 
-```text
-app/
-├── page.tsx                           # Rota "/" - Página Inicial (Home)
-├── lista/page.tsx                     # Rota "/lista" - Catálogo Alfabético Geral
-├── lista/importar/page.tsx            # Rota "/lista/importar" - Importador de Lista MAL
-├── calendario/page.tsx                # Rota "/calendario" - Calendário Semanal de Lançamentos
-├── pesquisa/page.tsx                  # Rota "/pesquisa" - Busca & Filtros Avançados
-├── populares/page.tsx                 # Rota "/populares" - Ranking dos Mais Populares
-├── temporadas/page.tsx                # Rota "/temporadas" - Lançamentos por Temporada/Ano
-├── filmes/page.tsx                    # Rota "/filmes" - Catálogo Exclusivo de Filmes
-├── favoritos/page.tsx                 # Rota "/favoritos" - Meus Favoritos & Novos Episódios
-├── anime/[id]/page.tsx                # Rota "/anime/[id]" - Detalhes do Anime
-├── anime/[id]/episode/[epNum]/page.tsx# Rota "/anime/[id]/episode/[epNum]" - Player de Episódio
-├── error.tsx                          # Captura de Erros Nativos
-├── global-error.tsx                   # Captura de Erros Globais da Aplicação
-└── not-found.tsx                      # Página 404 Estilizada Nativa
-```
+## Rotas de instalação e autenticação
 
----
+| Rota | Função |
+| :--- | :--- |
+| `/setup` | Primeiro acesso, conexão e criação do administrador. |
+| `/admin/login` | Login administrativo. |
 
-## 📑 Descrição das Páginas
+## Rotas administrativas
 
-### 1. Página Inicial (`app/page.tsx`)
-- **Banner Hero Carousel**: Carrossel em destaque no topo exibindo animes em alta da temporada com botões para assistir, sinopse curta e nota.
-- **Carrosséis Temáticos**: Animes da Temporada Atual, Lançamentos da Semana, Filmes em Alta.
-- **Seção Continuar Assistindo**: Card com barra de progresso dos animes iniciados pelo usuário.
+O shell compartilhado fica em `app/(main)/admin/layout.tsx` e fornece navegação agrupada, breadcrumbs, sessão e command palette.
 
-### 2. Catálogo Geral (`app/lista/page.tsx`)
-- **Filtro Alfabético (A-Z, #, Todos)**: Barra de letras rápida com arraste de cursor/touch.
-- **Quick Multi-Filter**: Barra interativa no topo combinando Gênero, Status e Ordenação.
-- **Alternador de Exibição**: Alterna entre Grade de Capas e Lista Compacta.
+| Rota | Função |
+| :--- | :--- |
+| `/admin` | Dashboard com overview, saúde, alertas e auditoria recente. |
+| `/admin/animes` | Catálogo com filtros, paginação e ações em lote. |
+| `/admin/animes/novo` | Cadastro e autofill pelo Kenjitsu. |
+| `/admin/animes/[id]/editar` | Identidade, metadata, playback e episódios. |
+| `/admin/extensions` | Matriz de fontes/extensões Kenjitsu. |
+| `/admin/navigation` | Navegação, páginas e home. |
+| `/admin/system` | Estado e manutenção. |
+| `/admin/backups` | Exportação e restauração. |
+| `/admin/integrations` | Webhooks e integrações. |
+| `/admin/broadcasts` | Comunicados públicos. |
+| `/admin/releases` | Changelog e releases. |
+| `/admin/dashboard` | Alias que redireciona para `/admin`. |
+| `/admin/sources` | Alias que redireciona para `/admin/extensions`. |
+| `/admin/sources/tester` | Alias que redireciona para `/admin/extensions`. |
 
-### 3. Busca e Filtros (`app/pesquisa/page.tsx`)
-- **Pesquisa via Texto e Voz**: Integração com a Web Speech API para busca falada.
-- **Filtros Avançados**: Status, Nota Mínima, Formato (TV, Filme, OVA), Idioma de Áudio.
-- **Live Search Preview**: Busca rápida no Navbar com Top 5 resultados dinâmicos.
+## Restrições de dados
 
-### 4. Mais Populares (`app/populares/page.tsx`)
-- **Ranking Global**: Lista dos animes mais votados e favoritados no mundo segundo o MyAnimeList.
-- **Filtros de Formato**: Séries TV, Filmes, OVAs, ONAs, Especiais.
-
-### 5. Favoritos (`app/favoritos/page.tsx`)
-- **Verificação de Novos Episódios**: Consulta automática ao catálogo Kenjitsu indicando animes que receberam novos episódios recentemente (`NOVO EP`).
-- **Lembretes de Lançamento**: Painel para gerenciar notificações semanais.
-
-### 6. Detalhes do Anime (`app/anime/[id]/page.tsx`)
-- **Informações Completas**: Banner de capa, trailer oficial em modal, nota, estúdio, número de episódios, sinopse traduzida e tags de áudio (DUB/LEG).
-- **Abas Internas**: Lista de Episódios com progresso de leitura, Elenco de Personagens e Dubladores e Animes Relacionados.
-
-### 7. Reprodução de Episódio (`app/anime/[id]/episode/[epNum]/page.tsx`)
-- **Player de Vídeo Customizado**: Player HTML5 totalmente customizado com navegação entre episódios, lista lateral, atalhos de teclado e contagem regressiva.
+O Kenjitsu é a fonte única de catálogo, episódios e mídia. Não há rota pública ou administrativa nova para configurar Hosts de Mídia Autorizados, playlists M3U ou URLs manuais de stream.

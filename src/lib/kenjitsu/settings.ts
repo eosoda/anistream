@@ -8,7 +8,7 @@ export interface KenjitsuExtensionSetting {
   enabled: boolean;
   nsfw: boolean;
   lastTestedAt?: string | null;
-  lastTestStatus?: 'healthy' | 'degraded' | 'down' | null;
+  lastTestStatus?: 'healthy' | 'degraded' | 'down' | 'unknown' | null;
   lastLatencyMs?: number | null;
   lastError?: string | null;
 }
@@ -29,7 +29,7 @@ function normalize(value: unknown): KenjitsuExtensionSetting[] {
       enabled: typeof current?.enabled === 'boolean' ? current.enabled : fallback.enabled,
       nsfw: typeof current?.nsfw === 'boolean' ? current.nsfw : fallback.nsfw,
       lastTestedAt: typeof current?.lastTestedAt === 'string' ? current.lastTestedAt : null,
-      lastTestStatus: ['healthy', 'degraded', 'down'].includes(current?.lastTestStatus) ? current.lastTestStatus : null,
+      lastTestStatus: ['healthy', 'degraded', 'down', 'unknown'].includes(current?.lastTestStatus) ? current.lastTestStatus : null,
       lastLatencyMs: typeof current?.lastLatencyMs === 'number' ? current.lastLatencyMs : null,
       lastError: typeof current?.lastError === 'string' ? current.lastError : null,
     };

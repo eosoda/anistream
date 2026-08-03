@@ -60,7 +60,7 @@ INITIAL_SETUP_KEY="${initialSetupKey}"
 SETUP_KEY="${initialSetupKey}"
 
 # API de catálogo, episódios e mídia
-KENJITSU_BASE_URL="http://localhost:3001"
+KENJITSU_BASE_URL="http://kenjitsu:3000"
 KENJITSU_API_KEY=""
 KENJITSU_REQUEST_TIMEOUT_MS="10000"
 KENJITSU_CACHE_TTL_SECONDS="300"

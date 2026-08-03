@@ -1,54 +1,46 @@
-# 07. Armazenamento Offline e IndexedDB — AniStream 💾
+# 07. Armazenamento offline e IndexedDB
 
-O AniStream conta com um sistema de **suporte offline** que permite aos usuários navegar em catálogos e acessar informações salvas mesmo sem conexão com a internet.
+O AniStream mantém um cache local para preservar favoritos, progresso e dados já consultados quando a conexão com o Kenjitsu está temporariamente indisponível. O cache não substitui o Kenjitsu como fonte de catálogo e não cria novos episódios ou mídias offline.
 
----
+## 1. Implementação
 
-## 🗄️ Estrutura do Banco IndexedDB (`utils/offlineCacheDB.ts`)
+O utilitário [`src/utils/offlineCacheDB.ts`](../src/utils/offlineCacheDB.ts) encapsula a API IndexedDB.
 
-O utilitário [`utils/offlineCacheDB.ts`](file:///c:/Users/junin/Documents/projetos/anistream/utils/offlineCacheDB.ts) encapsula o uso da API nativa IndexedDB do navegador.
+- Nome do banco: `AniStreamOfflineDB`;
+- versão atual: `1`;
+- expiração de catálogo/detalhes: sete dias;
+- fallback técnico: `memoryCacheMap` quando IndexedDB não está disponível ou a quota foi excedida.
 
-- **Nome do Banco**: `AniStreamOfflineDB`
-- **Versão**: `1`
+## 2. Object stores
 
-### Object Stores (Tabelas)
+| Store | Chave | Conteúdo |
+| :--- | :--- | :--- |
+| `catalog` | `key` | Resultados de consultas e listas. |
+| `favorites` | `mal_id` | Favoritos salvos pelo usuário. |
+| `anime_details` | `mal_id` | Detalhes já visualizados. |
+| `episodes` | `animeId` | Episódios consultados por anime. |
 
-1. **`catalog`** (KeyPath: `key`)
-   - Armazena listas de busca, temporais e rankings populares.
-   - Campos: `key`, `data`, `updatedAt`.
-2. **`favorites`** (KeyPath: `mal_id`)
-   - Armazena lista de animes favoritados para acesso instantâneo offline.
-3. **`anime_details`** (KeyPath: `mal_id`)
-   - Armazena metadados detalhados de cada anime individual visualizado.
-4. **`episodes`** (KeyPath: `animeId`)
-   - Armazena a lista de episódios indexados por anime.
-
-### 🛡️ Resiliência: Fallback Transparente em Memória (`memoryCacheMap`)
-Caso o navegador esteja rodando em **Modo Anônimo / Privado** (onde a abertura do IndexedDB pode ser bloqueada) ou com quota de disco excedida (`QuotaExceededError`), o utilitário intercepta o erro via `try...catch` e redireciona a persistência transparente para um `Map` em memória (`memoryCacheMap`). Isso garante zero travamentos na aplicação.
-
-
-## 🔄 Fluxo de Resolução de Dados (Online vs Offline)
+## 3. Fluxo online/offline
 
 ```mermaid
-graph TD
-    Req[Requisição de Dados do Anime] --> OnlineCheck{Navegador está Online?}
-    OnlineCheck -- Sim --> FetchAPI[Chamada ao catálogo Kenjitsu]
-    FetchAPI -- Sucesso --> SaveIDB[Salvar Resposta no IndexedDB] --> ReturnData[Exibir na Tela]
-    FetchAPI -- Falha / HTTP 429 --> ReadIDB[Ler do Cache IndexedDB]
-    OnlineCheck -- Não --> ReadIDB
-    ReadIDB -- Encontrado no IDB --> ReturnData
-    ReadIDB -- Não Encontrado --> FallbackData[Usar FALLBACK_ANIMES em data/fallbackAnime.ts] --> ReturnData
+flowchart TD
+    Request["Requisição de catálogo"] --> Online{"Kenjitsu disponível?"}
+    Online -- Sim --> Fetch["Consultar Kenjitsu"]
+    Fetch --> Save["Salvar resposta no IndexedDB"]
+    Save --> Render["Exibir dados"]
+    Online -- Não --> Read["Ler cache local"]
+    Fetch -- Erro recuperável --> Read
+    Read -- Encontrado --> Render
+    Read -- Ausente --> Empty["Estado vazio / erro recuperável"]
 ```
 
----
+Se não houver cache, a interface informa que os dados não estão disponíveis. Não existe fallback estático de outra API.
 
-## 📱 Suporte PWA Instalável & Service Worker (Fase 3)
+## 4. PWA e Service Worker
 
-1. **Manifest Web App (`public/manifest.json`)**:
-   - Define nome, ícones, cor de tema (`#FF6B00`), cor de fundo (`#0B0B0F`) e exibição `standalone`.
-2. **Service Worker (`public/sw.js`)**:
-   - Cache de rotas HTML e ativos estáticos com estratégia **Stale-While-Revalidate**.
-3. **PWA Registration Component (`PwaRegister.tsx`)**:
-   - Registra `/sw.js` e intercepta o evento `beforeinstallprompt` exibindo o botão de instalação nativa no celular ou desktop.
-4. **Notificações Web Push (`useWebNotifications.ts`)**:
-   - Hook nativo para gerenciar permissões de notificação do navegador e enviar alertas de lançamentos de episódios favoritados.
+- `public/manifest.json` define nome, ícones, cores e modo standalone;
+- `public/sw.js` cacheia ativos estáticos e rotas conforme a estratégia configurada;
+- `src/components/layout/PwaRegister.tsx` registra o service worker e informa atualizações;
+- notificações de lançamentos usam o estado local de favoritos quando disponíveis.
+
+O modo offline é uma camada de continuidade da experiência pública. O painel administrativo, alterações de catálogo, testes de extensões e operações de risco exigem conexão com a aplicação, banco e Kenjitsu.

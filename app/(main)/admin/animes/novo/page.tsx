@@ -1,283 +1,162 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import {
-  ChevronLeft,
-  Sparkles,
-  Loader2,
-  Image as ImageIcon,
-  Calendar,
-  Tag,
-  FileText,
-  Save,
-  CheckCircle2,
-} from 'lucide-react';
+import { Image as ImageIcon, Loader2, Save, Sparkles } from 'lucide-react';
 import { SafeImage } from '@/components/ui/SafeImage';
+import { AdminFeedback, AdminPageHeader, AdminPanel, AdminSaveBar } from '@/components/admin';
+
+type NewAnimeForm = {
+  title: string;
+  originalTitle: string;
+  slug: string;
+  releaseYear: number | '';
+  status: string;
+  posterUrl: string;
+  bannerUrl: string;
+  description: string;
+};
+
+const emptyForm: NewAnimeForm = {
+  title: '',
+  originalTitle: '',
+  slug: '',
+  releaseYear: new Date().getFullYear(),
+  status: 'Em Lançamento',
+  posterUrl: '',
+  bannerUrl: '',
+  description: '',
+};
+
+const statusOptions = ['Em Lançamento', 'Concluído', 'Pausado', 'Anunciado', 'Currently Airing', 'Finished Airing', 'Not yet aired'];
 
 export default function AdminNewAnimePage() {
   const router = useRouter();
-
-  const [title, setTitle] = useState('');
-  const [originalTitle, setOriginalTitle] = useState('');
-  const [slug, setSlug] = useState('');
-  const [releaseYear, setReleaseYear] = useState<number | ''>(new Date().getFullYear());
-  const [status, setStatus] = useState('Em Lançamento');
-  const [posterUrl, setPosterUrl] = useState('');
-  const [bannerUrl, setBannerUrl] = useState('');
-  const [description, setDescription] = useState('');
-
+  const [form, setForm] = useState<NewAnimeForm>(emptyForm);
   const [loading, setLoading] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Auto-preenchimento via catalogo Kenjitsu
+  const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(emptyForm), [form]);
+  const update = <K extends keyof NewAnimeForm>(key: K, value: NewAnimeForm[K]) => setForm((current) => ({ ...current, [key]: value }));
+
   const handleAutofill = async () => {
-    if (!title.trim()) {
-      setError('Digite o título do anime antes de buscar os dados automáticos.');
+    if (!form.title.trim()) {
+      setError('Digite um título antes de consultar os metadados no Kenjitsu.');
       return;
     }
-
     setAutofilling(true);
     setError(null);
-
     try {
-      const res = await fetch(`/api/admin/animes/autofill?title=${encodeURIComponent(title.trim())}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Falha ao buscar dados no MyAnimeList');
-      }
-
-      const match = data.results[0];
-      if (match) {
-        setTitle(match.title);
-        setOriginalTitle(match.originalTitle || '');
-        setSlug(match.slug);
-        setReleaseYear(match.releaseYear || new Date().getFullYear());
-        setStatus(match.status || 'Em Lançamento');
-        setPosterUrl(match.posterUrl || '');
-        setBannerUrl(match.bannerUrl || match.posterUrl || '');
-        setDescription(match.description || '');
-        setSuccess('Metadados importados com sucesso do Kenjitsu!');
-      }
-    } catch (err: any) {
-      setError(err.message);
+      const response = await fetch(`/api/admin/animes/autofill?title=${encodeURIComponent(form.title.trim())}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Não foi possível consultar o Kenjitsu.');
+      const match = payload.results?.[0];
+      if (!match) throw new Error('Nenhum título correspondente foi encontrado no Kenjitsu.');
+      setForm((current) => ({
+        ...current,
+        title: match.title || current.title,
+        originalTitle: match.originalTitle || current.originalTitle,
+        slug: match.slug || current.slug,
+        releaseYear: match.releaseYear || current.releaseYear,
+        status: match.status || current.status,
+        posterUrl: match.posterUrl || current.posterUrl,
+        bannerUrl: match.bannerUrl || match.posterUrl || current.bannerUrl,
+        description: match.description || current.description,
+      }));
+      setSuccess('Metadados preenchidos pelo Kenjitsu. Revise antes de salvar.');
+    } catch (autofillError) {
+      setError(autofillError instanceof Error ? autofillError.message : 'Falha ao consultar o Kenjitsu.');
     } finally {
       setAutofilling(false);
     }
   };
 
-  // Submit do Formulário
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const createAnime = async (event?: React.FormEvent) => {
+    event?.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
-
     try {
-      const res = await fetch('/api/admin/animes', {
+      const response = await fetch('/api/admin/animes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
-          originalTitle: originalTitle || undefined,
-          slug: slug || undefined,
-          releaseYear: typeof releaseYear === 'number' ? releaseYear : undefined,
-          status,
-          posterUrl: posterUrl || undefined,
-          bannerUrl: bannerUrl || undefined,
-          description: description || undefined,
+          title: form.title,
+          originalTitle: form.originalTitle || undefined,
+          slug: form.slug || undefined,
+          releaseYear: typeof form.releaseYear === 'number' ? form.releaseYear : undefined,
+          status: form.status,
+          posterUrl: form.posterUrl || undefined,
+          bannerUrl: form.bannerUrl || undefined,
+          description: form.description || undefined,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Falha ao cadastrar anime');
-      }
-
-      setSuccess('Anime cadastrado com sucesso! Redirecionando...');
-      setTimeout(() => {
-        router.push(`/admin/animes/${data.anime.id}/editar`);
-      }, 1000);
-    } catch (err: any) {
-      setError(err.message);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Falha ao cadastrar anime.');
+      setSuccess('Anime cadastrado. Abrindo editor…');
+      window.setTimeout(() => router.push(`/admin/animes/${payload.anime.id}/editar`), 500);
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : 'Falha ao cadastrar anime.');
     } finally {
       setLoading(false);
     }
   };
 
+  const discard = () => {
+    setForm(emptyForm);
+    setError(null);
+    setSuccess('Rascunho descartado.');
+  };
+
   return (
-    <div className="min-h-screen bg-[#0B0B0F] text-white p-6 sm:p-10 max-w-5xl mx-auto space-y-8">
-      {/* Botão de Voltar */}
-      <Link
-        href="/admin/animes"
-        className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
-      >
-        <ChevronLeft size={16} />
-        <span>Voltar à Lista de Animes</span>
-      </Link>
+    <div className="space-y-5 pb-28">
+      <AdminPageHeader
+        eyebrow="Catálogo / Novo registro"
+        title="Cadastrar anime"
+        description="Crie o registro local e use o Kenjitsu para reduzir o trabalho de preenchimento editorial."
+        breadcrumbs={[{ label: 'Animes', href: '/admin/animes' }, { label: 'Novo' }]}
+        actions={(
+          <button type="button" className="admin-button is-secondary" onClick={() => void handleAutofill()} disabled={autofilling || !form.title.trim()}>
+            {autofilling ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Consultar Kenjitsu
+          </button>
+        )}
+      />
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel">
-        <div>
-          <h1 className="text-2xl font-black text-white">Cadastrar Novo Anime</h1>
-          <p className="text-xs text-gray-400">
-            Insira o título e use a busca automática para importar capa e sinopse
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleAutofill}
-          disabled={autofilling || !title.trim()}
-          className="px-5 py-2.5 rounded-2xl bg-[#FF6B00]/20 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white border border-[#FF6B00]/30 font-bold text-xs flex items-center gap-2 transition-all disabled:opacity-50"
-        >
-          {autofilling ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Sparkles size={16} />
-          )}
-          <span>Preencher automaticamente pelo Kenjitsu</span>
-        </button>
+      <div className="space-y-3" aria-live="polite">
+        {error && <AdminFeedback tone="danger" onDismiss={() => setError(null)}>{error}</AdminFeedback>}
+        {success && <AdminFeedback tone="success" onDismiss={() => setSuccess(null)}>{success}</AdminFeedback>}
       </div>
 
-      {error && (
-        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold text-center">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold text-center flex items-center justify-center gap-2">
-          <CheckCircle2 size={16} />
-          <span>{success}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Coluna Esquerda: Preview da Capa */}
-        <div className="space-y-4">
-          <label className="block text-xs font-bold text-gray-300">Preview da Capa</label>
-          <div className="w-full aspect-[2/3] relative rounded-3xl overflow-hidden bg-black/60 border border-white/10 flex flex-col items-center justify-center text-center p-4">
-            {posterUrl ? (
-              <SafeImage src={posterUrl} alt="Poster preview" fill className="object-cover" />
-            ) : (
-              <div className="space-y-2 text-gray-400">
-                <ImageIcon size={36} className="mx-auto" />
-                <p className="text-xs">Cole a URL do Poster para ver o preview</p>
-              </div>
+      <form onSubmit={(event) => void createAnime(event)} className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">
+        <AdminPanel>
+          <div className="admin-panel-header"><div><p className="admin-eyebrow">Prévia</p><h2 className="admin-section-title">Capa</h2></div></div>
+          <div className="relative mx-4 aspect-[2/3] overflow-hidden border border-[var(--admin-line)] bg-[var(--admin-page)] sm:mx-5">
+            {form.posterUrl ? <SafeImage src={form.posterUrl} alt={`Poster de ${form.title || 'novo anime'}`} fill className="object-cover" /> : (
+              <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-[var(--admin-dim)]"><ImageIcon size={28} aria-hidden="true" /><span className="text-[11px]">A prévia aparece após informar uma URL.</span></div>
             )}
           </div>
-        </div>
+          <p className="px-4 pb-4 text-xs leading-relaxed text-[var(--admin-muted)] sm:px-5 sm:pb-5">O poster pode ser revisado depois no editor do catálogo.</p>
+        </AdminPanel>
 
-        {/* Coluna Direita: Campos do Formulário */}
-        <div className="md:col-span-2 space-y-4">
-          <div>
-            <label htmlFor="new-anime-title" className="block text-xs font-bold text-gray-300 mb-1">
-              Título do Anime <span className="text-[#FF6B00]">*</span>
-            </label>
-            <input id="new-anime-title"
-              type="text"
-              required
-              placeholder="Ex: Jujutsu Kaisen"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setSlug(
-                  e.target.value
-                    .toLowerCase()
-                    .replace(/[^a-z0-9\s]/g, '')
-                    .trim()
-                    .replace(/\s+/g, '-')
-                );
-              }}
-              className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
-            />
+        <AdminPanel>
+          <div className="admin-panel-header"><div><p className="admin-eyebrow">Registro inicial</p><h2 className="admin-section-title">Identidade e metadata</h2><p className="admin-section-description">Campos usados pelo catálogo e pelas buscas públicas.</p></div></div>
+          <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+            <label className="admin-field-group sm:col-span-2"><span className="admin-field-label">Título principal <span aria-hidden="true">*</span></span><input className="admin-field" required value={form.title} onChange={(event) => { const title = event.target.value; update('title', title); if (!form.slug || form.slug === form.title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, '-')) update('slug', title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, '-')); }} placeholder="Ex.: Jujutsu Kaisen" /></label>
+            <label className="admin-field-group"><span className="admin-field-label">Título original</span><input className="admin-field" value={form.originalTitle} onChange={(event) => update('originalTitle', event.target.value)} /></label>
+            <label className="admin-field-group"><span className="admin-field-label">Slug da URL</span><input className="admin-field font-mono" value={form.slug} onChange={(event) => update('slug', event.target.value)} placeholder="jujutsu-kaisen" /></label>
+            <label className="admin-field-group"><span className="admin-field-label">Ano de lançamento</span><input className="admin-field" type="number" min={1900} max={2200} value={form.releaseYear} onChange={(event) => update('releaseYear', event.target.value ? Number(event.target.value) : '')} /></label>
+            <label className="admin-field-group"><span className="admin-field-label">Status editorial</span><select className="admin-field" value={form.status} onChange={(event) => update('status', event.target.value)}>{statusOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+            <label className="admin-field-group sm:col-span-2"><span className="admin-field-label">URL do poster</span><input className="admin-field" type="url" value={form.posterUrl} onChange={(event) => update('posterUrl', event.target.value)} placeholder="https://…" /></label>
+            <label className="admin-field-group sm:col-span-2"><span className="admin-field-label">URL do backdrop</span><input className="admin-field" type="url" value={form.bannerUrl} onChange={(event) => update('bannerUrl', event.target.value)} placeholder="https://…" /></label>
+            <label className="admin-field-group sm:col-span-2"><span className="admin-field-label">Sinopse</span><textarea className="admin-field min-h-36 resize-y" rows={6} value={form.description} onChange={(event) => update('description', event.target.value)} /></label>
+            <div className="flex justify-end sm:col-span-2"><button type="submit" className="admin-button is-primary" disabled={loading || !form.title.trim()}>{loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar anime</button></div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="new-anime-original-title" className="block text-xs font-bold text-gray-300 mb-1">Título Original (Japonês)</label>
-              <input id="new-anime-original-title"
-                type="text"
-                placeholder="Ex: 呪術廻戦"
-                value={originalTitle}
-                onChange={(e) => setOriginalTitle(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="new-anime-slug" className="block text-xs font-bold text-gray-300 mb-1">Slug da URL</label>
-              <input id="new-anime-slug"
-                type="text"
-                placeholder="ex: jujutsu-kaisen"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="new-anime-year" className="block text-xs font-bold text-gray-300 mb-1">Ano de Lançamento</label>
-              <input id="new-anime-year"
-                type="number"
-                value={releaseYear}
-                onChange={(e) => setReleaseYear(e.target.value ? parseInt(e.target.value, 10) : '')}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="new-anime-status" className="block text-xs font-bold text-gray-300 mb-1">Status</label>
-              <select id="new-anime-status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-              >
-                <option value="Em Lançamento">Em Lançamento</option>
-                <option value="Concluído">Concluído</option>
-                <option value="Anunciado">Anunciado</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="new-anime-poster" className="block text-xs font-bold text-gray-300 mb-1">URL do Poster (Capa)</label>
-            <input id="new-anime-poster"
-              type="url"
-              placeholder="https://cdn.myanimelist.net/images/anime/..."
-              value={posterUrl}
-              onChange={(e) => setPosterUrl(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="new-anime-description" className="block text-xs font-bold text-gray-300 mb-1">Sinopse / Descrição</label>
-            <textarea id="new-anime-description"
-              rows={4}
-              placeholder="Escreva a sinopse do anime..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-4 rounded-xl bg-black/50 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading || !title.trim()}
-            className="w-full py-3.5 rounded-2xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-black text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#FF6B00]/20 disabled:opacity-50"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            <span>Salvar Anime</span>
-          </button>
-        </div>
+        </AdminPanel>
       </form>
+
+      <AdminSaveBar dirty={dirty} saving={loading} onSave={() => void createAnime()} onDiscard={discard} label="Há um novo registro preenchido sem salvar" />
     </div>
   );
 }

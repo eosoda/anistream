@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { OpeningIntervalSchema } from '@/schemas/episode';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -51,5 +52,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     where: { id: item.episodeId },
     data: { openingStartSeconds: item.openingStartSeconds, openingEndSeconds: item.openingEndSeconds },
   })));
+  void recordAdminAudit({ actorId: auth.userId, action: 'anime.openings_imported', resourceType: 'anime', resourceId: animeId, summary: `${updates.length} abertura(s) revisada(s) no catálogo.`, metadata: { updatedCount: updates.length, source: 'aniskip-review' } });
   return NextResponse.json({ success: true, updatedCount: updates.length });
 }

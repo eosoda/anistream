@@ -1,82 +1,95 @@
-# 08. Guia de Hospedagem & Deploy no Railway / Docker 🚆
+# 08. Execução self-hosted e deployment futuro
 
-Este documento registra a configuração de conteinerização Docker e o guia passo a passo para o deploy da aplicação **AniStream** no **Railway.app** ou infraestruturas próprias via Docker Compose.
+O foco atual do AniStream é validação local. Railway não é usado nesta fase e nenhum comando deste guia deve ser executado como deploy sem uma decisão posterior explícita.
 
----
+## 1. Stack local oficial
 
-## 🏗️ 1. Arquitetura de Produção Escolhida no Railway
+O Compose self-hosted sobe:
 
-Com base nas decisões alinhadas:
-1. **Banco de Dados**: PostgreSQL em Serviço Gerenciado do Railway (separado da aplicação web e conectado diretamente via `DATABASE_URL`).
-2. **Mecanismo de Build**: `Dockerfile` Multi-stage de alta performance utilizando a saída `standalone` do Next.js 15.
-3. **Migrações Automáticas**: Atualização automática do schema do PostgreSQL durante o boot do container (`npx prisma db push --skip-generate`).
-4. **Proteção do Primeiro Acesso (`/setup`)**: No primeiro boot do container, qualquer acesso à aplicação é redirecionado automaticamente para `/setup`. A instalação exige a `Setup Key` gerada e emitida nos logs do container (`docker logs anistream_app`) ou configurada via `INITIAL_SETUP_KEY`.
+1. PostgreSQL 16 para dados do AniStream;
+2. Redis 7 para cache e coordenação do AniStream;
+3. Redis 7 protegido para o Kenjitsu;
+4. Kenjitsu self-hosted com as extensões registradas;
+5. AniStream Next.js em modo standalone.
 
----
+```bash
+docker compose up -d --build
+```
 
-## 🐋 2. Arquivos de Containerização Criados
+Health checks:
 
-### 🔹 [`Dockerfile`](file:///c:/Users/junin/Documents/projetos/anistream/Dockerfile) — Compilação Multi-stage
-- **Estágio 1 (deps)**: Instala dependências usando `npm ci` no Node.js 20 Alpine com `apk add --no-cache libc6-compat`.
-- **Estágio 2 (builder)**: Gera os artefatos do Prisma (`npx prisma generate`) e realiza o build de produção `standalone`.
-- **Estágio 3 (runner)**: Container leve com usuário de privilégio reduzido (`nextjs`), porta 3000 exposta e permissões `--chown=nextjs:nodejs` em todas as pastas compiladas.
+```bash
+curl http://localhost:3000/api/health
+curl http://localhost:3001/api/extensions/health
+docker compose ps
+```
 
-### 🔹 [`docker-compose.yml`](file:///c:/Users/junin/Documents/projetos/anistream/docker-compose.yml) — Ambiente Local de Teste
-- Inclui containers do PostgreSQL 16 Alpine, Redis 7 e da aplicação Web Next.js 15.
-- Inclui monitoramento de integridade via `/api/health` (Deep Check do banco de dados).
+## 2. Contexto dos repositórios
 
-### 🔹 [`.dockerignore`](file:///c:/Users/junin/Documents/projetos/anistream/.dockerignore)
-- Ignora pastas desnecessárias (`node_modules`, `.next`, `.git`, `tests`, `docs`, `.setup-key`) acelerando o tempo de build.
+O Compose espera os projetos irmãos:
 
----
+```text
+../anistream
+../kenjitsu
+../kenjitsu-extensions
+../extensions-source
+```
 
-## 🚀 3. Passo a Passo do Deploy no Railway.app
+O `kenjitsu/Dockerfile.selfhosted` é compilado com os forks locais. A atualização deve acontecer no fork e entrar por PR; os repositórios oficiais não são alterados.
 
-### 1️⃣ Criar Projeto no Railway
-1. Acesse o painel [Railway.app](https://railway.app).
-2. Clique em **"New Project"** -> **"Deploy from GitHub repo"** e selecione o repositório do **AniStream**.
+## 3. Variáveis locais
 
-### 2️⃣ Adicionar o Banco de Dados PostgreSQL Gerenciado
-1. No painel do projeto no Railway, clique em **"New"** -> **"Database"** -> **"Add PostgreSQL"**.
-2. O Railway criará uma instância dedicada do PostgreSQL e disponibilizará a variável `${{Postgres.DATABASE_URL}}`.
+As variáveis estão documentadas em `.env.example`:
 
-### 3️⃣ Configurar Variáveis de Ambiente no Serviço Web
-Acesse as configurações do seu serviço Web no Railway (**Variables**) e adicione:
-
-| Variável | Valor Recomendado |
+| Variável | Finalidade |
 | :--- | :--- |
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
-| `ADMIN_SESSION_SECRET` | `sua-chave-secreta-admin-com-mais-de-32-caracteres` |
-| `PLAYBACK_TOKEN_SECRET` | `sua-chave-secreta-jwt-com-mais-de-32-caracteres` |
-| `SOURCE_ENCRYPTION_KEY` | `sua-chave-de-criptografia-aes256-com-32-bytes` |
-| `INITIAL_SETUP_KEY` | *(Opcional) Define a chave manual para liberar o /setup* |
-| `NEXT_PUBLIC_APP_URL` | `https://seu-app-anistream.up.railway.app` |
+| `DATABASE_URL` | Conexão PostgreSQL. |
+| `REDIS_URL` | Redis do AniStream. |
+| `KENJITSU_BASE_URL` | URL interna/externa do Kenjitsu. |
+| `KENJITSU_API_KEY` | Chave do Kenjitsu, quando habilitada. |
+| `ADMIN_SESSION_SECRET` | Sessões administrativas. |
+| `PLAYBACK_TOKEN_SECRET` | Tokens do playback. |
+| `SOURCE_ENCRYPTION_KEY` | Descritores criptografados de mídia. |
+| `INITIAL_SETUP_KEY` | Chave opcional do primeiro setup. |
+| `NEXT_PUBLIC_APP_URL` | URL pública da aplicação. |
 
-### 4️⃣ Deploy Automático e Primeiro Acesso
-O Railway detectará o `Dockerfile` automaticamente, executará a compilação multi-stage de alta velocidade e aplicará o schema no PostgreSQL durante a subida da instância.
-Após a inicialização, o primeiro acesso redirecionará para `/setup`. Consulte os logs do Railway para copiar a `Setup Key` randômica gerada e liberar a configuração.
+Quando a aplicação roda dentro do Compose, use os nomes dos serviços (`postgres`, `redis` e `kenjitsu`) como hosts. `localhost` é reservado para executar o Next.js diretamente na máquina.
 
----
+Não há `AUTHORIZED_MEDIA_HOSTS`, lista M3U ou configuração equivalente. As URLs de mídia chegam pelo Kenjitsu e passam pela validação SSRF do AniStream.
 
-## 💻 4. Scripts de Automação de Deploy Local e VPS
+## 4. Primeiro acesso
 
-Para testes no seu próprio computador ou implantação rápida em um servidor próprio (VPS Ubuntu/Linux), utilize os scripts automatizados criados na pasta [`scripts/`](file:///c:/Users/sodinha/Documents/projetos/anistream/scripts/):
+1. Suba o Compose.
+2. Abra `http://localhost:3000`.
+3. Se o banco estiver vazio, siga para `/setup`.
+4. Obtenha a chave nos logs de `anistream_selfhosted_app` se `INITIAL_SETUP_KEY` não estiver definida.
+5. Crie o administrador e confirme a conexão Kenjitsu.
+6. Abra `/admin/extensions` e valide o health das fontes.
 
-- **Atalho Node.js**:
-  ```bash
-  npm run deploy:local
-  ```
-  *(Executa a verificação pré-flight do Docker e instrui a inicialização dos containers)*
+## 5. Gates antes de qualquer deployment futuro
 
-- **Windows PowerShell (`scripts/deploy.ps1`)**:
-  ```powershell
-  ./scripts/deploy.ps1
-  ```
-  *(Valida o ambiente e compila/suba automaticamente o Docker Compose no Windows)*
+```bash
+npx tsc --noEmit
+npm run lint
+npm test
+npm run test:e2e
+npm run test:docker
+npm run build
+npm run test:kenjitsu
+```
 
-- **Linux / VPS / macOS (`scripts/deploy.sh`)**:
-  ```bash
-  ./scripts/deploy.sh
-  ```
-  *(Valida o ambiente e compila/suba automaticamente os containers no Linux)*
+O `npm run pre-deploy` agrupa parte desses gates, mas continua sendo um comando local.
 
+## 6. Railway — referência futura
+
+Se houver decisão futura de hospedar no Railway, a adaptação deve preservar:
+
+- PostgreSQL gerenciado e `DATABASE_URL` privado;
+- Redis compatível com o cache do AniStream;
+- Kenjitsu self-hosted acessível pela rede privada ou serviço separado;
+- segredos fortes, sem valores padrão;
+- health check em `/api/health`;
+- execução de `prisma db push --skip-generate` somente após revisão do schema;
+- smoke Kenjitsu e E2E antes de promover a versão.
+
+Essa seção não autoriza deploy nem substitui um plano de infraestrutura aprovado. O ambiente de desenvolvimento e os testes desta branch são exclusivamente locais.

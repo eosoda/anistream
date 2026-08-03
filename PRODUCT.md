@@ -16,7 +16,7 @@ The product combines a browsable anime catalog with progress-aware playback and 
 
 ## Positioning
 
-AniStream only promotes titles that are available in its local catalog and connects discovery directly to configured playback sources. Preferences, episode progress, provider fallback, opening intervals, favorites, and local administration are parts of one continuous experience.
+AniStream only promotes titles that are available in its local catalog and connects discovery to playback sources returned by Kenjitsu. Preferences, episode progress, source selection among enabled Kenjitsu extensions, opening intervals, favorites, and local administration are parts of one continuous experience.
 
 ## Operating Context
 
@@ -27,8 +27,8 @@ AniStream only promotes titles that are available in its local catalog and conne
 ## Capabilities and Constraints
 
 - Public routes, anime and episode URLs, saved progress, favorites, source preferences, and existing API contracts must remain compatible.
-- The local catalog is the public source of truth; external services support metadata or administrative imports.
-- Direct HLS playback, embed sources, quality selection, source fallback, opening skip, keyboard shortcuts, and resume behavior must be preserved.
+- Kenjitsu is the single upstream for catalog metadata, episodes, and media; the local database stores the operational catalog, user state, extension settings, health history, and audit trail.
+- Direct HLS playback, embed sources, quality selection across enabled Kenjitsu extensions, opening skip, keyboard shortcuts, and resume behavior must be preserved.
 - The redesign must preserve or improve the mobile Lighthouse performance baseline of 95.
 - Merge into `main` requires explicit human authorization after all implementation gates pass.
 
@@ -51,7 +51,7 @@ AniStream only promotes titles that are available in its local catalog and conne
 1. Resume and play before asking the viewer to configure.
 2. Show only actions and content that are currently usable.
 3. Make operational state comparable and recoverable.
-4. Preserve context across interruption, navigation, and source fallback.
+4. Preserve context across interruption, navigation, and source recovery.
 5. Prefer clear product truth over decorative interface chrome.
 
 ## Accessibility & Inclusion

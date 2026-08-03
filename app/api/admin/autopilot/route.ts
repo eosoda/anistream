@@ -4,6 +4,7 @@ import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { kenjitsuClient } from '@/lib/kenjitsu/client';
 import { getAnimeEpisodes } from '@/lib/kenjitsu/catalog';
 import { searchAnimeMetadata } from '@/lib/anime/metadata-fetcher';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuth(request);
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
         update: { value },
         create: { key: 'auto_indexer_enabled', value },
       });
+      void recordAdminAudit({ actorId: auth.userId, action: 'autopilot.toggled', resourceType: 'autopilot', summary: `Autopilot Kenjitsu ${enabled ? 'ativado' : 'desativado'}.`, metadata: { enabled: Boolean(enabled) } });
       return NextResponse.json({
         success: true,
         autoIndexerEnabled: Boolean(enabled),
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     const health = await kenjitsuClient.getExtensionHealth();
+    void recordAdminAudit({ actorId: auth.userId, action: 'autopilot.run', resourceType: 'autopilot', summary: 'Diagnóstico do autopilot Kenjitsu executado.', metadata: { extensionCount: health.data?.length || 0 } });
     return NextResponse.json({
       success: true,
       mode: 'kenjitsu',
@@ -71,6 +74,7 @@ export async function PATCH(request: NextRequest) {
 
     if (action === 'REJECTED') {
       await prisma.autoIndexerQueue.update({ where: { id }, data: { status: 'REJECTED' } });
+      void recordAdminAudit({ actorId: auth.userId, action: 'autopilot.candidate_rejected', resourceType: 'autopilot', resourceId: id, summary: 'Candidato do autopilot rejeitado.' });
       return NextResponse.json({ success: true, message: 'Candidato rejeitado.' });
     }
 
@@ -123,6 +127,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     await prisma.autoIndexerQueue.update({ where: { id }, data: { status: 'APPROVED' } });
+    void recordAdminAudit({ actorId: auth.userId, action: 'autopilot.candidate_approved', resourceType: 'autopilot', resourceId: id, summary: `Candidato “${meta.title}” aprovado pelo Kenjitsu.`, metadata: { animeId: anime.id, episodesCount: episodes.length } });
     return NextResponse.json({ success: true, message: `Anime "${meta.title}" aprovado via Kenjitsu.`, anime, episodesCount: episodes.length });
   } catch (error: any) {
     return NextResponse.json({ error: 'Falha ao aprovar item pelo Kenjitsu', details: error.message }, { status: 502 });

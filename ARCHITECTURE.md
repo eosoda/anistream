@@ -1,126 +1,121 @@
-# Especificação Arquitetural e Técnica — AniStream 🚀
+# Arquitetura do AniStream
 
-Este documento detalha a arquitetura interna, fluxo de dados, estratégias de resiliência, 8 provedores de streaming, gestão de episódios/fontes e comunicação de APIs do projeto **AniStream**.
+Este documento descreve a arquitetura atual do AniStream depois da migração para o Kenjitsu self-hosted. O Kenjitsu é a fonte única de catálogo, metadados, episódios e mídias; o AniStream mantém a experiência pública, a administração, o catálogo operacional local e a persistência de estado.
 
----
-
-## 🗺️ 1. Visão Geral da Arquitetura
+## 1. Visão geral
 
 ```mermaid
-graph TD
-    User["Interface do Usuário (Next.js 15 / React 19)"]
-    
-    subgraph ContextState["Gerenciamento de Estado Global"]
-        FavoritesCtx["FavoritesContext"]
-        ToastCtx["ToastContext (Notificações & PWA Updates)"]
-        ConfirmCtx["ConfirmationContext"]
-    end
-    
-    subgraph DataFetching["Camada de Metadados Multi-Fonte"]
-        MetaFetcher["metadata-fetcher.ts"]
-        AniListSvc["AniList GraphQL API (~100ms)"]
-        JikanSvc["services/jikan.ts (Throttle 350ms & 4.5s Timeout)"]
-        KitsuSvc["Kitsu.io API"]
-    end
-    
-    subgraph StreamingPipeline["Pipeline de Streaming & Fontes (StreamResolver)"]
-        HlsVal["hls-validator.ts (#EXTM3U)"]
-        Proxy["/api/streams/proxy/[sourceId] (Headers Preservados)"]
-        Providers8["8 Provedores Independente (Kenjitsu, Consumet, Zoro, Anify, AnimesOnline, WarezCDN, XPass, M3U)"]
-    end
-    
-    subgraph Storage["Persistência & Banco de Dados"]
-        PostgreSQL["PostgreSQL 16 (Anime, Episode, EpisodeSource, AnimeAlias, MediaProvider)"]
-        LS["LocalStorage (Favs, Progresso, Configs)"]
-        IDB["IndexedDB (offlineCacheDB - Catálogo)"]
-    end
-    
-    User --> ContextState
-    User --> DataFetching
-    User --> StreamingPipeline
-    DataFetching --> MetaFetcher
-    MetaFetcher --> AniListSvc
-    MetaFetcher --> JikanSvc
-    MetaFetcher --> KitsuSvc
-    StreamingPipeline --> Providers8
-    StreamingPipeline --> HlsVal
-    StreamingPipeline --> Proxy
-    Providers8 --> PostgreSQL
-    FavoritesCtx --> LS
+flowchart TD
+    Browser["Navegador"] --> PublicUI["Next.js / React\nRotas públicas"]
+    Browser --> AdminUI["Painel operacional\n/admin"]
+
+    PublicUI --> AppAPI["Route Handlers\nAPI AniStream"]
+    AdminUI --> AdminAPI["APIs administrativas\n/auth + auditoria"]
+
+    AppAPI --> Catalog["Cliente Kenjitsu\ncatálogo, detalhes e episódios"]
+    AppAPI --> Resolver["Resolvedor de mídia\nKenjitsu + extensões habilitadas"]
+    AdminAPI --> Catalog
+    AdminAPI --> ExtensionHealth["Health das extensões\nmanifest + testes"]
+
+    Catalog --> Kenjitsu["Kenjitsu self-hosted"]
+    Resolver --> Kenjitsu
+    ExtensionHealth --> Kenjitsu
+    Kenjitsu --> Extensions["Forks de extensões\nself-hosted"]
+
+    AppAPI --> Postgres["PostgreSQL\ncatálogo local, usuários e estado"]
+    AdminAPI --> Postgres
+    AdminAPI --> Audit["AdminAuditLog\nações administrativas"]
+    ExtensionHealth --> HealthLog["ProviderHealthLog\nhealthy/degraded/down/unknown"]
+    AppAPI --> Redis["Redis\ncache e coordenação"]
+    Kenjitsu --> KenjitsuRedis["Redis do Kenjitsu"]
 ```
 
----
+## 2. Responsabilidade de cada camada
 
-## 🎬 2. 8 Provedores de Mídias e Episódios
+### Interface pública
 
-O AniStream suporta 8 provedores independentes e configuráveis via Painel Administrativo (`/admin/sources`):
+- `app/(main)` contém home, catálogo, detalhes, favoritos, calendário e player.
+- O catálogo público usa os dados sincronizados/administrados no AniStream e consulta o Kenjitsu para metadados, episódios e resolução de mídia.
+- O player mantém HLS, embeds, legendas, seleção de qualidade, retomada, atalhos e pular abertura.
 
-1. **Kenjitsu / AniZone**:
-   - Busca: `/api/anizone/anime/search?q={query}`
-   - Legendado: `/api/anizone/sources/-{slug}-episode-{episode}`
-   - Dublado: `/api/anizone/sources/-{slug}-episode-{episode}-dub` e `-dublado`
-2. **GogoAnime (Consumet com 5 Instâncias Fallback)**:
-   - Fallback sequencial inteligente entre as instâncias: `api-consumet-org-five`, `consumet-api-1`, `anime-api-iota`, `consumet-api-zeta`, `consumet-api-ecru`.
-   - Repassa `sources`, `headers` (`Referer`) e `subtitles`.
-3. **HiAnime / Zoro (Consumet / Zoro)**:
-   - Endpoints Consumet Zoro com extração de playlists HLS (`.m3u8`).
-4. **Anify**:
-   - Episódios `/episodes/{aniListId}?provider=zoro` e fontes `/sources?providerId={providerId}`.
-5. **AnimesOnline (Scraper HTML + AJAX)**:
-   - Extração via `/episodio/{slug}` e `wp-admin/admin-ajax.php`.
-6. **WarezCDN / Superflix**:
-   - Suporte aos 4 domínios (`warezcdn.lat`, `warezcdn.site`, `superflixapi.pro`, `superflixapi.rest`).
-7. **XPass / 2Embed**:
-   - Embeds `/e/tv/`, `/e/movie/` e playlists JSON (`/mov/{tmdbId}/{season}/{episode}/0/playlist.json`).
-8. **Catálogo M3U Autorizado**:
-   - Playlists M3U/M3U8 personalizadas com nome, URL, idioma, qualidade e categoria.
+### Painel administrativo
 
----
+- `app/(main)/admin/layout.tsx` fornece o shell autenticado, sidebar agrupada, breadcrumbs, sessão e command palette.
+- `src/components/admin/AdminPrimitives.tsx` concentra tabela, filtros, estados, feedback, drawer, modal, save bar e zona de risco.
+- A direção visual do admin é densa e plana: tabelas, filas, divisórias e status sem cards glass como material padrão.
+- As superfícies principais são dashboard, catálogo/editor, extensões, navegação, sistema, backups, integrações, comunicados e releases.
 
-## ⚡ 3. Resolução On-Demand, Headers e Validação HLS
+### Integração Kenjitsu
 
-- **Resolução On-Demand (Lazy Resolution)**: A busca da URL do vídeo é executada exclusivamente quando o usuário clica em "Assistir" ou no preview, evitando armazenar URLs temporárias obsoletas.
-- **Preservação de Cabeçalhos**: O proxy repassa os cabeçalhos `User-Agent`, `Referer` e `Origin` exigidos por cada servidor de vídeo.
-- **Validador HLS ([hls-validator.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/hls-validator.ts))**: Valida o status HTTP, `Content-Type` (`application/x-mpegurl`, `application/vnd.apple.mpegurl`) e a tag `#EXTM3U` no manifesto.
-- **Pareamento por Aliases e Nomes Alternativos ([similarity.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/anime/similarity.ts))**: Ao resolver episódios, o sistema consulta a tabela `AnimeAlias` do PostgreSQL e testa todos os nomes alternativos (inglês, romaji, nativo e sinônimos) para garantir correspondência exata.
+- `src/lib/kenjitsu/client.ts` encapsula autenticação, timeout e chamadas HTTP.
+- `src/lib/kenjitsu/catalog.ts` centraliza busca, detalhes, relações, personagens e episódios.
+- `src/lib/providers/kenjitsu.provider.ts` traduz fontes retornadas pelo Kenjitsu para o resolvedor do AniStream.
+- As extensões são tratadas como fontes: podem ser habilitadas, desabilitadas, filtradas, testadas e auditadas pelo painel.
+- O AniStream não troca silenciosamente para Jikan, AniList, Kitsu, Consumet, scrapers ou M3U quando o Kenjitsu falha.
 
----
+## 3. Extensões como fontes operacionais
 
-## 🛠️ 4. Gerenciamento de Episódios no Admin & Preview Inline
+O Kenjitsu registra os manifests das extensões e expõe o health agregado. O AniStream persiste somente o estado administrativo necessário para operar essas fontes:
 
-- **Modal `EpisodeSourcesModal` ([EpisodeSourcesModal.tsx](file:///c:/Users/sodinha/Documents/projetos/anistream/components/admin/EpisodeSourcesModal.tsx))**:
-  - Lista de fontes cadastradas com chave ON/OFF (`enabled`), alteração de qualidade, idioma (`pt-BR`, `ja`), edição e exclusão.
-  - Varredura nos provedores em tempo real com checkboxes para o admin selecionar quais fontes deseja cadastrar ao episódio.
-  - Formulário para adição manual de links `.m3u8`, `.mp4` ou iFrame `embed`.
-  - **Player de Teste Inline**: Overlay com o `VideoPlayer` oficial da aplicação para testar a reprodução da fonte em tempo real antes de salvar.
+- `enabled` e `nsfw`;
+- status do último teste: `healthy`, `degraded`, `down` ou `unknown`;
+- latência, data do teste e última mensagem de erro;
+- origem e capacidades do manifest quando o Kenjitsu estiver disponível.
 
----
+O código das extensões vive nos forks/self-hosted dos repositórios Kenjitsu. Atualizações devem ser feitas nos forks, em branches e PRs próprios, sem modificar os repositórios oficiais.
 
-## 💾 5. Sistema de Metadados Multi-Fonte Resiliente
+## 4. Persistência e auditoria
 
-O módulo [`src/lib/anime/metadata-fetcher.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/anime/metadata-fetcher.ts) implementa resiliência em 3 camadas:
-1. **AniList GraphQL API (Prioridade Principal)**: Responde em **~100ms** sem rate-limit e sem erros 504.
-2. **Jikan v4 + Timeout 4.5s (Fallback Secundário)**: Fila de engarrafamento (350ms) com cancelamento rápido em caso de instabilidade.
-3. **Kitsu API (Fallback Terciário)**: Fonte adicional para garantir retorno de dados.
-4. **Importação Determinística**: O modal de importação envia diretamente os metadados do card selecionado pelo usuário para o backend, evitando discrepâncias de busca.
+O PostgreSQL mantém o estado operacional do AniStream. Além das entidades de catálogo, usuários e episódios, a arquitetura atual usa:
 
----
+- `AdminAuditLog`: ator, ação, tipo/id do recurso, resumo, metadata sanitizada e data;
+- `ProviderHealthLog`: histórico de testes por extensão, latência, status e erro;
+- configurações administrativas das extensões Kenjitsu;
+- estado local de navegação, comunicados, releases, backups e integrações.
 
-## 🔔 6. Notificações de Atualização PWA / Service Worker
+`src/lib/admin/audit.ts` remove chaves sensíveis e limita metadata antes de persistir. O histórico é consultável no dashboard e em `GET /api/admin/audit`.
 
-- O componente [`PwaRegister.tsx`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/components/layout/PwaRegister.tsx) detecta quando uma nova versão do Service Worker é instalada.
-- O [`ToastContext.tsx`](file:///c:/Users/sodinha/Documents/projetos/anistream/context/ToastContext.tsx) exibe um Toast interativo: *"Nova Atualização Disponível! 🚀 Clique aqui para atualizar a página."*
-- Ao clicar no Toast, é enviado o comando `SKIP_WAITING` e o navegador executa `window.location.reload()`.
+## 5. Contratos administrativos principais
 
----
+| Endpoint | Uso |
+| :--- | :--- |
+| `GET /api/admin/overview` | KPIs, serviços, extensões, alertas e atividade recente. |
+| `GET /api/admin/metrics` | Contrato legado de métricas, mantido para consumidores existentes. |
+| `GET /api/admin/audit` | Auditoria paginada com filtros por recurso, ação e período. |
+| `GET /api/admin/animes` | Catálogo administrativo com busca, status, episódios, ordenação e paginação. |
+| `POST /api/admin/animes/bulk` | Sincronização ou exclusão em lote, com resultados parciais. |
+| `GET /api/admin/extensions` | Extensões com filtros de habilitação, NSFW, status, origem e capacidade. |
+| `POST /api/admin/extensions/bulk` | Habilitação ou desabilitação em lote. |
+| `POST /api/admin/extensions` | Teste individual com persistência de health. |
+| `POST /api/admin/animes/[id]/sync` | Sincronização do anime usando o Kenjitsu. |
+| `POST /api/admin/animes/[id]/episodes/[epId]/discover-sources` | Descoberta live das fontes pelas extensões habilitadas. |
 
-## 🧱 7. Organização de Componentes
+Todas as rotas administrativas exigem sessão válida. A resposta pode indicar indisponibilidade do Kenjitsu sem apagar configurações locais nem inventar resultados.
 
-Pasta `components/`:
-- **`anime/`**: Componentes de catálogo (`AnimeCard`, `CompactAnimeCard` e carrosséis).
-- **`player/`**: Componentes da experiência de vídeo (`VideoPlayer`, `EpisodeList`).
-- **`catalog/`**: Filtros e pesquisa (`SearchBar`, `SearchFilters`, `QuickMultiFilter`, `ViewToggle`).
-- **`home/`**: Seções da página inicial (`BannerHero` e `ContinueWatchingSection`).
-- **`layout/`**: Estrutura (`Navbar`, `Footer`, `QueryProvider`, `PwaRegister`).
-- **`admin/`**: Modais e painéis administrativos (`ImportAnimeModal`, `EpisodeSourcesModal`, `AutopilotPanel`).
-- **`ui/`**: Primitivos e componentes atômicos (`SafeImage`, `Tooltip`, `RatingBadge`, `GenreBadge`, `EmptyState`, `LoadingSkeleton`).
+## 6. Mídia e segurança
+
+As URLs de reprodução são retornadas pelo Kenjitsu em tempo real. Não existe configuração administrativa de hosts autorizados, cadastro manual de URL de stream ou fallback de provedor externo.
+
+Mesmo assim, cada URL passa por `src/lib/security/ssrf.ts`. A validação bloqueia protocolos indevidos, credenciais embutidas, portas não suportadas, redes privadas e resultados DNS internos. O relay mantém descritores assinados e criptografia AES-GCM quando aplicável.
+
+HLS é validado por `src/lib/streams/hls-validator.ts`. A validação confirma status HTTP, content type compatível e a tag `#EXTM3U`; isso é uma proteção do playback, não uma fonte de catálogo.
+
+## 7. Execução local e atualização
+
+O ambiente oficial desta fase é local:
+
+```bash
+docker compose up -d --build
+```
+
+O Compose sobe AniStream, Kenjitsu, PostgreSQL e os dois Redis. Os três repositórios irmãos (`kenjitsu`, `kenjitsu-extensions` e `extensions-source`) são usados como contexto local para a imagem self-hosted.
+
+Para atualizar sem tocar nos projetos oficiais:
+
+```bash
+git -C ../kenjitsu fetch upstream --tags
+git -C ../kenjitsu-extensions fetch upstream --tags
+git -C ../extensions-source fetch upstream --tags
+```
+
+Depois, cada atualização deve ser revisada no fork, validada localmente e integrada ao AniStream por PR. Railway não faz parte da validação atual.
