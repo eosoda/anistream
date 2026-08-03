@@ -237,6 +237,22 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 }
 
+model HomepageLayout {
+  id                String   @id @default(cuid())
+  key               String   @unique
+  draftJson         Json
+  publishedJson     Json
+  draftVersion      Int      @default(1)
+  publishedVersion  Int      @default(1)
+  draftUpdatedAt    DateTime @updatedAt
+  publishedAt       DateTime @default(now())
+  draftUpdatedBy    String?
+  publishedBy       String?
+  createdAt         DateTime @default(now())
+
+  @@index([publishedAt])
+}
+
 model MediaProvider {
   id               String    @id @default(cuid())
   name             String
