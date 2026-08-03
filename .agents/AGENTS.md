@@ -1,122 +1,175 @@
-# Guidelines & Architecture Reference for AI Agents (AGENTS.md)
+# Guia de agentes do AniStream
 
-## 📌 Repository Summary
-**AniStream** is a modern Next.js 15 (App Router) web application for browsing, searching, and streaming anime. It features a rich dark-mode UI, offline IndexedDB caching, live search preview, custom video player with autoplay countdown, skip intro (+85s), picture-in-picture, and interactive quick multi-filters.
+Este arquivo é a referência operacional para agentes que trabalham neste repositório. Consulte também [`README.md`](../README.md), [`ARCHITECTURE.md`](../ARCHITECTURE.md), [`docs/INDEX.md`](../docs/INDEX.md) e [`docs/KENJITSU-SELF-HOSTED.md`](../docs/KENJITSU-SELF-HOSTED.md) antes de alterar arquitetura, infraestrutura ou fluxos administrativos.
 
----
+## Resumo do repositório
 
-## 🛠️ Technology Stack
-- **Framework**: Next.js 15 (App Router, Server & Client Components)
-- **UI & Logic**: React 19, TypeScript (Strict Mode)
-- **Styling**: Vanilla CSS (`app/globals.css`), TailwindCSS utilities, Glassmorphism, Dark Palette (`#0B0B0F`, `#FF6B00`)
-- **Icons & Motion**: Lucide React icons, Motion (`motion/react`)
-- **Data Fetching**: `@tanstack/react-query` (v5)
-- **APIs & Metadata Layer**: Kenjitsu self-hosted API for catalog, metadata, episodes and sources
-- **Stream Providers**: Kenjitsu native and ported extensions registered in the self-hosted fork
-- **Offline Storage**: IndexedDB custom wrapper (`utils/offlineCacheDB.ts`)
+O AniStream é uma aplicação Next.js 15/React 19 para descoberta, acompanhamento e reprodução de animes. O Kenjitsu self-hosted é a única API de catálogo, metadados, episódios e mídia.
 
----
+Princípios obrigatórios:
 
-## 📂 Layout Architecture & Route Groups (`app/`)
-The application uses Next.js 15 App Router route groups to isolate page layouts:
+- não adicionar fallback silencioso para Jikan, AniList, Kitsu, Consumet, scrapers, M3U ou provedores legados;
+- não adicionar configuração de Hosts de Mídia Autorizados, playlists M3U ou URLs manuais ao setup/painel novo;
+- tratar extensões Kenjitsu como fontes operacionais habilitáveis, testáveis e auditáveis;
+- manter os forks locais/self-hosted e nunca alterar os repositórios oficiais do Kenjitsu;
+- validar localmente com Docker/PostgreSQL/Redis/Kenjitsu; Railway não faz parte do fluxo atual sem autorização explícita.
 
-```
+## Stack e caminhos reais
+
+- **Framework**: Next.js 15 App Router, React 19 e TypeScript strict.
+- **Estilo**: Tailwind CSS e tokens em `app/globals.css`; dark theme e laranja de playback.
+- **Dados**: Prisma/PostgreSQL para catálogo operacional, usuários, episódios, configurações, auditoria e health.
+- **Cache**: Redis do AniStream e Redis separado do Kenjitsu.
+- **Cliente de dados**: `src/lib/kenjitsu/client.ts` e `src/lib/kenjitsu/catalog.ts`.
+- **Mídia**: `src/lib/providers/kenjitsu.provider.ts`, `src/lib/streams/resolver.ts` e `src/lib/security/ssrf.ts`.
+- **Offline**: `src/utils/offlineCacheDB.ts`; fallback técnico em memória quando IndexedDB não está disponível.
+- **Componentes**: todos ficam em `src/components/`, não em `components/` na raiz.
+
+## Estrutura do App Router
+
+```text
 app/
-├── layout.tsx             # Root Shell (HTML, body, QueryProvider, SetupGuard, PwaRegister, OfflineStatusBanner)
-├── (main)/                # Public & Admin Route Group
-│   ├── layout.tsx         # Public Layout Chrome (Navbar, Footer, BroadcastBanner, FloatingRecommendationsWidget)
-│   ├── page.tsx           # Home Page (/)
-│   ├── admin/             # Administrative Panel (/admin/...)
-│   ├── anime/             # Details & Player (/anime/[id]/...)
-│   └── ...                # Other public routes (popular, search, movies, favorites, etc.)
-└── setup/                 # Setup Wizard Route
-    ├── layout.tsx         # Dedicated Setup Layout (Setup Header, Installation Shield, Ambient Glow, Minimal Footer)
-    └── page.tsx           # Installation Wizard (/setup)
+├── layout.tsx                  # shell raiz, providers, setup guard e PWA
+├── (main)/
+│   ├── layout.tsx              # chrome público
+│   ├── page.tsx                # home
+│   ├── anime/[id]/             # detalhes e player
+│   ├── admin/                  # painel autenticado
+│   └── ...                     # catálogo, favoritos, busca e calendário
+└── setup/                      # instalação inicial
 ```
 
----
+O shell do admin fica em `app/(main)/admin/layout.tsx`. As rotas administrativas canônicas são `/admin`, `/admin/animes`, `/admin/extensions`, `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/integrations`, `/admin/broadcasts` e `/admin/releases`.
 
-## 📂 Component Directory Structure (`components/`)
-All UI components MUST follow the modular domain-driven architecture:
+Aliases que devem ser preservados:
 
+- `/admin/dashboard` → `/admin`;
+- `/admin/sources` → `/admin/extensions`;
+- `/admin/sources/tester` → `/admin/extensions`.
+
+## Painel administrativo
+
+O admin segue a direção visual **Livro de operações**: superfícies planas, tabelas, filas, divisórias, status semântico e ações explícitas. Cards glass não devem ser usados como material padrão do admin.
+
+Primitives compartilhados em `src/components/admin/AdminPrimitives.tsx`:
+
+- `AdminPanel`;
+- `AdminPageHeader`;
+- `AdminDataTable`;
+- `AdminFilterBar`;
+- `AdminStatusBadge`;
+- `AdminFeedback`;
+- `AdminEmptyState`;
+- `AdminDrawer`;
+- `AdminSaveBar`;
+- `AdminCommandPalette`.
+
+Regras de interação:
+
+- toda ação assíncrona deve mostrar loading, sucesso ou erro recuperável;
+- alterações não salvas devem ativar dirty state e save bar;
+- exclusão, restore, manutenção e ações de lote destrutivas exigem confirmação;
+- campos precisam de label, ajuda/erro associado, `aria-invalid` e `aria-describedby`;
+- dialogs devem prender foco, responder a Escape e devolver foco ao acionador;
+- navegação ativa usa `aria-current`; tabs usam `aria-selected`;
+- respeitar reduced motion, teclado, foco visível e zoom de 200%.
+
+## Kenjitsu e extensões
+
+O Kenjitsu fornece catálogo, detalhes, episódios, relações, personagens e fontes live. As extensões são registradas pelo Kenjitsu e operadas pelo AniStream:
+
+- habilitação/desabilitação individual e em lote;
+- filtro por `enabled`, `nsfw`, status, origem e capacidade;
+- teste individual via Kenjitsu;
+- status `healthy`, `degraded`, `down` ou `unknown`;
+- latência, timestamp e erro do último teste;
+- histórico persistido em `ProviderHealthLog`.
+
+O código de extensões vive nos forks locais `../kenjitsu`, `../kenjitsu-extensions` e `../extensions-source`. Use `origin` para o fork e `upstream` para o repositório oficial. Atualizações devem ser feitas em branch e PR próprios.
+
+## Persistência e auditoria
+
+`AdminAuditLog` registra ator, ação, recurso, resumo, metadata sanitizada e data. O helper `src/lib/admin/audit.ts` remove chaves sensíveis antes de persistir.
+
+Audite mudanças de catálogo, episódios, extensões, navegação, manutenção, backups, webhooks, comunicados, releases, autopilot e testes de providers. Ao criar uma nova mutação administrativa, registre a ação depois que ela for concluída.
+
+APIs administrativas principais:
+
+| Endpoint | Contrato |
+| :--- | :--- |
+| `GET /api/admin/overview` | KPIs, serviços, extensões, alertas e atividade recente. |
+| `GET /api/admin/metrics` | Contrato legado de métricas; preservar compatibilidade. |
+| `GET /api/admin/audit` | Filtros por recurso, ação, período e paginação. |
+| `GET /api/admin/animes` | Busca, status, episódios, ordenação e paginação. |
+| `POST /api/admin/animes/bulk` | `sync` ou `delete` com resultado por item. |
+| `GET /api/admin/extensions` | Filtros por habilitação, NSFW, status, origem e capacidade. |
+| `POST /api/admin/extensions/bulk` | `enable` ou `disable` com falhas parciais. |
+| `POST /api/admin/extensions` | Teste individual e persistência de health. |
+
+Todas as rotas admin devem validar sessão com `verifyAdminAuth` e preservar mensagens/status compatíveis com os consumidores existentes.
+
+## Segurança de mídia
+
+- `src/lib/security/ssrf.ts` bloqueia protocolos indevidos, credenciais, portas não suportadas, redes privadas e DNS interno.
+- HLS é validado em `src/lib/streams/hls-validator.ts` por status, content type e `#EXTM3U`.
+- URLs de mídia são retornadas pelo Kenjitsu em tempo real.
+- O relay usa descritor assinado e criptografia AES-GCM quando aplicável.
+- Não cadastrar hosts, URLs manuais ou fontes externas para contornar o Kenjitsu.
+
+## Execução local
+
+Use os três repositórios irmãos e o Compose self-hosted:
+
+```bash
+docker compose -f docker-compose.selfhosted.yml up -d --build
 ```
-components/
-├── anime/       # Anime cards, carousels, modals (AnimeCard, CompactAnimeCard, QuickViewModal, etc.)
-├── player/      # Video playback (VideoPlayer, EpisodeList)
-├── catalog/     # Search & filters (SearchBar, SearchFilters, QuickMultiFilter, ViewToggle)
-├── home/        # Home sections (BannerHero, ContinueWatchingSection, ForYouSection, etc.)
-├── layout/      # Structure (Navbar, Footer, QueryProvider, PwaRegister)
-├── admin/       # Admin modals & tools (ImportAnimeModal, EpisodeSourcesModal, AutopilotPanel)
-└── ui/          # Primitives & Atoms (SafeImage, Tooltip, RatingBadge, GenreBadge, EmptyState, LoadingSkeleton, OfflineStatusBanner)
+
+Serviços padrão:
+
+- AniStream: `http://localhost:3000`;
+- Kenjitsu: `http://localhost:3001`;
+- PostgreSQL: `localhost:5432`;
+- Redis AniStream: `localhost:6379`;
+- Redis Kenjitsu: `localhost:6380`.
+
+Dentro dos containers, use os hosts `postgres`, `redis` e `kenjitsu`. `localhost` é para executar o Next.js diretamente na máquina.
+
+## Comandos obrigatórios de verificação
+
+Antes de finalizar uma mudança de código:
+
+```bash
+npx tsc --noEmit
+npm run lint
+npm test
+npm run test:e2e
+npm run test:docker
+npm run build
 ```
 
-> **Rule**: When adding new components, place them in the corresponding domain subfolder (or `components/ui/` if reusable atomic primitive) and export them from the subfolder's `index.ts` and root `components/index.ts`.
+Para alterações de integração Kenjitsu, execute também:
 
----
-
-## 🌳 Context Hierarchy (`app/layout.tsx` & `QueryProvider.tsx`)
-
-The context tree is organized as follows:
-
-```
-QueryClientProvider
-└── ToastProvider          (Context: showToast, copyToClipboard, interactive onClick for PWA updates)
-    └── ConfirmationProvider (Context: confirm dialogs)
-        └── FavoritesProvider (Context: favorites list, new episode checks, recommendations toggle)
-            └── {children}
+```bash
+npm run test:kenjitsu
 ```
 
-> **Rule**: Hooks (`useToast()`, `useConfirmation()`, `useFavoritesContext()`) contain defensive fallback returns so they do not crash when rendered outside a provider during static page prerendering (SSG/404).
+O smoke pode ser reduzido com `KENJITSU_SMOKE_EXTENSIONS=anizone,animefire`. Falhas isoladas de upstream devem aparecer no resultado; não corrija isso adicionando fallback.
 
----
+## Git, branches e PRs
 
-## ⚡ Kenjitsu Self-Hosted Metadata Layer (`src/lib/anime/metadata-fetcher.ts`)
-- **Kenjitsu self-hosted**: Single source for catalog, metadata, episodes, characters, relations and media.
-- **Kenjitsu client + timeout/cache**: Requests use `KENJITSU_REQUEST_TIMEOUT_MS` and Redis TTL settings; there is no silent API fallback.
-- **Alias Pairing (`AnimeAlias`)**: Automatically saves all alternative names (English, Romaji, Native, synonyms) into PostgreSQL's `AnimeAlias` table for exact episode and media title matching.
-- **Deterministic Import**: `ImportAnimeModal.tsx` sends the exact selected card metadata object directly to the backend.
+- Preserve alterações existentes do usuário; não use `git reset --hard` ou `git checkout --` sem autorização explícita.
+- Crie branches de feature a partir da base solicitada e mantenha commits focados.
+- Para mudanças grandes, separe fundação visual, APIs/persistência e superfícies/fluxos quando isso ajudar a revisão.
+- Abra PR draft quando a mudança ainda depender de validação local ou revisão.
+- Nunca faça deploy Railway nesta fase.
+- Não inclua `tsconfig.tsbuildinfo` gerado no PR quando ele estiver alterado fora do escopo.
+- Não faça commits nos repositórios oficiais do Kenjitsu; atualizações entram pelos forks locais.
 
-## 🎬 Kenjitsu Extensions, HLS Validation & VideoPlayer
-- **Kenjitsu extensions**: Native and ported extensions are enabled, disabled and tested in `/admin/extensions`; they are maintained in self-hosted local forks.
-- **HLS Playlist Validation ([hls-validator.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/hls-validator.ts))**: Validates HTTP status, `Content-Type`, and `#EXTM3U` header tag in the manifest.
-- **On-Demand Lazy Resolution & Headers**: Video URL resolution runs exclusively when the user clicks "Play". The proxy faithfully forwards `User-Agent`, `Referer`, and `Origin` headers.
-- **Admin Episode Manager (`EpisodeSourcesModal.tsx`)**:
-  - Real-time Kenjitsu discovery, legacy-record maintenance, and **inline test player** directly inside the modal.
+Definition of done:
 
----
-
-## 🔒 Segurança de mídia
-- A aplicação não exige uma lista administrativa de hosts: o Kenjitsu retorna CDNs e URLs efêmeras.
-- `src/lib/security/ssrf.ts` bloqueia protocolos, portas, credenciais, DNS para redes privadas e IPs reservados.
-- O relay usa descritores AES-GCM assinados por token de playback; fontes manuais não são cadastradas.
-
----
-
-## 🔌 API Architecture, Circuit Breaker & Resilience
-- **Standardized Responses (`src/lib/api/response.ts`)**: All routes use `apiSuccess<T>` (`{ success: true, data: T, meta?: ... }`) and `apiError` (`{ success: false, error: { code, message, details }, timestamp }`).
-- **Circuit Breaker (`src/lib/api/circuit-breaker.ts`)**: Protects Kenjitsu and its extensions. After repeated failures, the circuit opens for the configured cooldown; it reports upstream unavailability instead of switching to another API.
-- **Edge Caching**: Public catalog routes use `Cache-Control: public, s-maxage=1800, stale-while-revalidate=86400`. Streaming and admin routes use `no-store, private`.
-
----
-
-## 🚀 Registered NPM & Verification Commands (`package.json`)
-
-All available npm scripts registered in `package.json`:
-
-| Command | Action / Script | Description |
-| :--- | :--- | :--- |
-| **`npm run dev`** | `next dev` | Starts the Next.js development server. |
-| **`npm run build`** | `next build` | Creates an optimized Next.js production build. |
-| **`npm run start`** | `next start` | Starts the production server. |
-| **`npm run db:generate`** | `prisma generate` | Generates Prisma Client types and models. |
-| **`npm run generate-tokens`** | `node scripts/generate-tokens.js` | Generates security keys and tokens. |
-| **`npm run test`** | `npx vitest run` | Runs the Vitest automated test suite once. |
-| **`npm run test:watch`** | `npx vitest` | Runs Vitest in interactive watch mode. |
-| **`npm run test:coverage`** | `npx vitest run --coverage` | Generates code coverage report via Vitest. |
-| **`npm run test:docker`** | `node scripts/verify-docker.js` | Runs pre-deploy Docker build & container verification. |
-| **`npm run test:e2e`** | `playwright test` | Executes Playwright end-to-end browser tests. |
-| **`npm run pre-deploy`** | `npm run test && npm run test:docker && npm run build` | Full validation pipeline before production deployment. |
-| **`npm run deploy:local`** | `node scripts/deploy-local.js` | Triggers a local container deployment. |
-| **`npm run lint`** | `eslint .` | Runs ESLint syntax and code quality check. |
-| **`npm run clean`** | `next clean` | Cleans Next.js build cache. |
-| **`npx tsc --noEmit`** | `tsc --noEmit` | **Mandatory Type Check**: Always verify clean TypeScript compilation before finishing tasks. |
+1. contrato e impacto documentados;
+2. implementação alinhada às rotas e tipos existentes;
+3. loading, vazio, erro, sucesso e permissão considerados;
+4. auditoria adicionada a toda nova mutação administrativa;
+5. TypeScript, lint, testes relevantes, build e diff verificados;
+6. branch e PR atualizados sem incluir artefatos gerados.
