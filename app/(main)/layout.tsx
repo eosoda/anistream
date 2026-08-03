@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { BroadcastBanner } from '@/components/layout/BroadcastBanner';
+import { PublicPageGate, getPublicPageIdForPath } from '@/components/navigation';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -15,11 +16,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <>
-      <BroadcastBanner />
-      <Navbar />
-      <main className="flex-grow w-full pb-20 lg:pb-0">{children}</main>
-      <Footer />
-    </>
+    <PublicPageGate pageId={getPublicPageIdForPath(pathname || '')}>
+      <>
+        <BroadcastBanner />
+        <Navbar />
+        <main className="flex-grow w-full pb-20 lg:pb-0">{children}</main>
+        <Footer />
+      </>
+    </PublicPageGate>
   );
 }

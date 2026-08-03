@@ -1,29 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Play, Flame, Calendar, Film, ListFilter, Heart, Menu, X, Search, Home } from 'lucide-react';
+import { Calendar, Film, Flame, Heart, Home, ListFilter, Menu, Play, Search, X, type LucideIcon } from 'lucide-react';
 import { SearchBar } from '@/components/catalog/SearchBar';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useVisiblePublicNavigation } from '@/components/navigation';
+import type { NavDestinationId, NavItemConfig } from '@/types/navigation';
 
-const links = [
-  { name: 'Início', href: '/', Icon: Home },
-  { name: 'Populares', href: '/populares', Icon: Flame },
-  { name: 'Calendário', href: '/calendario', Icon: Calendar },
-  { name: 'Filmes', href: '/filmes', Icon: Film },
-  { name: 'Catálogo', href: '/lista', Icon: ListFilter },
-  { name: 'Favoritos', href: '/favoritos', Icon: Heart },
-];
+const iconMap: Record<NavDestinationId, LucideIcon> = {
+  home: Home,
+  popular: Flame,
+  seasons: Calendar,
+  calendar: Calendar,
+  movies: Film,
+  catalog: ListFilter,
+  favorites: Heart,
+};
+
+function NavigationIcon({ item, size = 17 }: { item: NavItemConfig; size?: number }) {
+  const Icon = iconMap[item.id];
+  return <Icon size={size} aria-hidden="true" />;
+}
 
 export function Navbar() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const { favorites, newEpisodesCount } = useFavorites();
+  const { settings, items } = useVisiblePublicNavigation();
+  const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+  const mobileBottomItems = settings.mobileBottomIds.map((id) => itemById.get(id)).filter((item): item is NavItemConfig => Boolean(item));
+  const mobileMoreItems = items.filter((item) => !settings.mobileBottomIds.includes(item.id));
   const isActive = (href: string) => pathname === href;
-  const secondary = links.filter((link) => ['/populares', '/calendario', '/filmes'].includes(link.href));
-  const core = [links[0], { name: 'Buscar', href: '/pesquisa', Icon: Search }, links[4], links[5]];
 
   return <>
     <header className="sticky top-0 z-50 border-b border-[var(--border-subtle)] bg-[color:rgba(9,10,14,.9)] backdrop-blur-xl">
@@ -33,7 +43,7 @@ export function Navbar() {
           <span className="hidden font-black tracking-wider min-[350px]:block">ANI<span className="text-[var(--accent)]">STREAM</span></span>
         </Link>
         <nav aria-label="Navegação principal" className="hidden items-center gap-1 lg:flex">
-          {links.map(({ name, href, Icon }) => <Link key={href} href={href} prefetch={false} aria-current={isActive(href) ? 'page' : undefined} className={`flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] px-3 text-sm font-semibold transition-colors ${isActive(href) ? 'bg-[var(--accent)] text-black' : 'text-[var(--text-secondary)] hover:bg-white/6 hover:text-white'}`}><Icon size={17} />{name}{href === '/favoritos' && favorites.length > 0 && <span className="rounded-full bg-black/15 px-1.5 font-mono-data text-xs">{favorites.length}</span>}</Link>)}
+          {items.map((item) => <Link key={item.id} href={item.href} prefetch={false} aria-current={isActive(item.href) ? 'page' : undefined} className={`flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] px-3 text-sm font-semibold transition-colors ${isActive(item.href) ? 'bg-[var(--accent)] text-black' : 'text-[var(--text-secondary)] hover:bg-white/6 hover:text-white'}`}><NavigationIcon item={item} />{item.label}{item.id === 'favorites' && favorites.length > 0 && <span className="rounded-full bg-black/15 px-1.5 font-mono-data text-xs">{favorites.length}</span>}</Link>)}
         </nav>
         <div className="ml-auto hidden w-full max-w-sm md:block"><SearchBar isCompact /></div>
         <div className="ml-auto flex items-center gap-1 md:ml-0">
@@ -42,10 +52,14 @@ export function Navbar() {
         </div>
       </div>
       {mobileSearchOpen && <div className="border-t border-[var(--border-subtle)] p-3 md:hidden"><SearchBar placeholder="Buscar animes..." onNavigate={() => setMobileSearchOpen(false)} /></div>}
-      {moreOpen && <nav id="mobile-more-menu" aria-label="Mais destinos" className="border-t border-[var(--border-subtle)] bg-[var(--surface-1)] px-2 py-1 lg:hidden"><div className="mx-auto grid max-w-7xl grid-cols-3">{secondary.map(({ name, href, Icon }) => <Link key={href} href={href} onClick={() => setMoreOpen(false)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-control)] text-xs font-medium ${isActive(href) ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-white/7 hover:text-white'}`}><Icon size={20} /><span className="max-w-full truncate">{name}</span></Link>)}</div></nav>}
+      {moreOpen && <nav id="mobile-more-menu" aria-label="Mais destinos" className="border-t border-[var(--border-subtle)] bg-[var(--surface-1)] px-2 py-1 lg:hidden"><div className="mx-auto grid max-w-7xl grid-cols-3">{mobileMoreItems.map((item) => <Link key={item.id} href={item.href} onClick={() => setMoreOpen(false)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-control)] text-xs font-medium ${isActive(item.href) ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-white/7 hover:text-white'}`}><NavigationIcon item={item} size={20} /><span className="max-w-full truncate">{item.label}</span></Link>)}</div></nav>}
     </header>
     <nav aria-label="Navegação móvel" className="safe-area-bottom fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-[var(--border-subtle)] bg-[color:rgba(9,10,14,.94)] px-2 pt-1 backdrop-blur-xl lg:hidden">
-      {core.map(({ name, href, Icon }) => { const active = isActive(href) || (href === '/pesquisa' && mobileSearchOpen); return <Link key={href} href={href} prefetch={false} aria-current={active ? 'page' : undefined} className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-control)] text-xs font-medium ${active ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}><span className="relative"><Icon size={20} />{href === '/favoritos' && newEpisodesCount > 0 && <span className="absolute -right-3 -top-2 min-w-5 rounded-full bg-[var(--success)] px-1 text-center font-mono-data text-[10px] text-black">{newEpisodesCount}</span>}</span><span className="max-w-full truncate">{name}</span></Link>; })}
+      <div className="contents">
+        {mobileBottomItems.slice(0, 1).map((item) => <Link key={item.id} href={item.href} prefetch={false} aria-current={isActive(item.href) ? 'page' : undefined} className={`relative order-1 flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-control)] text-xs font-medium ${isActive(item.href) ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}><NavigationIcon item={item} size={20} /><span className="max-w-full truncate">{item.label}</span></Link>)}
+        <Link href="/pesquisa" prefetch={false} aria-current={pathname === '/pesquisa' || mobileSearchOpen ? 'page' : undefined} className={`relative order-2 flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-control)] text-xs font-medium ${pathname === '/pesquisa' || mobileSearchOpen ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}><Search size={20} aria-hidden="true" /><span className="max-w-full truncate">Buscar</span></Link>
+        {mobileBottomItems.slice(1).map((item, index) => <Link key={item.id} href={item.href} prefetch={false} aria-current={isActive(item.href) ? 'page' : undefined} className={`relative ${index === 0 ? 'order-3' : 'order-4'} flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-control)] text-xs font-medium ${isActive(item.href) ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}><span className="relative"><NavigationIcon item={item} size={20} />{item.id === 'favorites' && newEpisodesCount > 0 && <span className="absolute -right-3 -top-2 min-w-5 rounded-full bg-[var(--success)] px-1 text-center font-mono-data text-[10px] text-black">{newEpisodesCount}</span>}</span><span className="max-w-full truncate">{item.label}</span></Link>)}
+      </div>
     </nav>
   </>;
 }

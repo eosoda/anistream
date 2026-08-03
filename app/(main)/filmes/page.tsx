@@ -18,8 +18,6 @@ import { AnimeCard } from '@/components/anime/AnimeCard';
 import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 
-import { DisabledPageNotice } from '@/components/ui/DisabledPageNotice';
-
 export default function FilmesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -28,20 +26,6 @@ export default function FilmesPage() {
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: publicSettings } = useQuery({
-    queryKey: ['publicSettings'],
-    queryFn: async () => {
-      try {
-        const res = await fetch('/api/settings/public');
-        const json = await res.json();
-        return json?.data;
-      } catch {
-        return null;
-      }
-    },
-  });
-
-  const moviePageFeature = publicSettings?.pages?.find((p: any) => p.id === 'movies');
   const { data: moviesData, isLoading, isError, refetch } = useQuery({
     queryKey: ['moviesList', searchQuery, page, statusFilter, orderBy, sortDir],
     queryFn: () =>
@@ -52,16 +36,6 @@ export default function FilmesPage() {
         sort: sortDir,
       }),
   });
-
-  if (moviePageFeature && !moviePageFeature.enabled) {
-    return (
-      <DisabledPageNotice
-        pageName="Filmes de Anime"
-        title="Seção de Filmes Indisponível"
-        message={moviePageFeature.disabledMessage}
-      />
-    );
-  }
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);

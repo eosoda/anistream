@@ -33,6 +33,10 @@ As rotas legadas continuam funcionando como aliases:
 | `/admin/sources` | `/admin/extensions` |
 | `/admin/sources/tester` | `/admin/extensions` |
 
+## Centro de experiência pública
+
+`/admin/navigation` materializa defaults legados na chave canônica `public_navigation_config`, controla os sete destinos internos oficiais, escolhe três atalhos mobile além da Busca fixa e define disponibilidade/redirect de cada página de conteúdo. O preview mostra desktop, barra mobile, menu Mais e footer antes da publicação. A Home continua sendo editada exclusivamente em `/admin/homepage`.
+
 ## 3. Dashboard operacional
 
 `/admin` consulta `GET /api/admin/overview` e exibe:
@@ -144,6 +148,9 @@ As páginas `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/inte
 | Endpoint | Função |
 | :--- | :--- |
 | `GET /api/admin/overview` | Visão consolidada do painel. |
+| `GET /api/admin/navigation` | Configuração canônica, revisão e preview da experiência pública. |
+| `POST /api/admin/navigation` | Publica menu, mobile e páginas com validação otimista. |
+| `GET /api/settings/public` | Configuração pública compatível para Navbar, mobile e footer. |
 | `GET /api/admin/metrics` | Métricas legadas compatíveis. |
 | `GET /api/admin/audit` | Auditoria filtrada e paginada. |
 | `GET /api/admin/animes` | Catálogo com filtros e paginação. |

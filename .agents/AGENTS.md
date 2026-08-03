@@ -41,6 +41,8 @@ app/
 
 O shell do admin fica em `app/(main)/admin/layout.tsx`. As rotas administrativas canônicas são `/admin`, `/admin/animes`, `/admin/extensions`, `/admin/homepage`, `/admin/navigation`, `/admin/calendar`, `/admin/system`, `/admin/backups`, `/admin/integrations`, `/admin/broadcasts` e `/admin/releases`.
 
+`/admin/navigation` é o centro operacional da experiência pública. Use `src/lib/navigation/repository.ts` e `src/schemas/navigation.ts` para alterar o contrato; não grave destinos arbitrários, URLs externas ou configuração de Home nessa superfície. A Busca é fixa no mobile, os demais três slots são configuráveis, e páginas desativadas devem sempre apontar para redirects internos habilitados.
+
 O construtor da Home em `/admin/homepage` usa apenas blocos tipados e fontes Kenjitsu. O fluxo é `rascunho → salvar → preview → publicar`; não adicionar HTML/CSS/JS livre, upload, Markdown, M3U, hosts de mídia ou URLs externas. A Home pública usa `HomepageLayout` server-first e tolera falha por bloco sem fallback de provedor.
 
 Aliases que devem ser preservados:
@@ -107,6 +109,9 @@ APIs administrativas principais:
 | `GET /api/admin/extensions` | Filtros por habilitação, NSFW, status, origem e capacidade. |
 | `POST /api/admin/extensions/bulk` | `enable` ou `disable` com falhas parciais. |
 | `POST /api/admin/extensions` | Teste individual e persistência de health. |
+| `GET /api/admin/navigation` | Configuração canônica, revisão e preview do shell público. |
+| `POST /api/admin/navigation` | Publica menu, mobile e disponibilidade com auditoria/409 otimista. |
+| `GET /api/settings/public` | Contrato público de `navigation`, `mobileBottomIds`, `pages` e `revision`. |
 | `GET /api/admin/homepage` | Rascunho, publicação, versões e resumo do layout. |
 | `PUT /api/admin/homepage` | Salva documento tipado com controle otimista de versão. |
 | `POST /api/admin/homepage/publish` | Publica o rascunho e invalida o cache. |
