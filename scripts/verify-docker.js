@@ -80,7 +80,7 @@ const nextConfig = readFile('next.config.ts');
 requireText(nextConfig, "output: 'standalone'", 'Next.js standalone habilitado');
 
 const schema = readFile('prisma/schema.prisma');
-for (const model of ['Anime', 'Episode', 'EpisodeSource', 'MediaProvider', 'AutoIndexerQueue', 'AdminUser', 'AdminAuditLog', 'ProviderHealthLog', 'HomepageLayout']) {
+for (const model of ['Anime', 'Episode', 'EpisodeSource', 'MediaProvider', 'AutoIndexerQueue', 'AdminUser', 'AdminAuditLog', 'ProviderHealthLog', 'HomepageLayout', 'ReleaseScheduleRule', 'ReleaseScheduleException']) {
   requireText(schema, `model ${model}`, `Modelo Prisma ${model} presente`);
 }
 
@@ -92,6 +92,13 @@ for (const dependency of ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilit
 const homepageRepository = readFile('src/lib/homepage/repository.ts');
 requireText(homepageRepository, 'ensureHomepageLayout', 'Bootstrap idempotente do layout da Home presente');
 requireText(homepageRepository, 'invalidateHomepageCache', 'Invalidação do cache da Home após publicação presente');
+
+const calendarService = readFile('src/lib/calendar/service.ts');
+requireText(calendarService, 'utcDateKeysForLocalWeek', 'Calendário consulta os dias UTC necessários');
+requireText(calendarService, 'CALENDAR_CACHE_TTL_SECONDS', 'TTL do calendário é configurável');
+
+const calendarRoute = readFile('app/api/calendar/route.ts');
+requireText(calendarRoute, 'getReleaseScheduleCalendar', 'API pública do calendário usa a projeção local');
 
 logHeader('Resultado da validacao Docker local');
 if (hasErrors) {

@@ -40,6 +40,7 @@ O shell compartilhado fica em `app/(main)/admin/layout.tsx` e fornece navegaçã
 | `/admin/extensions` | Matriz de fontes/extensões Kenjitsu. |
 | `/admin/homepage` | Construtor visual da Home: blocos, fontes Kenjitsu, preview, rascunho e publicação. |
 | `/admin/navigation` | Navegação e disponibilidade de páginas; contém atalho para o construtor da Home. |
+| `/admin/calendar` | Release Schedule: regras semanais, exceções, prévia e sincronização Kenjitsu. |
 | `/admin/system` | Estado e manutenção. |
 | `/admin/backups` | Exportação e restauração. |
 | `/admin/integrations` | Webhooks e integrações. |
@@ -64,6 +65,15 @@ O shell compartilhado fica em `app/(main)/admin/layout.tsx` e fornece navegaçã
 | `PUT /api/admin/homepage` | Salva o rascunho com controle otimista de versão. |
 | `POST /api/admin/homepage/publish` | Publica o rascunho após confirmação e invalida o cache público. |
 | `POST /api/admin/homepage/discard` | Restaura o rascunho para a última publicação. |
+
+## APIs do calendário
+
+| Endpoint | Função |
+| :--- | :--- |
+| `GET /api/calendar` | Retorna a semana convertida para o timezone do visitante, sem episódio ou playback. |
+| `GET /api/admin/calendar` | Retorna configurações, regras, exceções e prévia autenticada. |
+| `PUT /api/admin/calendar` | Salva a configuração completa e registra auditoria. |
+| `POST /api/admin/calendar/sync` | Invalida a versão do calendário e consulta novamente o Kenjitsu. |
 
 ## Restrições de dados
 

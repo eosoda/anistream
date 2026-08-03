@@ -45,7 +45,11 @@ flowchart TD
 - `app/(main)/admin/layout.tsx` fornece o shell autenticado, sidebar agrupada, breadcrumbs, sessão e command palette.
 - `src/components/admin/AdminPrimitives.tsx` concentra tabela, filtros, estados, feedback, drawer, modal, save bar e zona de risco.
 - A direção visual do admin é densa e plana: tabelas, filas, divisórias e status sem cards glass como material padrão.
-- As superfícies principais são dashboard, catálogo/editor, extensões, navegação, sistema, backups, integrações, comunicados e releases.
+- As superfícies principais são dashboard, catálogo/editor, extensões, navegação, calendário, sistema, backups, integrações, comunicados e releases.
+
+### Release Schedule
+
+O calendário público (`/calendario`) é uma projeção semanal do endpoint `GET /api/anilist/airing/date/:date` do Kenjitsu. O app consulta dias UTC adjacentes, converte `airingAt` para o timezone do visitante, arredonda o horário e cacheia o resultado no Redis. `ReleaseScheduleRule` e `ReleaseScheduleException` guardam somente ajustes locais administrativos; não duplicam a agenda automática como fonte de catálogo.
 
 ### Integração Kenjitsu
 
@@ -95,6 +99,7 @@ O PostgreSQL mantém o estado operacional do AniStream. Além das entidades de c
 - `HomepageLayout`: rascunho, publicação, versões e atores da Home;
 - configurações administrativas das extensões Kenjitsu;
 - estado local de navegação, comunicados, releases, backups e integrações.
+- `ReleaseScheduleRule` e `ReleaseScheduleException`: regras recorrentes e exceções pontuais do calendário.
 
 `src/lib/admin/audit.ts` remove chaves sensíveis e limita metadata antes de persistir. O histórico é consultável no dashboard e em `GET /api/admin/audit`.
 
@@ -115,6 +120,10 @@ O PostgreSQL mantém o estado operacional do AniStream. Além das entidades de c
 | `POST /api/admin/homepage/publish` | Publica e invalida o cache público. |
 | `POST /api/admin/homepage/discard` | Restaura o rascunho publicado. |
 | `GET /api/homepage` | Entrega a composição pública resolvida. |
+| `GET /api/calendar` | Agenda semanal convertida para o timezone solicitado. |
+| `GET /api/admin/calendar` | Configuração e prévia autenticadas do Release Schedule. |
+| `PUT /api/admin/calendar` | Persistência de regras, exceções e configurações com auditoria. |
+| `POST /api/admin/calendar/sync` | Invalidação de versão e sincronização sob demanda. |
 | `POST /api/admin/animes/[id]/sync` | Sincronização do anime usando o Kenjitsu. |
 | `POST /api/admin/animes/[id]/episodes/[epId]/discover-sources` | Descoberta live das fontes pelas extensões habilitadas. |
 

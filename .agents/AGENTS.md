@@ -39,7 +39,7 @@ app/
 └── setup/                      # instalação inicial
 ```
 
-O shell do admin fica em `app/(main)/admin/layout.tsx`. As rotas administrativas canônicas são `/admin`, `/admin/animes`, `/admin/extensions`, `/admin/homepage`, `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/integrations`, `/admin/broadcasts` e `/admin/releases`.
+O shell do admin fica em `app/(main)/admin/layout.tsx`. As rotas administrativas canônicas são `/admin`, `/admin/animes`, `/admin/extensions`, `/admin/homepage`, `/admin/navigation`, `/admin/calendar`, `/admin/system`, `/admin/backups`, `/admin/integrations`, `/admin/broadcasts` e `/admin/releases`.
 
 O construtor da Home em `/admin/homepage` usa apenas blocos tipados e fontes Kenjitsu. O fluxo é `rascunho → salvar → preview → publicar`; não adicionar HTML/CSS/JS livre, upload, Markdown, M3U, hosts de mídia ou URLs externas. A Home pública usa `HomepageLayout` server-first e tolera falha por bloco sem fallback de provedor.
 
@@ -112,6 +112,10 @@ APIs administrativas principais:
 | `POST /api/admin/homepage/publish` | Publica o rascunho e invalida o cache. |
 | `POST /api/admin/homepage/discard` | Restaura a última publicação. |
 | `GET /api/homepage` | Entrega a composição publicada resolvida pelo Kenjitsu. |
+| `GET /api/calendar` | Projeta o Release Schedule semanal no timezone solicitado. |
+| `GET /api/admin/calendar` | Configurações, regras, exceções e prévia do calendário. |
+| `PUT /api/admin/calendar` | Salva regras e configurações com auditoria. |
+| `POST /api/admin/calendar/sync` | Invalida o cache/versionamento e solicita sincronização pelo Kenjitsu. |
 
 Todas as rotas admin devem validar sessão com `verifyAdminAuth` e preservar mensagens/status compatíveis com os consumidores existentes.
 
