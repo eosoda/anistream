@@ -60,7 +60,7 @@ INITIAL_SETUP_KEY="${initialSetupKey}"
 SETUP_KEY="${initialSetupKey}"
 
 # API de catálogo, episódios e mídia
-KENJITSU_BASE_URL="http://localhost:3001"
+KENJITSU_BASE_URL="http://kenjitsu:3000"
 KENJITSU_API_KEY=""
 KENJITSU_REQUEST_TIMEOUT_MS="10000"
 KENJITSU_CACHE_TTL_SECONDS="300"
@@ -91,7 +91,7 @@ NEXT_PUBLIC_APP_URL="${appUrl}"
   console.log(`  URL de Instalação Direta : http://localhost:3000/setup?key=${initialSetupKey}`);
   console.log('===================================================================\n');
   console.log('🚀 Para iniciar o Docker com as novas variáveis, execute:');
-  console.log('   docker compose up -d --build\n');
+  console.log('   docker compose -f docker-compose.selfhosted.yml up -d --build\n');
 }
 
 run();

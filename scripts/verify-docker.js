@@ -1,9 +1,8 @@
 /**
- * Script de Diagnóstico e Validação Pré-Deploy do Docker — AniStream
+ * Validacao estrutural do runtime Docker self-hosted do AniStream.
  *
- * Este script verifica a integridade, sintaxe e presença dos requisitos
- * necessários nos arquivos de conteinerização (Dockerfile, docker-compose.yml,
- * .dockerignore, next.config.ts e schema.prisma) antes do deploy.
+ * Este script nao faz deploy. Ele verifica a imagem standalone, o Compose
+ * canonico com Kenjitsu, o schema Prisma e os arquivos necessarios ao build.
  */
 
 const fs = require('fs');
@@ -14,145 +13,84 @@ let hasErrors = false;
 
 function logHeader(title) {
   console.log(`\n========================================`);
-  console.log(`🐳 ${title}`);
+  console.log(title);
   console.log(`========================================`);
 }
 
-function logSuccess(msg) {
-  console.log(`  ✅ ${msg}`);
+function logSuccess(message) {
+  console.log(`  [OK] ${message}`);
 }
 
-function logError(msg) {
-  console.log(`  ❌ ${msg}`);
+function logError(message) {
+  console.error(`  [ERRO] ${message}`);
   hasErrors = true;
 }
 
-function checkFileExists(relPath) {
-  const fullPath = path.join(rootDir, relPath);
-  if (fs.existsSync(fullPath)) {
-    logSuccess(`Arquivo '${relPath}' encontrado.`);
-    return fs.readFileSync(fullPath, 'utf8');
-  } else {
-    logError(`Arquivo '${relPath}' não foi encontrado.`);
+function readFile(relativePath) {
+  const absolutePath = path.join(rootDir, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    logError(`Arquivo ausente: ${relativePath}`);
     return null;
   }
+
+  logSuccess(`Arquivo encontrado: ${relativePath}`);
+  return fs.readFileSync(absolutePath, 'utf8');
 }
 
-// 1. Validar Dockerfile
-logHeader('1. Validação do Dockerfile');
-const dockerfileContent = checkFileExists('Dockerfile');
-if (dockerfileContent) {
-  if (dockerfileContent.includes('FROM node:20-alpine AS deps')) {
-    logSuccess('Estágio 1 (deps): Base Node.js 20 Alpine configurada.');
+function requireText(content, expected, label) {
+  if (content && content.includes(expected)) {
+    logSuccess(label);
   } else {
-    logError("Dockerfile: Estágio 'deps' ausente.");
-  }
-
-  if (dockerfileContent.includes('FROM node:20-alpine AS builder')) {
-    logSuccess('Estágio 2 (builder): Estágio de compilação configurado.');
-  } else {
-    logError("Dockerfile: Estágio 'builder' ausente.");
-  }
-
-  if (dockerfileContent.includes('FROM node:20-alpine AS runner')) {
-    logSuccess('Estágio 3 (runner): Estágio de execução seguro configurado.');
-  } else {
-    logError("Dockerfile: Estágio 'runner' ausente.");
-  }
-
-  if (dockerfileContent.includes('USER nextjs')) {
-    logSuccess('Segurança: Usuário não-root (nextjs) ativo.');
-  } else {
-    logError('Segurança: Execução como usuário não-root ausente.');
-  }
-
-  if (dockerfileContent.includes('EXPOSE 3000')) {
-    logSuccess('Rede: Porta 3000 exposta corretamente.');
-  } else {
-    logError('Rede: Porta 3000 não exposta.');
-  }
-
-  if (dockerfileContent.includes('prisma db push')) {
-    logSuccess('Prisma: Sincronização automática de schema ativada no CMD.');
-  } else {
-    logError('Prisma: Comando de sincronização no boot ausente.');
+    logError(`Requisito ausente: ${label}`);
   }
 }
 
-// 2. Validar docker-compose.yml
-logHeader('2. Validação do docker-compose.yml');
-const composeContent = checkFileExists('docker-compose.yml');
-if (composeContent) {
-  if (composeContent.includes('postgres:') && composeContent.includes('5432:5432')) {
-    logSuccess('Serviço PostgreSQL 16 configurado na porta 5432.');
-  } else {
-    logError('Serviço PostgreSQL 16 não identificado.');
-  }
+logHeader('1. Dockerfile standalone');
+const dockerfile = readFile('Dockerfile');
+requireText(dockerfile, 'FROM node:20-alpine AS deps', 'Estagio deps com Node 20 Alpine');
+requireText(dockerfile, 'FROM node:20-alpine AS builder', 'Estagio builder presente');
+requireText(dockerfile, 'FROM node:20-alpine AS runner', 'Estagio runner presente');
+requireText(dockerfile, 'COPY package.json package-lock.json ./', 'Build usa lockfile');
+requireText(dockerfile, 'RUN npm ci', 'Dependencias instaladas de forma reproduzivel');
+requireText(dockerfile, 'RUN npx prisma generate', 'Prisma Client gerado no builder');
+requireText(dockerfile, 'USER nextjs', 'Runner sem privilegios');
+requireText(dockerfile, 'HEALTHCHECK', 'Healthcheck da imagem configurado');
+requireText(dockerfile, 'npx prisma db push --skip-generate && exec node server.js', 'Boot falha explicitamente quando o schema nao pode ser sincronizado');
 
-  if (composeContent.includes('redis:') && composeContent.includes('6379:6379')) {
-    logSuccess('Serviço Redis 7 configurado na porta 6379.');
-  } else {
-    logError('Serviço Redis 7 não identificado.');
-  }
+logHeader('2. Compose self-hosted canonico');
+const compose = readFile('docker-compose.selfhosted.yml');
+requireText(compose, 'postgres:', 'PostgreSQL presente');
+requireText(compose, 'redis:', 'Redis do AniStream presente');
+requireText(compose, 'kenjitsu-redis:', 'Redis dedicado do Kenjitsu presente');
+requireText(compose, 'kenjitsu:', 'Servico Kenjitsu presente');
+requireText(compose, 'app:', 'Servico AniStream presente');
+requireText(compose, 'KENJITSU_BASE_URL', 'URL interna do Kenjitsu configurada');
+requireText(compose, 'SOURCE_ENCRYPTION_KEY', 'Criptografia de playback configurada');
+requireText(compose, 'healthcheck:', 'Healthchecks configurados');
+requireText(compose, 'condition: service_healthy', 'Dependencias aguardam health');
 
-  if (composeContent.includes('DATABASE_URL') && composeContent.includes('SOURCE_ENCRYPTION_KEY')) {
-    logSuccess('Variáveis de ambiente de produção e criptografia configuradas.');
-  } else {
-    logError('Variáveis de ambiente essenciais ausentes no docker-compose.');
-  }
+const composeAlias = readFile('docker-compose.yml');
+requireText(composeAlias, 'docker-compose.selfhosted.yml', 'docker-compose.yml aponta para o Compose canonico');
 
-  if (composeContent.includes('healthcheck:')) {
-    logSuccess('Healthchecks configurados para verificar a saúde dos containers.');
-  } else {
-    logError('Healthchecks ausentes no docker-compose.yml.');
-  }
+logHeader('3. Contexto de build');
+const dockerIgnore = readFile('.dockerignore');
+for (const ignored of ['node_modules', '.next', '.git', 'docs', 'tests']) {
+  requireText(dockerIgnore, ignored, `.dockerignore ignora ${ignored}`);
 }
 
-// 3. Validar .dockerignore
-logHeader('3. Validação do .dockerignore');
-const dockerIgnoreContent = checkFileExists('.dockerignore');
-if (dockerIgnoreContent) {
-  const requiredIgnores = ['node_modules', '.next', '.git'];
-  for (const item of requiredIgnores) {
-    if (dockerIgnoreContent.includes(item)) {
-      logSuccess(`Ignorado no build: '${item}'`);
-    } else {
-      logError(`'.dockerignore': Item '${item}' deveria estar ignorado.`);
-    }
-  }
+logHeader('4. Next.js e Prisma');
+const nextConfig = readFile('next.config.ts');
+requireText(nextConfig, "output: 'standalone'", 'Next.js standalone habilitado');
+
+const schema = readFile('prisma/schema.prisma');
+for (const model of ['Anime', 'Episode', 'EpisodeSource', 'MediaProvider', 'AutoIndexerQueue', 'AdminUser', 'AdminAuditLog', 'ProviderHealthLog']) {
+  requireText(schema, `model ${model}`, `Modelo Prisma ${model} presente`);
 }
 
-// 4. Validar next.config.ts (Standalone Output)
-logHeader('4. Validação do Build Standalone (next.config.ts)');
-const nextConfigContent = checkFileExists('next.config.ts');
-if (nextConfigContent) {
-  if (nextConfigContent.includes("output: 'standalone'") || nextConfigContent.includes('output: "standalone"')) {
-    logSuccess("Configuração 'output: standalone' ativa para suporte a Docker.");
-  } else {
-    logError("next.config.ts: Configuração 'output: standalone' é necessária para a imagem Docker.");
-  }
-}
-
-// 5. Validar Schema Prisma
-logHeader('5. Validação do Schema Prisma');
-const prismaSchemaContent = checkFileExists('prisma/schema.prisma');
-if (prismaSchemaContent) {
-  const models = ['Anime', 'Episode', 'EpisodeSource', 'MediaProvider', 'AutoIndexerQueue', 'AdminUser'];
-  for (const m of models) {
-    if (prismaSchemaContent.includes(`model ${m}`)) {
-      logSuccess(`Modelo Prisma '${m}' identificado no schema.`);
-    } else {
-      logError(`Modelo Prisma '${m}' ausente no schema.`);
-    }
-  }
-}
-
-// Resultado Final
-logHeader('Resultado do Diagnóstico Pré-Deploy Docker');
+logHeader('Resultado da validacao Docker local');
 if (hasErrors) {
-  console.log('\n❌ Foram encontrados problemas que precisam ser corrigidos antes do deploy.\n');
+  console.error('\nForam encontrados problemas no runtime Docker.\n');
   process.exit(1);
-} else {
-  console.log('\n✨ Todos os requisitos do Docker foram validados com 100% de sucesso! Prontos para o deploy.\n');
-  process.exit(0);
 }
+
+console.log('\nRuntime Docker self-hosted validado com sucesso.\n');

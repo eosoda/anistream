@@ -11,6 +11,6 @@ echo "========================================"
 node scripts/verify-docker.js
 
 echo "🐳 Compilando e iniciando os containers..."
-docker compose up -d --build --remove-orphans
+docker compose -f docker-compose.selfhosted.yml up -d --build --remove-orphans
 
 echo "✨ Deploy local finalizado com sucesso! Acesse http://localhost:3000"
