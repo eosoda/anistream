@@ -199,8 +199,8 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
           aria-label="Buscar animes"
           aria-autocomplete="list"
           aria-expanded={isOpen}
-          aria-controls={listboxId}
-          aria-activedescendant={selectedIndex >= 0 ? `${listboxId}-option-${selectedIndex}` : undefined}
+          aria-controls={isOpen && results.length > 0 ? listboxId : undefined}
+          aria-activedescendant={isOpen && results.length > 0 && selectedIndex >= 0 ? `${listboxId}-option-${selectedIndex}` : undefined}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.length >= 2 && setIsOpen(true)}

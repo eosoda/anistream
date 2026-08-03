@@ -12,6 +12,7 @@ test.describe('AniStream - Home Page & Navigation', () => {
     await expect(page.getByRole('link', { name: 'Populares', exact: true })).toBeVisible();
     await expect(page.locator('a:has-text("Catálogo")').first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'Filmes', exact: true })).toBeVisible();
+    await expect(page.locator('[data-homepage-source="published"]')).toBeVisible();
   });
 
   test('deve navegar para a página de animes populares', async ({ page }) => {

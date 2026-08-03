@@ -8,12 +8,43 @@ import { useConfirmation } from '@/context/ConfirmationContext';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { Tooltip } from '@/components/ui/Tooltip';
+import type { EpisodeProgress } from '@/hooks/useWatchProgress';
 
-export function ContinueWatchingSection() {
+interface ContinueWatchingSectionProps {
+  title?: string;
+  preview?: boolean;
+}
+
+const PREVIEW_PROGRESS: EpisodeProgress[] = [
+  {
+    animeId: 52991,
+    animeTitle: 'Sousou no Frieren',
+    animeImage: '/hero-frieren-fast.webp',
+    episodeNum: 18,
+    currentTime: 612,
+    duration: 1440,
+    percentage: 42,
+    updatedAt: 0,
+    completed: false,
+  },
+  {
+    animeId: 16498,
+    animeTitle: 'Shingeki no Kyojin',
+    animeImage: '/hero-frieren-fast.webp',
+    episodeNum: 7,
+    currentTime: 980,
+    duration: 1440,
+    percentage: 68,
+    updatedAt: 0,
+    completed: false,
+  },
+];
+
+export function ContinueWatchingSection({ title = 'Continuar Assistindo', preview = false }: ContinueWatchingSectionProps) {
   const { getContinueWatchingList, removeProgress } = useWatchProgress();
   const { confirm } = useConfirmation();
   const { ref: scrollRef, isDragging } = useDraggableScroll<HTMLDivElement>();
-  const continueList = getContinueWatchingList();
+  const continueList = preview ? PREVIEW_PROGRESS : getContinueWatchingList();
 
   if (continueList.length === 0) return null;
 
@@ -45,7 +76,7 @@ export function ContinueWatchingSection() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2 tracking-tight">
           <span className="w-2 h-7 bg-[#FF6B00] rounded-full inline-block" />
-          Continuar Assistindo
+          {title}
         </h2>
 
         <span className="text-xs font-bold text-gray-400 bg-white/5 px-3 py-1 rounded-full border border-white/10">
@@ -102,10 +133,11 @@ export function ContinueWatchingSection() {
               {/* Center Play Icon */}
               <Link
                 href={`/anime/${item.animeId}/episode/${item.episodeNum}`}
+                aria-label={`Reproduzir ${item.animeTitle}, episódio ${item.episodeNum}`}
                 className="absolute inset-0 flex items-center justify-center"
               >
-                <div className="w-12 h-12 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shadow-lg shadow-[#FF6B00]/40 transform group-hover:scale-110 transition-transform">
-                  <Play size={20} className="fill-current ml-0.5" />
+                <div className="w-12 h-12 rounded-full bg-[#FF6B00] text-[#170a02] flex items-center justify-center shadow-lg shadow-[#FF6B00]/40 transform group-hover:scale-110 transition-transform">
+                  <Play size={20} className="fill-current ml-0.5" aria-hidden="true" />
                 </div>
               </Link>
 

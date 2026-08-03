@@ -44,7 +44,7 @@ for (const path of ['/pesquisa?q=frieren', '/admin/login', '/anime/52991', '/ani
 test('formulários administrativos não têm violações graves', async ({ page }) => {
   await authenticateAdmin(page);
   await page.setViewportSize({ width: 1440, height: 900 });
-  for (const path of ['/admin/animes/novo', '/admin/sources/tester', '/admin/navigation']) {
+  for (const path of ['/admin/animes/novo', '/admin/sources/tester', '/admin/navigation', '/admin/homepage']) {
     await page.goto(path);
     await page.waitForLoadState('networkidle');
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();

@@ -15,6 +15,7 @@ const routeCases = [
   { path: '/admin/animes/novo', expected: '/admin/animes/novo' },
   { path: '/admin/animes/does-not-exist/editar', expected: '/admin/animes/does-not-exist/editar' },
   { path: '/admin/extensions', expected: '/admin/extensions' },
+  { path: '/admin/homepage', expected: '/admin/homepage' },
   { path: '/admin/sources', expected: '/admin/extensions' },
   { path: '/admin/sources/tester', expected: '/admin/extensions' },
   { path: '/admin/navigation', expected: '/admin/navigation' },
@@ -49,5 +50,21 @@ test.describe('Painel administrativo operacional', () => {
     await expect(page.getByRole('dialog', { name: 'Navegação administrativa' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'Navegação administrativa' })).toBeHidden();
+  });
+
+  test('renderiza o preview protegido da Home publicada', async ({ page }) => {
+    await page.goto('/preview/homepage');
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(/\/preview\/homepage$/);
+    await expect(page.locator('[data-homepage-source="draft"]')).toBeVisible();
+  });
+
+  test('carrega o construtor com canvas e inspector', async ({ page }) => {
+    await page.goto('/admin/homepage');
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { name: 'Construtor da Home' })).toBeVisible();
+    await expect(page.getByText('Blocos da Home', { exact: true })).toBeVisible();
+    await expect(page.getByText('Inspector', { exact: true })).toBeVisible();
+    await expect(page.locator('[aria-label="Blocos ordenáveis da Home"]')).toBeVisible();
   });
 });

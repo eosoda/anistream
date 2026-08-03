@@ -16,6 +16,7 @@ interface AnimeCarouselProps {
   animes: JikanAnime[];
   isLoading?: boolean;
   viewAllHref?: string;
+  viewAllLabel?: string;
   subtitle?: string;
 }
 
@@ -25,6 +26,7 @@ export function AnimeCarousel({
   animes,
   isLoading = false,
   viewAllHref,
+  viewAllLabel = 'Ver todos →',
   subtitle,
 }: AnimeCarouselProps) {
   const { isFavorite, toggleFavoriteWithConfirm } = useFavorites();
@@ -108,7 +110,7 @@ export function AnimeCarousel({
               prefetch={false}
               className="text-xs font-semibold text-[#FF6B00] hover:text-[#FF8533] hover:underline mr-2"
             >
-              Ver todos →
+              {viewAllLabel}
             </Link>
           )}
 

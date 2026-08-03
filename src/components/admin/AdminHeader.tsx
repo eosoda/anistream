@@ -11,6 +11,7 @@ const labels: Record<string, string> = {
   novo: 'Novo anime',
   editar: 'Editar',
   extensions: 'Extensões Kenjitsu',
+  homepage: 'Construtor da Home',
   navigation: 'Navegação',
   system: 'Sistema',
   backups: 'Backups',

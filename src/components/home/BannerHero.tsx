@@ -12,20 +12,39 @@ import { SafeImage } from '@/components/ui/SafeImage';
 interface BannerHeroProps {
   animes: JikanAnime[];
   isLoading?: boolean;
+  autoplay?: 'off' | 'slow' | 'standard';
+  titleOverride?: string;
+  subtitleOverride?: string;
 }
 
-export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
+export function BannerHero({
+  animes,
+  isLoading = false,
+  autoplay = 'standard',
+  titleOverride,
+  subtitleOverride,
+}: BannerHeroProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoplay, setIsAutoplay] = useState(true);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const { isFavorite, toggleFavoriteWithConfirm } = useFavorites();
 
   useEffect(() => {
-    if (!animes || animes.length === 0 || !isAutoplay) return;
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    updatePreference();
+    mediaQuery.addEventListener?.('change', updatePreference);
+    return () => mediaQuery.removeEventListener?.('change', updatePreference);
+  }, []);
+
+  useEffect(() => {
+    if (!animes || animes.length === 0 || autoplay === 'off' || prefersReducedMotion || !isAutoplay) return;
+    const delay = autoplay === 'slow' ? 22000 : 15000;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % animes.length);
-    }, 15000);
+    }, delay);
     return () => clearInterval(interval);
-  }, [animes, isAutoplay]);
+  }, [animes, autoplay, isAutoplay, prefersReducedMotion]);
 
   const scrollToContent = () => {
     const el = document.getElementById('main-content');
@@ -49,8 +68,9 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
   const currentAnime = animes[currentIndex];
   const favorited = isFavorite(currentAnime.mal_id);
 
-  const title =
+  const computedTitle =
     currentAnime.title_english || currentAnime.title || currentAnime.title_japanese || 'Anime';
+  const title = titleOverride || computedTitle;
 
   const backdropImage =
     currentAnime.mal_id === 52991
@@ -132,7 +152,7 @@ export function BannerHero({ animes, isLoading = false }: BannerHeroProps) {
 
                 {/* Synopsis */}
                 <p className="text-xs sm:text-sm text-gray-300 line-clamp-2 max-w-xl leading-relaxed">
-                  {currentAnime.synopsis || 'Sem sinopse disponível.'}
+                  {subtitleOverride || currentAnime.synopsis || 'Sem sinopse disponível.'}
                 </p>
 
                 {/* CTA Buttons */}
