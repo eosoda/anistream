@@ -58,7 +58,36 @@ O editor `/admin/animes/[id]/editar` é dividido em Identidade, Metadata, Playba
 
 As operações em lote usam `POST /api/admin/animes/bulk` com `action: sync|delete`. Cada item retorna sucesso ou erro, permitindo tratar falhas parciais.
 
-## 5. Extensões Kenjitsu
+## 5. Home customizável
+
+`/admin/homepage` é o editor operacional da página inicial. A Home pública não lê mais `SystemSetting.home_sections` em runtime: a migração idempotente cria `HomepageLayout`, importa a configuração legada uma vez e remove a chave antiga após a transação.
+
+O editor trabalha com até 12 blocos tipados em uma única composição responsiva:
+
+- hero de destaques Kenjitsu, com 1–5 slides e autoplay configurável;
+- carrossel de catálogo Kenjitsu, com consulta tipada ou IDs AniList manuais;
+- continuar assistindo, hidratado no navegador para cada visitante;
+- filtros rápidos, aviso editorial e separador.
+
+O fluxo de publicação é explícito:
+
+1. editar o rascunho no canvas e inspector;
+2. reordenar por mouse ou teclado, duplicar, ocultar ou remover blocos;
+3. salvar o rascunho, com controle otimista de versão;
+4. abrir `/preview/homepage` para revisar o rascunho autenticado;
+5. confirmar a publicação.
+
+O rascunho pode ser descartado para restaurar a última publicação. Conflitos de versão, publicação e descarte entram no `AdminAuditLog`. A falha de uma consulta Kenjitsu afeta somente o bloco correspondente; não há fallback para outra API. Blocos manuais com IDs ausentes são ignorados e sinalizados na prévia pública.
+
+Endpoints dedicados:
+
+- `GET /api/admin/homepage` carrega rascunho e publicação;
+- `PUT /api/admin/homepage` salva o rascunho;
+- `POST /api/admin/homepage/publish` publica e invalida o cache;
+- `POST /api/admin/homepage/discard` restaura o rascunho;
+- `GET /api/homepage` entrega a Home publicada resolvida pelo Kenjitsu.
+
+## 6. Extensões Kenjitsu
 
 `/admin/extensions` trata cada extensão como uma fonte operacional. A matriz permite filtrar por:
 
@@ -79,7 +108,7 @@ Endpoints:
 
 Não há campos para hosts, M3U, URL externa ou configuração de fontes fora do Kenjitsu.
 
-## 6. Auditoria
+## 7. Auditoria
 
 Toda mudança administrativa relevante registra um `AdminAuditLog` com:
 
@@ -98,7 +127,7 @@ resourceType, resourceId, action, from, to, page, pageSize
 
 O dashboard mostra as últimas entradas e as superfícies operacionais exibem o histórico relacionado quando aplicável.
 
-## 7. Outras superfícies
+## 8. Outras superfícies
 
 As páginas `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/integrations`, `/admin/broadcasts` e `/admin/releases` usam o mesmo contrato visual e comportamental:
 
@@ -108,7 +137,7 @@ As páginas `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/inte
 - confirmação para exclusões, restore, manutenção e outras zonas de risco;
 - histórico ou feedback assíncrono visível.
 
-## 8. Contratos úteis
+## 9. Contratos úteis
 
 | Endpoint | Função |
 | :--- | :--- |
@@ -119,6 +148,11 @@ As páginas `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/inte
 | `POST /api/admin/animes/bulk` | `sync` ou `delete` em lote. |
 | `GET /api/admin/extensions` | Matriz de extensões filtrável. |
 | `POST /api/admin/extensions/bulk` | `enable` ou `disable` em lote. |
+| `GET /api/admin/homepage` | Estado do builder, versões e resumo publicado. |
+| `PUT /api/admin/homepage` | Salva o documento de rascunho validado. |
+| `POST /api/admin/homepage/publish` | Publica o rascunho com controle de versão. |
+| `POST /api/admin/homepage/discard` | Descarta o rascunho e restaura a última publicação. |
+| `GET /api/homepage` | Composição pública resolvida pelo Kenjitsu. |
 | `POST /api/admin/animes/[id]/sync` | Sincronização Kenjitsu de um anime. |
 | `POST /api/admin/animes/[id]/episodes/[epId]/discover-sources` | Candidatos live de mídia. |
 

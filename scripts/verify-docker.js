@@ -80,9 +80,18 @@ const nextConfig = readFile('next.config.ts');
 requireText(nextConfig, "output: 'standalone'", 'Next.js standalone habilitado');
 
 const schema = readFile('prisma/schema.prisma');
-for (const model of ['Anime', 'Episode', 'EpisodeSource', 'MediaProvider', 'AutoIndexerQueue', 'AdminUser', 'AdminAuditLog', 'ProviderHealthLog']) {
+for (const model of ['Anime', 'Episode', 'EpisodeSource', 'MediaProvider', 'AutoIndexerQueue', 'AdminUser', 'AdminAuditLog', 'ProviderHealthLog', 'HomepageLayout']) {
   requireText(schema, `model ${model}`, `Modelo Prisma ${model} presente`);
 }
+
+const packageJson = readFile('package.json');
+for (const dependency of ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', 'zod']) {
+  requireText(packageJson, `"${dependency}"`, `Dependência ${dependency} presente`);
+}
+
+const homepageRepository = readFile('src/lib/homepage/repository.ts');
+requireText(homepageRepository, 'ensureHomepageLayout', 'Bootstrap idempotente do layout da Home presente');
+requireText(homepageRepository, 'invalidateHomepageCache', 'Invalidação do cache da Home após publicação presente');
 
 logHeader('Resultado da validacao Docker local');
 if (hasErrors) {

@@ -39,7 +39,9 @@ app/
 └── setup/                      # instalação inicial
 ```
 
-O shell do admin fica em `app/(main)/admin/layout.tsx`. As rotas administrativas canônicas são `/admin`, `/admin/animes`, `/admin/extensions`, `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/integrations`, `/admin/broadcasts` e `/admin/releases`.
+O shell do admin fica em `app/(main)/admin/layout.tsx`. As rotas administrativas canônicas são `/admin`, `/admin/animes`, `/admin/extensions`, `/admin/homepage`, `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/integrations`, `/admin/broadcasts` e `/admin/releases`.
+
+O construtor da Home em `/admin/homepage` usa apenas blocos tipados e fontes Kenjitsu. O fluxo é `rascunho → salvar → preview → publicar`; não adicionar HTML/CSS/JS livre, upload, Markdown, M3U, hosts de mídia ou URLs externas. A Home pública usa `HomepageLayout` server-first e tolera falha por bloco sem fallback de provedor.
 
 Aliases que devem ser preservados:
 
@@ -105,6 +107,11 @@ APIs administrativas principais:
 | `GET /api/admin/extensions` | Filtros por habilitação, NSFW, status, origem e capacidade. |
 | `POST /api/admin/extensions/bulk` | `enable` ou `disable` com falhas parciais. |
 | `POST /api/admin/extensions` | Teste individual e persistência de health. |
+| `GET /api/admin/homepage` | Rascunho, publicação, versões e resumo do layout. |
+| `PUT /api/admin/homepage` | Salva documento tipado com controle otimista de versão. |
+| `POST /api/admin/homepage/publish` | Publica o rascunho e invalida o cache. |
+| `POST /api/admin/homepage/discard` | Restaura a última publicação. |
+| `GET /api/homepage` | Entrega a composição publicada resolvida pelo Kenjitsu. |
 
 Todas as rotas admin devem validar sessão com `verifyAdminAuth` e preservar mensagens/status compatíveis com os consumidores existentes.
 

@@ -28,6 +28,7 @@ O **AniStream** é uma aplicação web para descoberta, acompanhamento e reprodu
 - Dashboard com saúde do sistema, KPIs, alertas, extensões e atividade recente.
 - Catálogo com filtros, seleção em lote, sync/delete e confirmação destrutiva.
 - Editor dividido em Identidade, Metadata, Playback e Episódios, com dirty state e save bar.
+- Home inicial customizável em `/admin/homepage`, com blocos tipados, preview protegido, rascunho e publicação explícita.
 - Navegação, sistema, backups, integrações, comunicados e releases com feedback consistente.
 - `AdminAuditLog` para catálogo, extensões, navegação, manutenção, backups e integrações.
 - Aliases preservados: `/admin/dashboard`, `/admin/sources` e `/admin/sources/tester`.
@@ -66,6 +67,8 @@ Acesse `http://localhost:3000`. Em uma instalação nova, a aplicação redireci
 ```bash
 docker logs anistream_selfhosted_app
 ```
+
+Depois da instalação, abra `/admin/homepage` para ajustar a composição da Home. O layout é migrado automaticamente da configuração legada na primeira leitura, e a publicação só acontece após salvar o rascunho e confirmar a ação.
 
 O stack padrão expõe:
 

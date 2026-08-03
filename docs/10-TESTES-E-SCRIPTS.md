@@ -21,6 +21,8 @@ npm test
 A suíte Vitest cobre, entre outros pontos:
 
 - schemas administrativos;
+- schema e migração idempotente da Home customizável;
+- validação de composição, fontes Kenjitsu, limites de blocos e links internos;
 - autenticação e criptografia de playback;
 - proteção SSRF;
 - circuit breaker;
@@ -59,6 +61,7 @@ Os testes em `tests/e2e/` cobrem:
 - formulários administrativos;
 - diálogos de confirmação e foco;
 - rotas canônicas do admin;
+- `/admin/homepage` e `/preview/homepage` com sessão administrativa;
 - aliases `/admin/dashboard`, `/admin/sources` e `/admin/sources/tester`;
 - rota de edição com recurso inexistente;
 - command palette via teclado.
@@ -81,7 +84,7 @@ docker logs anistream_selfhosted_app
 docker logs anistream_selfhosted_kenjitsu
 ```
 
-O health esperado confirma PostgreSQL, Redis, aplicação e Kenjitsu. O primeiro acesso pode redirecionar para `/setup` se não houver administrador.
+O health esperado confirma PostgreSQL, Redis, aplicação e Kenjitsu. O primeiro acesso pode redirecionar para `/setup` se não houver administrador. O primeiro acesso à Home ou ao builder cria automaticamente o singleton `HomepageLayout`; a chave legada `home_sections` é removida somente após a migração transacional.
 
 ## 6. Smoke do Kenjitsu
 

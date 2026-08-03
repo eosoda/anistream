@@ -9,7 +9,7 @@ src/components/
 ├── anime/       # cards, carrosséis e detalhes de anime
 ├── player/      # player, episódios e controles de playback
 ├── catalog/     # busca, filtros e alternância de visualização
-├── home/        # hero, continuidade e lembretes
+├── home/        # renderer, hero, filtros, continuidade e avisos
 ├── layout/      # Navbar, Footer, providers e PWA
 ├── admin/       # shell, operações, editor e primitives do painel
 └── ui/          # componentes atômicos compartilhados
@@ -24,6 +24,7 @@ O admin usa a direção **Livro de operações**. Em vez de repetir cards glass,
 - [`AdminPrimitives.tsx`](../src/components/admin/AdminPrimitives.tsx): painel, tabela, filtro, status, feedback, drawer, modal, save bar e estados vazios;
 - [`OperationalPage.tsx`](../src/components/admin/OperationalPage.tsx): cabeçalho e estado das superfícies operacionais;
 - [`AdminOperations.tsx`](../src/components/admin/AdminOperations.tsx): operações de sistema, backup, broadcast, integração e release.
+- [`app/(main)/admin/homepage/page.tsx`](../app/(main)/admin/homepage/page.tsx): editor visual da composição da Home.
 
 ### Regras de composição do admin
 
@@ -36,12 +37,25 @@ O admin usa a direção **Livro de operações**. Em vez de repetir cards glass,
 - use `AdminSaveBar` quando houver dirty state;
 - coloque exclusões, restore e manutenção em uma zona de risco com confirmação explícita.
 
+### Builder da Home
+
+O construtor usa uma composição única e responsiva de blocos tipados. Não aceita HTML, CSS, JavaScript, Markdown, upload ou links externos.
+
+- `hero`: destaques Kenjitsu, de 1 a 5 slides, com autoplay controlado e respeito a reduced motion;
+- `catalog_carousel`: 6 a 12 itens, via consulta Kenjitsu ou IDs AniList manuais resolvidos pela API;
+- `continue_watching`: estado pessoal hidratado no navegador;
+- `quick_filters`: atalhos internos para pesquisa;
+- `editorial_notice`: aviso de texto simples e CTA interno;
+- `divider`: separador visual sem dados externos.
+
+O canvas permite reordenar por mouse/teclado, duplicar, ocultar e remover até 12 blocos. O inspector edita somente campos validados pelo schema Zod. O fluxo é sempre `rascunho → salvar → preview → publicar`; a publicação exige confirmação, preserva a versão publicada e invalida o cache Redis da Home.
+
 ## Domínio público
 
 - `src/components/anime/`: cards de poster, compact cards, carrosséis e personagens;
 - `src/components/player/`: `VideoPlayer`, `EpisodeList` e controles HLS/atualização;
 - `src/components/catalog/`: `SearchBar`, filtros avançados e alternância grid/lista;
-- `src/components/home/`: banner, continuar assistindo e lembretes;
+- `src/components/home/`: `HomepageRenderer`, preview, banner, carrosséis, filtros rápidos, continuar assistindo e avisos;
 - `src/components/ui/`: `SafeImage`, tooltips, badges, skeletons, empty states e banners offline.
 
 ## Acessibilidade e responsividade
