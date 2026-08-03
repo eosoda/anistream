@@ -26,6 +26,11 @@ As rotas administrativas exigem sessão válida e retornam JSON orientado ao pai
 | `GET /api/admin/extensions` | Aceita `enabled`, `nsfw`, `status`, `source` e `capability`. |
 | `POST /api/admin/extensions/bulk` | Aceita `ids` e `action: enable|disable`. |
 | `GET /api/admin/audit` | Aceita `resourceType`, `resourceId`, `action`, `from`, `to`, `page` e `pageSize`. |
+| `GET /api/admin/homepage` | Retorna rascunho, publicação, versões e resumo do layout. |
+| `PUT /api/admin/homepage` | Salva documento tipado com `expectedDraftVersion`. |
+| `POST /api/admin/homepage/publish` | Publica com `expectedDraftVersion` e `expectedPublishedVersion`. |
+| `POST /api/admin/homepage/discard` | Restaura o rascunho para a última publicação. |
+| `GET /api/homepage` | Resolve a composição publicada por bloco usando o Kenjitsu. |
 
 Falhas parciais de bulk retornam os itens que concluíram e os erros individuais. A indisponibilidade do Kenjitsu é representada explicitamente por `down` ou `unknown`; o app não troca silenciosamente de fonte.
 

@@ -35,6 +35,8 @@ flowchart TD
 ### Interface pública
 
 - `app/(main)` contém home, catálogo, detalhes, favoritos, calendário e player.
+- A Home (`app/(home)/page.tsx`) é server-first: carrega a composição publicada em `HomepageLayout`, resolve cada bloco pelo Kenjitsu e envia estados `ready`, `empty`, `error` ou `client` para o renderer.
+- `src/components/home/HomepageRenderer.tsx` mantém a composição tipada; dados pessoais, como continuar assistindo, são hidratados somente no navegador.
 - O catálogo público usa os dados sincronizados/administrados no AniStream e consulta o Kenjitsu para metadados, episódios e resolução de mídia.
 - O player mantém HLS, embeds, legendas, seleção de qualidade, retomada, atalhos e pular abertura.
 
@@ -53,7 +55,27 @@ flowchart TD
 - As extensões são tratadas como fontes: podem ser habilitadas, desabilitadas, filtradas, testadas e auditadas pelo painel.
 - O AniStream não troca silenciosamente para Jikan, AniList, Kitsu, Consumet, scrapers ou M3U quando o Kenjitsu falha.
 
-## 3. Extensões como fontes operacionais
+## 3. Composição da Home
+
+`HomepageLayout` é um singleton com `draftJson`, `publishedJson` e versões independentes. A primeira leitura executa uma migração idempotente da chave legada `SystemSetting.home_sections`; depois da criação bem-sucedida, a chave é removida e não é mais lida em runtime.
+
+O admin edita somente documentos aceitos por `src/schemas/homepage.ts`. O documento permite os blocos `hero`, `catalog_carousel`, `continue_watching`, `quick_filters`, `editorial_notice` e `divider`, com no máximo 12 itens. Fontes dinâmicas e IDs manuais passam pelo mesmo resolver Kenjitsu; não há HTML livre, upload, M3U ou fallback de provedor.
+
+O fluxo público é:
+
+```mermaid
+flowchart LR
+    HomeRequest["GET /"] --> LayoutCache["Redis/memória: composição publicada"]
+    LayoutCache --> LayoutDB["HomepageLayout.publishedJson"]
+    LayoutDB --> BlockResolver["Resolver por bloco"]
+    BlockResolver --> KenjitsuAPI["Kenjitsu self-hosted"]
+    BlockResolver --> PublicRenderer["HomepageRenderer"]
+    PublicRenderer --> Browser
+```
+
+Uma falha de consulta marca apenas o bloco afetado. O cache de layout é invalidado na publicação; respostas Kenjitsu usam TTL de cinco minutos por configuração. A composição emergencial local serve apenas quando layout/DB falham e nunca substitui o Kenjitsu como fonte de animes ou episódios.
+
+## 4. Extensões como fontes operacionais
 
 O Kenjitsu registra os manifests das extensões e expõe o health agregado. O AniStream persiste somente o estado administrativo necessário para operar essas fontes:
 
@@ -64,18 +86,19 @@ O Kenjitsu registra os manifests das extensões e expõe o health agregado. O An
 
 O código das extensões vive nos forks/self-hosted dos repositórios Kenjitsu. Atualizações devem ser feitas nos forks, em branches e PRs próprios, sem modificar os repositórios oficiais.
 
-## 4. Persistência e auditoria
+## 5. Persistência e auditoria
 
 O PostgreSQL mantém o estado operacional do AniStream. Além das entidades de catálogo, usuários e episódios, a arquitetura atual usa:
 
 - `AdminAuditLog`: ator, ação, tipo/id do recurso, resumo, metadata sanitizada e data;
 - `ProviderHealthLog`: histórico de testes por extensão, latência, status e erro;
+- `HomepageLayout`: rascunho, publicação, versões e atores da Home;
 - configurações administrativas das extensões Kenjitsu;
 - estado local de navegação, comunicados, releases, backups e integrações.
 
 `src/lib/admin/audit.ts` remove chaves sensíveis e limita metadata antes de persistir. O histórico é consultável no dashboard e em `GET /api/admin/audit`.
 
-## 5. Contratos administrativos principais
+## 6. Contratos administrativos principais
 
 | Endpoint | Uso |
 | :--- | :--- |
@@ -87,12 +110,17 @@ O PostgreSQL mantém o estado operacional do AniStream. Além das entidades de c
 | `GET /api/admin/extensions` | Extensões com filtros de habilitação, NSFW, status, origem e capacidade. |
 | `POST /api/admin/extensions/bulk` | Habilitação ou desabilitação em lote. |
 | `POST /api/admin/extensions` | Teste individual com persistência de health. |
+| `GET /api/admin/homepage` | Estado do builder e versões do layout. |
+| `PUT /api/admin/homepage` | Salva rascunho com controle otimista. |
+| `POST /api/admin/homepage/publish` | Publica e invalida o cache público. |
+| `POST /api/admin/homepage/discard` | Restaura o rascunho publicado. |
+| `GET /api/homepage` | Entrega a composição pública resolvida. |
 | `POST /api/admin/animes/[id]/sync` | Sincronização do anime usando o Kenjitsu. |
 | `POST /api/admin/animes/[id]/episodes/[epId]/discover-sources` | Descoberta live das fontes pelas extensões habilitadas. |
 
 Todas as rotas administrativas exigem sessão válida. A resposta pode indicar indisponibilidade do Kenjitsu sem apagar configurações locais nem inventar resultados.
 
-## 6. Mídia e segurança
+## 7. Mídia e segurança
 
 As URLs de reprodução são retornadas pelo Kenjitsu em tempo real. Não existe configuração administrativa de hosts autorizados, cadastro manual de URL de stream ou fallback de provedor externo.
 
@@ -100,7 +128,7 @@ Mesmo assim, cada URL passa por `src/lib/security/ssrf.ts`. A validação bloque
 
 HLS é validado por `src/lib/streams/hls-validator.ts`. A validação confirma status HTTP, content type compatível e a tag `#EXTM3U`; isso é uma proteção do playback, não uma fonte de catálogo.
 
-## 7. Execução local e atualização
+## 8. Execução local e atualização
 
 O ambiente oficial desta fase é local:
 

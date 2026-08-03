@@ -73,7 +73,7 @@ export function QuickMultiFilter({ filters, onChange, onReset }: QuickMultiFilte
           <Filter size={15} />
           <span>Filtro Combinado Rápido</span>
           {activeCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-[#FF6B00] text-white text-[10px] font-extrabold shadow-sm">
+            <span className="px-2 py-0.5 rounded-full bg-[#FF6B00] text-[#170a02] text-[10px] font-extrabold shadow-sm">
               {activeCount} ativo{activeCount > 1 ? 's' : ''}
             </span>
           )}
@@ -107,7 +107,7 @@ export function QuickMultiFilter({ filters, onChange, onReset }: QuickMultiFilte
                 onClick={() => onChange({ ...filters, genre: g.id })}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-xl font-bold text-xs transition-all border whitespace-nowrap ${
                   isSelected
-                    ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-md shadow-[#FF6B00]/30 scale-102'
+                    ? 'bg-[#FF6B00] text-[#170a02] border-[#FF6B00] shadow-md shadow-[#FF6B00]/30 scale-102'
                     : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/5 hover:border-white/20'
                 }`}
               >
@@ -135,7 +135,7 @@ export function QuickMultiFilter({ filters, onChange, onReset }: QuickMultiFilte
                   onClick={() => onChange({ ...filters, status: st.id as any })}
                   className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all border ${
                     isSelected
-                      ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-md shadow-[#FF6B00]/30'
+                      ? 'bg-[#FF6B00] text-[#170a02] border-[#FF6B00] shadow-md shadow-[#FF6B00]/30'
                       : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/5'
                   }`}
                 >
@@ -161,7 +161,7 @@ export function QuickMultiFilter({ filters, onChange, onReset }: QuickMultiFilte
                   onClick={() => onChange({ ...filters, orderBy: so.id as any })}
                   className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all border ${
                     isSelected
-                      ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-md shadow-[#FF6B00]/30'
+                      ? 'bg-[#FF6B00] text-[#170a02] border-[#FF6B00] shadow-md shadow-[#FF6B00]/30'
                       : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/5'
                   }`}
                 >

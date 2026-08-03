@@ -2,15 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowDown, ArrowUp, Compass, Eye, EyeOff, FileText, Home, Layout, Loader2, Save } from 'lucide-react';
-import type { HomeSectionConfig, NavItemConfig, PageFeatureConfig } from '@/types/navigation';
+import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Layout, Loader2, Save } from 'lucide-react';
+import type { NavItemConfig, PageFeatureConfig } from '@/types/navigation';
 import { AdminEmptyState, AdminFeedback, AdminPageHeader, AdminPanel, AdminSaveBar, AdminStatusBadge } from '@/components/admin';
 
-type NavigationState = { navigation: NavItemConfig[]; pages: PageFeatureConfig[]; homeSections: HomeSectionConfig[] };
-const emptyState: NavigationState = { navigation: [], pages: [], homeSections: [] };
+type NavigationState = { navigation: NavItemConfig[]; pages: PageFeatureConfig[] };
+const emptyState: NavigationState = { navigation: [], pages: [] };
 
 export default function AdminNavigationPage() {
-  const [activeTab, setActiveTab] = useState<'navbar' | 'pages' | 'home'>('navbar');
+  const [activeTab, setActiveTab] = useState<'navbar' | 'pages'>('navbar');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
@@ -23,7 +23,7 @@ export default function AdminNavigationPage() {
     fetch('/api/admin/navigation', { signal: controller.signal }).then(async (response) => {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar a navegação.');
-      const nextState: NavigationState = { navigation: payload.data?.navigation || [], pages: payload.data?.pages || [], homeSections: payload.data?.homeSections || [] };
+      const nextState: NavigationState = { navigation: payload.data?.navigation || [], pages: payload.data?.pages || [] };
       setState(nextState);
       setSavedState(nextState);
     }).catch((loadError) => { if (loadError.name !== 'AbortError') setFeedback({ tone: 'danger', message: loadError instanceof Error ? loadError.message : 'Falha ao carregar a navegação.' }); }).finally(() => setLoading(false));
@@ -34,7 +34,7 @@ export default function AdminNavigationPage() {
     setSaving(true);
     setFeedback(null);
     try {
-      const response = await fetch('/api/admin/navigation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) });
+      const response = await fetch('/api/admin/navigation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ navigation: state.navigation, pages: state.pages }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error?.message || payload.error || 'Falha ao salvar a navegação.');
       setSavedState(state);
@@ -61,15 +61,6 @@ export default function AdminNavigationPage() {
   });
   const togglePage = (id: string) => setState((current) => ({ ...current, pages: current.pages.map((item) => item.id === id ? { ...item, enabled: !item.enabled } : item) }));
   const updatePageMessage = (id: string, message: string) => setState((current) => ({ ...current, pages: current.pages.map((item) => item.id === id ? { ...item, disabledMessage: message } : item) }));
-  const toggleHomeSection = (id: string) => setState((current) => ({ ...current, homeSections: current.homeSections.map((item) => item.id === id ? { ...item, enabled: !item.enabled } : item) }));
-  const moveHomeSection = (index: number, direction: 'up' | 'down') => setState((current) => {
-    const target = direction === 'up' ? index - 1 : index + 1;
-    if (target < 0 || target >= current.homeSections.length) return current;
-    const next = [...current.homeSections];
-    [next[index], next[target]] = [next[target], next[index]];
-    return { ...current, homeSections: next.map((item, itemIndex) => ({ ...item, order: itemIndex + 1 })) };
-  });
-
   if (loading) {
     return <div className="admin-empty-state min-h-[420px]" aria-live="polite"><Loader2 size={24} className="animate-spin text-[#FF6B00]" aria-hidden="true" /><h2>Carregando navegação</h2><p>Consultando configurações publicadas.</p></div>;
   }
@@ -77,12 +68,11 @@ export default function AdminNavigationPage() {
   const tabs = [
     { id: 'navbar' as const, label: `Menu (${state.navigation.length})`, icon: Layout },
     { id: 'pages' as const, label: `Páginas (${state.pages.length})`, icon: FileText },
-    { id: 'home' as const, label: `Home (${state.homeSections.length})`, icon: Home },
   ];
 
   return (
     <div className="space-y-5 pb-28">
-      <AdminPageHeader eyebrow="Gerenciar / Experiência" title="Navegação" description="Publique a ordem do menu, a disponibilidade de páginas e as seções da Home." breadcrumbs={[{ label: 'Navegação' }]} actions={<div className="flex flex-wrap gap-2"><Link href="/admin" className="admin-button is-ghost">Voltar à visão geral</Link><button type="button" className="admin-button is-primary" onClick={() => void save()} disabled={saving || !dirty}>{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Publicar alterações</button></div>} />
+      <AdminPageHeader eyebrow="Gerenciar / Experiência" title="Navegação" description="Publique a ordem do menu e a disponibilidade das páginas. A composição visual da Home tem um construtor próprio." breadcrumbs={[{ label: 'Navegação' }]} actions={<div className="flex flex-wrap gap-2"><Link href="/admin/homepage" className="admin-button is-ghost">Editar Home</Link><Link href="/admin" className="admin-button is-ghost">Voltar à visão geral</Link><button type="button" className="admin-button is-primary" onClick={() => void save()} disabled={saving || !dirty}>{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Publicar alterações</button></div>} />
       {feedback && <AdminFeedback tone={feedback.tone} onDismiss={() => setFeedback(null)}>{feedback.message}</AdminFeedback>}
 
       <div className="flex flex-wrap gap-2 border-b border-[var(--admin-line)] pb-3" role="tablist" aria-label="Configurações de navegação">
@@ -100,10 +90,6 @@ export default function AdminNavigationPage() {
           {state.pages.length === 0 ? <AdminEmptyState title="Nenhuma página configurável" description="A configuração retornada não contém páginas editáveis." /> : <div className="divide-y divide-[var(--admin-line)]">{state.pages.map((page) => <div key={page.id} className="space-y-3 px-4 py-4 sm:px-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-[var(--admin-text)]">{page.name}</p><p className="mt-1 font-mono text-[11px] text-[var(--admin-dim)]">{page.href}</p></div><button type="button" className="admin-button is-ghost self-start sm:self-auto" onClick={() => togglePage(page.id)}><AdminStatusBadge status={page.enabled ? 'healthy' : 'unknown'} label={page.enabled ? 'Página no ar' : 'Página desativada'} /></button></div>{!page.enabled && <label className="admin-field-group border-t border-[var(--admin-line)] pt-3"><span className="admin-field-label">Mensagem exibida ao usuário</span><textarea className="admin-field min-h-20 resize-y" rows={2} value={page.disabledMessage} onChange={(event) => updatePageMessage(page.id, event.target.value)} placeholder="Explique a indisponibilidade temporária." /></label>}</div>)}</div>}
         </AdminPanel>}
 
-        {activeTab === 'home' && <AdminPanel>
-          <div className="admin-panel-header"><div><p className="admin-eyebrow">Página inicial</p><h2 className="admin-section-title">Seções da Home</h2><p className="admin-section-description">Controle visibilidade e ordem dos blocos sem arrastar elementos.</p></div></div>
-          {state.homeSections.length === 0 ? <AdminEmptyState title="Nenhuma seção configurável" description="A configuração retornada não contém seções editáveis." /> : <div className="divide-y divide-[var(--admin-line)]">{state.homeSections.map((section, index) => <div key={section.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div className="flex items-center gap-3"><span className="grid size-8 place-items-center border border-[var(--admin-line)] font-mono text-xs text-[var(--admin-dim)]">{section.order}</span><span className="text-sm font-semibold text-[var(--admin-text)]">{section.name}</span></div><div className="flex flex-wrap items-center gap-2"><button type="button" className="admin-icon-button" onClick={() => moveHomeSection(index, 'up')} disabled={index === 0} aria-label={`Mover ${section.name} para cima`}><ArrowUp size={16} /></button><button type="button" className="admin-icon-button" onClick={() => moveHomeSection(index, 'down')} disabled={index === state.homeSections.length - 1} aria-label={`Mover ${section.name} para baixo`}><ArrowDown size={16} /></button><button type="button" className="admin-button is-ghost" onClick={() => toggleHomeSection(section.id)}><AdminStatusBadge status={section.enabled ? 'healthy' : 'unknown'} label={section.enabled ? 'Exibida na Home' : 'Oculta da Home'} /></button></div></div>)}</div>}
-        </AdminPanel>}
       </div>
 
       <AdminSaveBar dirty={dirty} saving={saving} onSave={() => void save()} onDiscard={discard} label="Há alterações de navegação não publicadas" />

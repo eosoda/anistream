@@ -307,6 +307,7 @@ const commandItems: CommandItem[] = [
   { label: 'Visão geral', description: 'Saúde e prioridades do painel', href: '/admin' },
   { label: 'Catálogo', description: 'Animes e episódios', href: '/admin/animes' },
   { label: 'Extensões Kenjitsu', description: 'Fontes, saúde e ativação', href: '/admin/extensions' },
+  { label: 'Construtor da Home', description: 'Blocos, preview e publicação', href: '/admin/homepage' },
   { label: 'Navegação', description: 'Menu e seções da Home', href: '/admin/navigation' },
   { label: 'Sistema', description: 'Manutenção e disponibilidade', href: '/admin/system' },
   { label: 'Backups', description: 'Exportação e restauração', href: '/admin/backups' },

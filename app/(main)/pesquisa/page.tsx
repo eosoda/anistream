@@ -4,7 +4,7 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { searchAvailableAnime } from '@/services/localAnimeSearch';
+import { searchAvailableAnime, type LocalAnimeSearchFilters } from '@/services/localAnimeSearch';
 import { localSearchItemToAnime } from '@/types/local-search';
 import { SearchBar } from '@/components/catalog/SearchBar';
 import { AnimeCard } from '@/components/anime/AnimeCard';
@@ -13,7 +13,9 @@ import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
 import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 
-function SearchResults({ query }: { query: string }) {
+function SearchResults({ query, filters }: { query: string; filters: LocalAnimeSearchFilters }) {
+  const hasFilters = Object.values(filters).some((value) => value !== undefined && value !== '');
+  const hasSearch = query.length > 0 || hasFilters;
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === 'undefined') return 'grid';
@@ -27,9 +29,9 @@ function SearchResults({ query }: { query: string }) {
   };
 
   const { data: searchData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['availableAnimeSearch', query, page],
-    queryFn: ({ signal }) => searchAvailableAnime(query, page, 24, signal),
-    enabled: query.length > 0,
+    queryKey: ['availableAnimeSearch', query, filters, page],
+    queryFn: ({ signal }) => searchAvailableAnime(query, page, 24, signal, filters),
+    enabled: hasSearch,
   });
   const animes = useMemo(() => searchData?.data.map(localSearchItemToAnime) || [], [searchData]);
 
@@ -41,10 +43,10 @@ function SearchResults({ query }: { query: string }) {
         <SearchBar placeholder="Digite o nome do anime..." initialQuery={query} />
       </div>
 
-      {query && (
+      {hasSearch && (
         <div className="border-b border-white/10 pb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg md:text-xl font-bold text-white">
-            Resultados para &quot;<span className="text-[#FF6B00]">{query}</span>&quot;
+            {query ? <>Resultados para &quot;<span className="text-[#FF6B00]">{query}</span>&quot;</> : 'Resultados filtrados'}
           </h2>
           <div className="flex items-center gap-3">
             {searchData && <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-gray-300">{searchData.pagination.totalItems} encontrados</span>}
@@ -55,7 +57,7 @@ function SearchResults({ query }: { query: string }) {
 
       {isError && <EmptyState title="Erro ao buscar animes" description="Não foi possível consultar o catálogo local. Tente novamente." onRetry={refetch} retryText="Tentar novamente" />}
 
-      {!isError && query ? (
+      {!isError && hasSearch ? (
         viewMode === 'grid' ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {isLoading ? Array.from({ length: 12 }).map((_, index) => <AnimeCardSkeleton key={index} />) : animes.map((anime, index) => <AnimeCard key={anime.mal_id} anime={anime} index={index} />)}
@@ -65,11 +67,11 @@ function SearchResults({ query }: { query: string }) {
             {isLoading ? Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-20 bg-white/5 rounded-2xl animate-pulse" />) : animes.map((anime, index) => <CompactAnimeCard key={anime.mal_id} anime={anime} index={index} />)}
           </div>
         )
-      ) : !query ? (
+      ) : !hasSearch ? (
         <EmptyState title="Pesquise um anime disponível" description="Digite pelo menos parte do título para pesquisar no catálogo do AniStream." actionHref="/populares" actionText="Ver Animes Populares" />
       ) : null}
 
-      {!isLoading && !isError && query && animes.length === 0 && (
+      {!isLoading && !isError && hasSearch && animes.length === 0 && (
         <EmptyState title="Nenhum anime disponível encontrado" description={`Não encontramos um título disponível correspondente a "${query}".`} actionHref="/populares" actionText="Ver Animes Populares" />
       )}
 
@@ -91,7 +93,12 @@ function SearchResults({ query }: { query: string }) {
 function SearchContent() {
   const searchParams = useSearchParams();
   const query = (searchParams.get('q') || '').trim();
-  return <SearchResults key={query} query={query} />;
+  const filters: LocalAnimeSearchFilters = {
+    status: (searchParams.get('status') as LocalAnimeSearchFilters['status']) || undefined,
+    orderBy: (searchParams.get('orderBy') as LocalAnimeSearchFilters['orderBy']) || undefined,
+    genres: searchParams.get('genres') || undefined,
+  };
+  return <SearchResults key={`${query}:${JSON.stringify(filters)}`} query={query} filters={filters} />;
 }
 
 export default function SearchPage() {

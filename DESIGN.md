@@ -28,6 +28,16 @@ Quiet and low-distraction. The player owns the hierarchy. Source, quality, openi
 
 Dense, flat, and comparable. Prefer tables, grouped rows, split panes, and sparse dividers over decorative cards. Status colors are semantic. Dangerous actions live in explicit risk areas.
 
+### Homepage builder
+
+The homepage editor is an operational composition tool, not a freeform page builder. The canvas uses a vertical stack, a visible order index, a dedicated keyboard drag handle, and a right-side inspector. The public preview keeps the same global responsive composition used by the published page.
+
+- typed blocks only: hero, catalog carousel, continue watching, quick filters, editorial notice, and divider;
+- no HTML, CSS, JavaScript, Markdown, upload, external URL, M3U, or manual media host fields;
+- draft changes are visible through a fixed save bar and never affect visitors until publish confirmation;
+- publish, discard, and version conflicts use explicit feedback and audit events;
+- Kenjitsu failures are represented per block with recoverable status, never by silently switching providers.
+
 ## Color and material
 
 - Page: `#0B0B0F`.

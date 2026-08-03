@@ -10,6 +10,7 @@ import {
   Film,
   Flame,
   LayoutDashboard,
+  LayoutTemplate,
   Navigation,
   PlugZap,
   Puzzle,
@@ -46,6 +47,7 @@ const navGroups: Array<{ label: string; items: AdminNavItem[] }> = [
     label: 'Gerenciar',
     items: [
       { name: 'Animes e episódios', href: '/admin/animes', exact: false, icon: Film },
+      { name: 'Construtor da Home', href: '/admin/homepage', exact: true, icon: LayoutTemplate },
       { name: 'Navegação', href: '/admin/navigation', exact: true, icon: Navigation },
     ],
   },
