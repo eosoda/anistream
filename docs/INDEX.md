@@ -16,6 +16,7 @@ Este índice organiza a documentação técnica, de produto, execução local e 
 | [`08-DEPLOYMENT-E-RAILWAY.md`](./08-DEPLOYMENT-E-RAILWAY.md) | Docker e deployment futuro | Para execução self-hosted e referência de hospedagem; Railway não é usado na validação atual. |
 | [`09-PAINEL-ADMINISTRATIVO.md`](./09-PAINEL-ADMINISTRATIVO.md) | Painel operacional | Para setup, dashboard, catálogo, Home customizável, extensões, auditoria e rotas admin. |
 | [`10-TESTES-E-SCRIPTS.md`](./10-TESTES-E-SCRIPTS.md) | Testes locais | Para Vitest, Playwright, Docker, TypeScript e smoke Kenjitsu. |
+| [`11-CALENDARIO-RELEASE-SCHEDULE.md`](./11-CALENDARIO-RELEASE-SCHEDULE.md) | Calendário semanal | Para o contrato público, regras administrativas, timezones, cache e operação. |
 | [`KENJITSU-SELF-HOSTED.md`](./KENJITSU-SELF-HOSTED.md) | Kenjitsu self-hosted | Para os três forks, Compose, health, smoke e atualização via upstream. |
 
 ## Ordem recomendada

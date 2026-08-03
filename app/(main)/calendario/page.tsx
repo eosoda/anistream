@@ -1,201 +1,143 @@
 'use client';
 
-import React, { useState } from 'react';
 import Link from 'next/link';
-import { Calendar, Clock, Play, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { AlertTriangle, Calendar, ChevronLeft, ChevronRight, Clock, RefreshCw } from 'lucide-react';
 import { SafeImage } from '@/components/ui/SafeImage';
+import { addDays, localWeekStart } from '@/lib/calendar/time';
+import type { ReleaseScheduleCalendar } from '@/types/calendar';
 
-const DAYS_OF_WEEK = [
-  { id: 'segunda', label: 'Segunda-feira' },
-  { id: 'terca', label: 'Terça-feira' },
-  { id: 'quarta', label: 'Quarta-feira' },
-  { id: 'quinta', label: 'Quinta-feira' },
-  { id: 'sexta', label: 'Sexta-feira' },
-  { id: 'sabado', label: 'Sábado' },
-  { id: 'domingo', label: 'Domingo' },
-];
+const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
 
-const MOCK_SCHEDULE: Record<string, any[]> = {
-  segunda: [
-    {
-      id: 'vinland-saga-2',
-      title: 'Vinland Saga Season 2',
-      time: '12:30',
-      episode: 'Episódio 14',
-      posterUrl: 'https://cdn.myanimelist.net/images/anime/1170/124312l.jpg',
-      audio: 'Dublado / Legendado',
-    },
-  ],
-  terca: [
-    {
-      id: 'chainsaw-man',
-      title: 'Chainsaw Man',
-      time: '13:00',
-      episode: 'Episódio 12',
-      posterUrl: 'https://cdn.myanimelist.net/images/anime/1806/126216l.jpg',
-      audio: 'Legendado',
-    },
-  ],
-  quarta: [
-    {
-      id: 'jujutsu-kaisen-2',
-      title: 'Jujutsu Kaisen Season 2',
-      time: '14:00',
-      episode: 'Episódio 18',
-      posterUrl: 'https://cdn.myanimelist.net/images/anime/1792/138022l.jpg',
-      audio: 'Dublado / Legendado',
-    },
-  ],
-  quinta: [
-    {
-      id: 'dr-stone-3',
-      title: 'Dr. Stone: New World',
-      time: '11:30',
-      episode: 'Episódio 09',
-      posterUrl: 'https://cdn.myanimelist.net/images/anime/1429/134468l.jpg',
-      audio: 'Dublado',
-    },
-  ],
-  sexta: [
-    {
-      id: 'frieren',
-      title: 'Frieren: Beyond Journey\'s End',
-      time: '12:00',
-      episode: 'Episódio 24',
-      posterUrl: 'https://cdn.myanimelist.net/images/anime/1015/138025l.jpg',
-      audio: 'Dublado / Legendado',
-    },
-  ],
-  sabado: [
-    {
-      id: 'demon-slayer-4',
-      title: 'Demon Slayer: Hashira Training Arc',
-      time: '14:30',
-      episode: 'Episódio 08',
-      posterUrl: 'https://cdn.myanimelist.net/images/anime/1423/140228l.jpg',
-      audio: 'Dublado / Legendado',
-    },
-    {
-      id: 'solo-leveling',
-      title: 'Solo Leveling',
-      time: '15:00',
-      episode: 'Episódio 12',
-      posterUrl: 'https://cdn.myanimelist.net/images/anime/1869/140994l.jpg',
-      audio: 'Dublado',
-    },
-  ],
-  domingo: [
-    {
-      id: 'one-piece',
-      title: 'One Piece',
-      time: '10:00',
-      episode: 'Episódio 1115',
-      posterUrl: 'https://cdn.myanimelist.net/images/anime/6/73245l.jpg',
-      audio: 'Legendado',
-    },
-    {
-      id: 'my-hero-academia-7',
-      title: 'My Hero Academia Season 7',
-      time: '06:30',
-      episode: 'Episódio 15',
-      posterUrl: 'https://cdn.myanimelist.net/images/anime/1258/141040l.jpg',
-      audio: 'Dublado / Legendado',
-    },
-  ],
-};
+function browserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIMEZONE;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
+}
+
+function formatWeekLabel(weekStart: string, timezone: string): string {
+  const start = new Date(`${weekStart}T12:00:00Z`);
+  const end = new Date(`${addDays(weekStart, 6)}T12:00:00Z`);
+  return `${new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', timeZone: timezone }).format(start)} — ${new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', timeZone: timezone }).format(end)}`;
+}
 
 export default function CalendarPage() {
-  const [selectedDay, setSelectedDay] = useState('sabado');
+  const timezone = useSyncExternalStore(() => () => undefined, browserTimezone, () => DEFAULT_TIMEZONE);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekStart = useMemo(() => addDays(localWeekStart(timezone), weekOffset * 7), [timezone, weekOffset]);
+  const [calendar, setCalendar] = useState<ReleaseScheduleCalendar | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const releases = MOCK_SCHEDULE[selectedDay] || [];
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({ timezone, weekStart });
+      const response = await fetch(`/api/calendar?${params.toString()}`, { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error?.message || 'Não foi possível carregar o calendário.');
+      setCalendar(payload.data);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Não foi possível carregar o calendário.');
+      setCalendar(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // O efeito sincroniza a consulta com a semana/timezone selecionados.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+    // A alteração de semana ou timezone é a única intenção deste efeito.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timezone, weekStart]);
+
+  const totalItems = useMemo(() => calendar?.days.reduce((total, day) => total + day.items.length, 0) || 0, [calendar]);
+  const todayWeek = timezone ? localWeekStart(timezone) : weekStart;
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F] text-white p-6 sm:p-10 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 glass-panel">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-[#FF6B00]/20 text-[#FF6B00]">
-            <Calendar size={28} />
-          </div>
+    <main className="mx-auto min-h-screen w-full max-w-[1600px] space-y-6 px-4 py-8 text-white sm:px-8 lg:px-10">
+      <header className="flex flex-col gap-5 border-b border-white/10 pb-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex items-start gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#FF6B00]/15 text-[#FF6B00]">
+            <Calendar size={25} aria-hidden="true" />
+          </span>
           <div>
-            <h1 className="text-2xl font-black text-white">Calendário de Lançamentos Semanal</h1>
-            <p className="text-xs text-gray-400">
-              Acompanhe os dias e horários de exibição dos novos episódios da temporada
-            </p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#FF8A3D]">Release Schedule</p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Calendário semanal</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">Veja quando os animes devem sair, organizados pelo horário do seu dispositivo.</p>
           </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">{timezone.replace('_', ' ')}</span>
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">{totalItems} lançamento(s)</span>
+          <button type="button" onClick={() => void load()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 px-3 font-semibold text-gray-300 transition hover:border-[#FF6B00]/50 hover:text-white" disabled={loading}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" /> Atualizar
+          </button>
+        </div>
+      </header>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-white">{weekStart ? formatWeekLabel(weekStart, timezone) : 'Carregando semana…'}</p>
+          <p className="mt-1 text-xs text-gray-500">Horários aproximados, sincronizados pelo Kenjitsu.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs font-bold text-gray-300 transition hover:border-[#FF6B00]/50 hover:text-white" onClick={() => setWeekOffset((current) => current - 1)} disabled={loading}>
+            <ChevronLeft size={15} aria-hidden="true" /> Anterior
+          </button>
+          <button type="button" className="min-h-10 rounded-xl border border-[#FF6B00]/40 px-3 text-xs font-bold text-[#FF9A5B] transition hover:bg-[#FF6B00]/10" onClick={() => setWeekOffset(0)} disabled={loading}>Hoje</button>
+          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs font-bold text-gray-300 transition hover:border-[#FF6B00]/50 hover:text-white" onClick={() => setWeekOffset((current) => current + 1)} disabled={loading}>
+            Próxima <ChevronRight size={15} aria-hidden="true" />
+          </button>
         </div>
       </div>
 
-      {/* Seletor dos Dias da Semana */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        {DAYS_OF_WEEK.map((day) => (
-          <button
-            key={day.id}
-            onClick={() => setSelectedDay(day.id)}
-            className={`px-5 py-3 rounded-2xl font-bold text-xs whitespace-nowrap transition-all border ${
-              selectedDay === day.id
-                ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-lg shadow-[#FF6B00]/30 scale-105'
-                : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            {day.label}
-          </button>
-        ))}
-      </div>
+      {error && <div className="flex items-start gap-3 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100" role="alert"><AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" /><span>{error}</span></div>}
+      {calendar?.warnings.length ? <div className="flex items-start gap-3 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100" role="status"><AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" /><span>{calendar.warnings[0]}{calendar.warnings.length > 1 ? ` (+${calendar.warnings.length - 1} aviso(s))` : ''}</span></div> : null}
 
-      {/* Grade de Lançamentos do Dia */}
-      <div className="space-y-4">
-        <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-white/10 pb-3">
-          <Sparkles size={18} className="text-[#FF6B00]" />
-          <span>Episódios Previstos — {DAYS_OF_WEEK.find((d) => d.id === selectedDay)?.label}</span>
-        </h2>
-
-        {releases.length === 0 ? (
-          <div className="p-12 text-center rounded-3xl bg-white/5 border border-white/10 space-y-2">
-            <p className="text-sm font-bold text-gray-300">Nenhum lançamento agendado para este dia.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {releases.map((anime) => (
-              <Link
-                key={anime.id}
-                href={`/anime/${anime.id}`}
-                className="p-4 rounded-3xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all flex gap-4 group"
-              >
-                <div className="w-24 aspect-[2/3] relative rounded-2xl overflow-hidden bg-black flex-shrink-0 shadow-lg border border-white/10">
-                  <SafeImage
-                    src={anime.posterUrl}
-                    alt={anime.title}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+      {loading ? (
+        <div className="grid gap-3 md:grid-cols-7" role="status" aria-live="polite" aria-label="Carregando calendário">
+          {Array.from({ length: 7 }).map((_, index) => <div key={index} className="min-h-52 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />)}
+        </div>
+      ) : calendar?.state === 'empty' && !totalItems ? (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-6 py-16 text-center">
+          <Calendar size={26} className="mx-auto text-gray-500" aria-hidden="true" />
+          <h2 className="mt-4 text-base font-bold">Nenhum lançamento nesta semana</h2>
+          <p className="mt-2 text-sm text-gray-500">A agenda automática não retornou lançamentos para o período selecionado.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-7">
+          {calendar?.days.map((day) => (
+            <section key={day.date} className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
+              <header className="border-b border-white/10 bg-white/[0.025] px-4 py-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#FF8A3D] md:hidden">{day.label}</p>
+                <div className="flex items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-bold text-white md:text-center md:text-xs md:uppercase md:tracking-wider md:text-gray-300">{day.shortLabel}</h2>
+                  <time dateTime={day.date} className="text-xs text-gray-500">{day.date.slice(8, 10)}/{day.date.slice(5, 7)}</time>
                 </div>
-
-                <div className="flex-1 flex flex-col justify-between py-1">
-                  <div>
-                    <div className="flex items-center gap-1.5 text-[#FF6B00] font-bold text-xs mb-1">
-                      <Clock size={14} />
-                      <span>{anime.time}</span>
-                    </div>
-
-                    <h3 className="text-sm font-bold text-white group-hover:text-[#FF6B00] transition-colors line-clamp-1">
-                      {anime.title}
-                    </h3>
-                    <p className="text-xs text-gray-400 font-semibold">{anime.episode}</p>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/10 text-gray-300">
-                      {anime.audio}
+              </header>
+              <div className="divide-y divide-white/10">
+                {day.items.length ? day.items.map((item) => (
+                  <Link key={item.id} href={`/anime/${item.anilistId}`} className="group flex gap-3 px-3 py-3 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#FF6B00]">
+                    <span className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-black/30">
+                      {item.posterUrl ? <SafeImage src={item.posterUrl} alt="" fill className="object-cover transition duration-300 group-hover:scale-105" /> : <span className="grid size-full place-items-center text-[10px] text-gray-600">Sem capa</span>}
                     </span>
-                    <Play size={16} className="text-gray-400 group-hover:text-[#FF6B00] transition-colors" />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-bold text-gray-100 group-hover:text-[#FF9A5B]">{item.title}</span>
+                      <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500"><Clock size={11} aria-hidden="true" /> aprox. {item.time}</span>
+                    </span>
+                  </Link>
+                )) : <p className="px-3 py-5 text-xs text-gray-600">Nenhum lançamento</p>}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+    </main>
   );
 }

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   ChevronLeft,
   ChevronRight,
+  CalendarDays,
   DatabaseBackup,
   ExternalLink,
   Film,
@@ -49,6 +50,7 @@ const navGroups: Array<{ label: string; items: AdminNavItem[] }> = [
       { name: 'Animes e episódios', href: '/admin/animes', exact: false, icon: Film },
       { name: 'Construtor da Home', href: '/admin/homepage', exact: true, icon: LayoutTemplate },
       { name: 'Navegação', href: '/admin/navigation', exact: true, icon: Navigation },
+      { name: 'Calendário', href: '/admin/calendar', exact: true, icon: CalendarDays },
     ],
   },
   {

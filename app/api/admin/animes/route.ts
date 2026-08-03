@@ -48,6 +48,9 @@ export async function GET(request: NextRequest) {
           _count: {
             select: { episodes: true },
           },
+          identifiers: {
+            select: { provider: true, value: true },
+          },
         },
       }),
       prisma.anime.count({ where: whereClause }),

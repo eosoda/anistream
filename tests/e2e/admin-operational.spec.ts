@@ -19,6 +19,7 @@ const routeCases = [
   { path: '/admin/sources', expected: '/admin/extensions' },
   { path: '/admin/sources/tester', expected: '/admin/extensions' },
   { path: '/admin/navigation', expected: '/admin/navigation' },
+  { path: '/admin/calendar', expected: '/admin/calendar' },
   { path: '/admin/system', expected: '/admin/system' },
   { path: '/admin/backups', expected: '/admin/backups' },
   { path: '/admin/integrations', expected: '/admin/integrations' },
@@ -66,5 +67,12 @@ test.describe('Painel administrativo operacional', () => {
     await expect(page.getByText('Blocos da Home', { exact: true })).toBeVisible();
     await expect(page.getByText('Inspector', { exact: true })).toBeVisible();
     await expect(page.locator('[aria-label="Blocos ordenáveis da Home"]')).toBeVisible();
+  });
+
+  test('renderiza o calendário público sem expor episódio', async ({ page }) => {
+    await page.goto('/calendario');
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { name: 'Calendário semanal' })).toBeVisible();
+    await expect(page.getByText(/episódio/i)).toHaveCount(0);
   });
 });

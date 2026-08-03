@@ -29,6 +29,7 @@ O **AniStream** é uma aplicação web para descoberta, acompanhamento e reprodu
 - Catálogo com filtros, seleção em lote, sync/delete e confirmação destrutiva.
 - Editor dividido em Identidade, Metadata, Playback e Episódios, com dirty state e save bar.
 - Home inicial customizável em `/admin/homepage`, com blocos tipados, preview protegido, rascunho e publicação explícita.
+- Release Schedule em `/calendario`, alimentado pelo Kenjitsu, convertido para o timezone do visitante e configurável em `/admin/calendar`.
 - Navegação, sistema, backups, integrações, comunicados e releases com feedback consistente.
 - `AdminAuditLog` para catálogo, extensões, navegação, manutenção, backups e integrações.
 - Aliases preservados: `/admin/dashboard`, `/admin/sources` e `/admin/sources/tester`.
@@ -129,6 +130,7 @@ Mais detalhes em [`docs/10-TESTES-E-SCRIPTS.md`](./docs/10-TESTES-E-SCRIPTS.md).
 | `KENJITSU_API_KEY` | Chave opcional da API Kenjitsu. |
 | `KENJITSU_REQUEST_TIMEOUT_MS` | Timeout de chamadas upstream. |
 | `KENJITSU_CACHE_TTL_SECONDS` | TTL do cache Kenjitsu. |
+| `CALENDAR_CACHE_TTL_SECONDS` | TTL do cache do calendário semanal; padrão de 1800 segundos. |
 | `ADMIN_SESSION_SECRET` | Sessões administrativas. |
 | `PLAYBACK_TOKEN_SECRET` | Tokens do playback. |
 | `SOURCE_ENCRYPTION_KEY` | Criptografia de descritores de mídia. |

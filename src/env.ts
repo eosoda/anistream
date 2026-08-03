@@ -13,6 +13,7 @@ const envSchema = z.object({
   KENJITSU_API_KEY: z.string().optional(),
   KENJITSU_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(10000),
   KENJITSU_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(86400).default(300),
+  CALENDAR_CACHE_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(1800),
   ADMIN_SESSION_SECRET: z
     .string()
     .min(16, 'ADMIN_SESSION_SECRET deve ter pelo menos 16 caracteres')

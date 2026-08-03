@@ -10,6 +10,7 @@ O AniStream usa o Kenjitsu self-hosted como fonte única do catálogo, metadados
 - Descoberta e resolução de mídia: `src/lib/providers/kenjitsu.provider.ts` e `src/lib/streams/resolver.ts`.
 - Health das extensões: `GET /api/extensions/health` no Kenjitsu e `GET /api/admin/extensions` no AniStream.
 - Cache de respostas: Redis, com TTL configurável por `KENJITSU_CACHE_TTL_SECONDS`.
+- Calendário semanal: `src/lib/calendar/service.ts` consulta os eventos `airingAt` pelo Kenjitsu, converte timezones e usa `CALENDAR_CACHE_TTL_SECONDS` (1800 segundos por padrão).
 
 As extensões são fontes registradas no Kenjitsu. O painel AniStream altera somente habilitação, NSFW e estado operacional; o código é atualizado nos forks self-hosted, sem alterações nos repositórios oficiais.
 
@@ -31,6 +32,10 @@ As rotas administrativas exigem sessão válida e retornam JSON orientado ao pai
 | `POST /api/admin/homepage/publish` | Publica com `expectedDraftVersion` e `expectedPublishedVersion`. |
 | `POST /api/admin/homepage/discard` | Restaura o rascunho para a última publicação. |
 | `GET /api/homepage` | Resolve a composição publicada por bloco usando o Kenjitsu. |
+| `GET /api/calendar` | Projeta a agenda semanal para o timezone do visitante, com arredondamento aproximado. |
+| `GET /api/admin/calendar` | Retorna regras, exceções, configurações e prévia; exige sessão admin. |
+| `PUT /api/admin/calendar` | Salva a configuração completa do Release Schedule e audita a alteração. |
+| `POST /api/admin/calendar/sync` | Invalida a versão do calendário e solicita nova projeção pelo Kenjitsu. |
 
 Falhas parciais de bulk retornam os itens que concluíram e os erros individuais. A indisponibilidade do Kenjitsu é representada explicitamente por `down` ou `unknown`; o app não troca silenciosamente de fonte.
 

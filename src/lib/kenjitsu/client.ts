@@ -5,7 +5,9 @@ import type {
   KenjitsuExtensionId,
   KenjitsuExtensionInfo,
   KenjitsuExtensionSearchItem,
+  KenjitsuAiringSchedule,
   KenjitsuMetaAnime,
+  KenjitsuPaginatedResponse,
   KenjitsuProviderId,
   KenjitsuProviderEpisode,
   KenjitsuResponse,
@@ -138,6 +140,14 @@ export const kenjitsuClient = {
     return requestJson<KenjitsuResponse<KenjitsuMetaAnime[]>>(
       `/api/anilist/seasons/${season}/${year}?${params.toString()}`,
       seconds(env.KENJITSU_CACHE_TTL_SECONDS),
+    );
+  },
+
+  getAiringSchedule(date: string, page = 1, perPage = 50) {
+    const params = new URLSearchParams({ page: String(page), perPage: String(Math.min(50, Math.max(1, perPage))) });
+    return requestJson<KenjitsuPaginatedResponse<KenjitsuAiringSchedule[]>>(
+      `/api/anilist/airing/date/${encodeURIComponent(date)}?${params.toString()}`,
+      seconds(env.CALENDAR_CACHE_TTL_SECONDS),
     );
   },
 

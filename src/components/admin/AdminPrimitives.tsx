@@ -309,6 +309,7 @@ const commandItems: CommandItem[] = [
   { label: 'Extensões Kenjitsu', description: 'Fontes, saúde e ativação', href: '/admin/extensions' },
   { label: 'Construtor da Home', description: 'Blocos, preview e publicação', href: '/admin/homepage' },
   { label: 'Navegação', description: 'Menu e seções da Home', href: '/admin/navigation' },
+  { label: 'Calendário', description: 'Release Schedule e exceções', href: '/admin/calendar' },
   { label: 'Sistema', description: 'Manutenção e disponibilidade', href: '/admin/system' },
   { label: 'Backups', description: 'Exportação e restauração', href: '/admin/backups' },
   { label: 'Integrações', description: 'Webhooks e Kenjitsu', href: '/admin/integrations' },

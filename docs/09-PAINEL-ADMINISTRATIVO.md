@@ -23,6 +23,8 @@ O shell compartilhado fica em `app/(main)/admin/layout.tsx` e fornece:
 - command palette acionada por `Ctrl/Cmd + K`;
 - suporte a foco, Escape, reduced motion e zoom de 200%.
 
+O grupo de Experiência inclui `/admin/calendar`, onde o operador configura o Release Schedule semanal, seleciona o timezone da prévia e controla regras recorrentes e exceções pontuais. A página pública correspondente é `/calendario`.
+
 As rotas legadas continuam funcionando como aliases:
 
 | Alias | Destino canônico |
