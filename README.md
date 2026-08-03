@@ -107,6 +107,8 @@ npm run test:kenjitsu
 
 O smoke pode ser reduzido com `KENJITSU_SMOKE_EXTENSIONS=anizone,animefire`. Falhas de upstream aparecem como estado operacional e não ativam fallback silencioso.
 
+Para fontes cuja busca nao retorna o titulo de teste, `KENJITSU_SMOKE_PROBE_FALLBACK=true` executa uma verificacao explicita pela primeira entrada e marca o resultado como aviso; isso nao relaxa a resolucao exata usada pelo catalogo.
+
 Mais detalhes em [`docs/10-TESTES-E-SCRIPTS.md`](./docs/10-TESTES-E-SCRIPTS.md).
 
 ## Variáveis principais

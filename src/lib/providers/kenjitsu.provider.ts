@@ -8,8 +8,9 @@ import type {
   StreamType,
 } from '../streams/types';
 import { kenjitsuClient } from '@/lib/kenjitsu/client';
-import { resolveAnilistId } from '@/lib/kenjitsu/catalog';
+import { resolveAnilistId, resolveKenjitsuExtensionInfo } from '@/lib/kenjitsu/catalog';
 import { getEnabledKenjitsuExtensions } from '@/lib/kenjitsu/settings';
+import { mapWithConcurrency } from '@/lib/kenjitsu/concurrency';
 import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId, type KenjitsuProviderEpisode } from '@/lib/kenjitsu/types';
 
 const EXTENSION_LABELS: Record<KenjitsuExtensionId, string> = {
@@ -28,23 +29,16 @@ const EXTENSION_LABELS: Record<KenjitsuExtensionId, string> = {
   animescx: 'Animes CX',
   animesdigital: 'Animes Digital',
   animesdrive: 'Animes Drive',
-  animesgames: 'Animes Games',
   animesgratis: 'Top Animes',
   animesonlinecc: 'Animes Online CC',
   animesonlinecloud: 'Animes Online Cloud',
   animesonlinevip: 'Animes Online Vip',
-  animesotaku: 'Anime Core',
   animesroll: 'Animes ROLL',
   anitube: 'Anitube',
   betteranimeio: 'BetterAnimeIo',
-  darkmahou: 'DarkMahou',
   dattebayobr: 'Dattebayo BR',
   donghuanosekai: 'Donghua no Sekai',
-  doramogo: 'Doramogo',
-  funanimetv: 'Fun Anime TV',
   goyabu: 'Goyabu',
-  hentaistube: 'HentaisTube',
-  meusanimes: 'Meus Animes',
   muitohentai: 'Muito Hentai',
   pifansubs: 'Pi Fansubs',
   smartanimes: 'SmartAnimes',
@@ -82,24 +76,25 @@ export class KenjitsuProvider implements AnimeProvider {
   async listEpisodes(animeId: string, signal?: AbortSignal): Promise<Episode[]> {
     if (signal?.aborted) throw new Error('Operação abortada pelo cliente');
     const anilistId = await resolveAnilistId(animeId);
+    const metadata = await kenjitsuClient.getMetadata(anilistId);
     const extensionIds = await getEnabledKenjitsuExtensions();
-    const results = await Promise.allSettled(
-      extensionIds.map(async (extensionId) => {
-        const mapping = await kenjitsuClient.getMapping(anilistId, extensionId);
-        if (!mapping.provider?.id) return [] as Episode[];
-        const info = await kenjitsuClient.getExtensionInfo(extensionId, mapping.provider.id);
-        const providerEpisodes = info.providerEpisodes || info.data?.providerEpisodes || [];
+    const results = await mapWithConcurrency(
+      extensionIds,
+      async (extensionId) => {
+        const resolved = await resolveKenjitsuExtensionInfo(anilistId, extensionId, [], metadata.data);
+        if (!resolved) return [] as Episode[];
+        const providerEpisodes = resolved.info.providerEpisodes || resolved.info.data?.providerEpisodes || [];
         return providerEpisodes.flatMap((episode) =>
           episode.episodeId && episode.episodeNumber != null
             ? [{ id: `${extensionId}:${episode.episodeId}`, animeId, season: 1, number: Number(episode.episodeNumber), title: episode.title, description: episode.overview, thumbnailUrl: episode.thumbnail }]
             : [],
         );
-      }),
+      },
+      { concurrency: 4, signal },
     );
     const episodes = new Map<number, Episode>();
     results.forEach((result) => {
-      if (result.status !== 'fulfilled') return;
-      result.value.forEach((episode) => episodes.set(episode.number, episodes.get(episode.number) || episode));
+      result?.forEach((episode) => episodes.set(episode.number, episodes.get(episode.number) || episode));
     });
     return Array.from(episodes.values()).sort((a, b) => a.number - b.number);
   }
@@ -107,18 +102,24 @@ export class KenjitsuProvider implements AnimeProvider {
   async getEpisodeSources(input: EpisodeLookupInput, signal?: AbortSignal): Promise<StreamSource[]> {
     if (signal?.aborted) throw new Error('Operação abortada pelo cliente');
     const anilistId = await resolveAnilistId(input.animeId);
+    const metadata = await kenjitsuClient.getMetadata(anilistId);
     const extensionIds = await getEnabledKenjitsuExtensions();
     const version = versionForAudio(input.preferredAudio);
 
-    const results = await Promise.allSettled(
-      extensionIds.map(async (extensionId, index) => {
+    const results = await mapWithConcurrency(
+      extensionIds,
+      async (extensionId, index) => {
         if (signal?.aborted) throw new Error('Operação abortada pelo cliente');
 
-        const mapping = await kenjitsuClient.getMapping(anilistId, extensionId);
-        if (!mapping.provider?.id) return [] as StreamSource[];
+        const resolved = await resolveKenjitsuExtensionInfo(
+          anilistId,
+          extensionId,
+          input.animeTitle ? [input.animeTitle] : [],
+          metadata.data,
+        );
+        if (!resolved) return [] as StreamSource[];
 
-        const info = await kenjitsuClient.getExtensionInfo(extensionId, mapping.provider.id);
-        const providerEpisodes = info.providerEpisodes || info.data?.providerEpisodes || [];
+        const providerEpisodes = resolved.info.providerEpisodes || resolved.info.data?.providerEpisodes || [];
         const episode = selectEpisode(providerEpisodes, input.episode, version);
         if (!episode?.episodeId) return [] as StreamSource[];
 
@@ -145,10 +146,15 @@ export class KenjitsuProvider implements AnimeProvider {
             priority: Math.max(1, extensionIds.length - index),
           } satisfies StreamSource];
         });
-      }),
+      },
+      {
+        concurrency: 4,
+        signal,
+        stopWhen: (sources) => input.resolutionMode === 'fast' && sources.length > 0,
+      },
     );
 
-    return results.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+    return results.flatMap((result) => result || []);
   }
 
   async healthCheck(): Promise<ProviderHealth> {

@@ -157,7 +157,11 @@ export const kenjitsuClient = {
 
   getMapping(anilistId: number, extensionId: KenjitsuExtensionId) {
     const params = new URLSearchParams({ provider: extensionId });
-    return requestJson<KenjitsuResponse<null> & { provider?: KenjitsuProviderId | null }>(
+    return requestJson<
+      KenjitsuResponse<(KenjitsuMetaAnime & { provider?: KenjitsuProviderId | null }) | null> & {
+        provider?: KenjitsuProviderId | null;
+      }
+    >(
       `/api/anilist/anime/${encodeURIComponent(String(anilistId))}/mappings?${params.toString()}`,
       seconds(env.KENJITSU_CACHE_TTL_SECONDS),
     );
