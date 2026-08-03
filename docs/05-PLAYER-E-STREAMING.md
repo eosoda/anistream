@@ -1,42 +1,57 @@
-# 05. Player de Vídeo & Experiência de Streaming — AniStream 🎥
+# 05. Player e experiência de streaming
 
-O player de vídeo do AniStream ([`components/player/VideoPlayer.tsx`](file:///c:/Users/sodinha/Documents/projetos/anistream/components/player/VideoPlayer.tsx)) e o sistema de resolvedor de mídias ([`src/lib/streams/resolver.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/resolver.ts)) oferecem uma experiência completa de reprodução com suporte adaptativo, proxy seguro e extensões Kenjitsu.
+O player do AniStream (`src/components/player/VideoPlayer.tsx`) recebe descritores de mídia resolvidos pelo Kenjitsu e pelas extensões habilitadas. A URL é resolvida on-demand quando o usuário inicia a reprodução; não há cadastro manual de stream no fluxo atual.
 
----
+## 1. Recursos do player
 
-## 🚀 1. Recursos Avançados do Player
+- HLS adaptativo com `hls.js`;
+- embeds retornados por extensões Kenjitsu;
+- seleção de áudio, legendas e qualidade quando disponíveis;
+- retomada de progresso e autoplay;
+- Picture-in-Picture;
+- modo cinema/apagar luzes;
+- botão e atalho para pular abertura;
+- relatório de problema conectado à fila administrativa;
+- contagem regressiva e navegação para o próximo episódio.
 
-### 1. Menu Único de Configurações ⚙️ (Popover Multinível)
-- **Design Estilo OTT**: Todos os controles avançados foram consolidados em um popover intuitivo com navegação multinível:
-  - 🎧 **Áudio & Legendas**: Seleção dinâmica de idiomas (`Dublado PT-BR`, `Legendado JA`) e faixas.
-  - ⚡ **Velocidade de Reprodução**: `0.5x`, `0.75x`, `1.0x (Normal)`, `1.25x`, `1.5x`, `2.0x`.
-  - 💡 **Apagar Luzes (Full-Page Blackout)**: Escurecimento de 95% do layout da página web.
-  - ⌨️ **Atalhos de Teclado**: Guia rápido de atalhos.
-  - ⚠️ **Reportar Problema**: Formulário direto de feedback para o admin.
+## 2. Resolução e segurança
 
-### 2. Pular Abertura (+85s) em Floating Pill
-- **Pill Flutuante**: Botão flutuante posicionado no canto inferior direito ("Pular Abertura +85s").
+O caminho de mídia é:
 
-### 3. Validação HLS `#EXTM3U`, Proxy Seguro & Embeds iFrame
-- **Validação de Playlists HLS ([hls-validator.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/hls-validator.ts))**: Validação automática do status HTTP, `Content-Type` (`application/x-mpegurl`, `application/vnd.apple.mpegurl`) e tag `#EXTM3U` no manifesto.
-- **Preservação de Cabeçalhos**: O proxy seguro `/api/streams/proxy/[sourceId]` repassa fidedignamente os cabeçalhos `User-Agent`, `Referer` e `Origin` exigidos pelo provedor de origem.
-- **Renderização Nativa de Embeds**: Fontes do tipo `embed` (como `2Embed`, `Xpass`, `WarezCDN` e `AnimesOnline`) são renderizadas nativamente em elementos `<iframe>` responsivos.
-- **Resolução On-Demand**: A URL de mídia é resolvida dinamicamente no momento do clique em "Assistir".
+```text
+Episódio local
+    ↓
+Kenjitsu + extensões habilitadas
+    ↓
+descritores de mídia
+    ↓
+validateUrlSsrf + token/relay quando necessário
+    ↓
+VideoPlayer
+```
 
-### 4. Player de Teste Inline no Admin (`EpisodeSourcesModal`)
-- No Painel Admin (`/admin/animes/[id]/editar`), o modal [`EpisodeSourcesModal`](file:///c:/Users/sodinha/Documents/projetos/anistream/components/admin/EpisodeSourcesModal.tsx) possui um player inline integrado para o administrador testar a reprodução do vídeo ou embed em tempo real antes de salvar.
+`src/lib/streams/hls-validator.ts` valida status HTTP, `Content-Type` compatível e a tag `#EXTM3U`. `src/lib/security/ssrf.ts` bloqueia protocolos, portas e redes privadas indevidas.
 
----
+## 3. Teste no painel
 
-## ⌨️ 2. Tabela de Atalhos de Teclado
+Em `/admin/animes/[id]/editar`, o `EpisodeSourcesModal` consulta candidatos live usando as extensões habilitadas e permite testar a reprodução antes de confirmar a seleção. O teste não cria uma lista de hosts nem transforma uma URL temporária em configuração permanente.
+
+O painel `/admin/extensions` permite testar a fonte individualmente. O resultado é persistido como `ProviderHealthLog` com status `healthy`, `degraded`, `down` ou `unknown`, latência e erro.
+
+## 4. Atalhos de teclado
 
 | Tecla | Ação |
 | :--- | :--- |
-| **`Espaço`** / **`K`** | Play / Pausar Vídeo |
-| **`F`** | Alternar Tela Cheia |
-| **`M`** | Mutar / Ativar Som |
-| **`C`** | Alternar Legendas |
-| **`D`** | Alternar Modo Cinema (Dim Lights) |
-| **`J`** / **`Seta Esquerda` (◄)** | Voltar 10 segundos |
-| **`L`** / **`Seta Direita` (►)** | Avançar 10 segundos |
-| **`N`** | Ir para o Próximo Episódio |
+| `Espaço` / `K` | Reproduzir ou pausar. |
+| `F` | Alternar tela cheia. |
+| `M` | Mutar ou ativar som. |
+| `C` | Alternar legendas. |
+| `D` | Alternar modo cinema. |
+| `J` / seta esquerda | Voltar 10 segundos. |
+| `L` / seta direita | Avançar 10 segundos. |
+| `N` | Ir para o próximo episódio. |
+| `S` | Pular abertura quando houver intervalo configurado. |
+
+## 5. Falhas
+
+Falha de uma extensão não ativa fallback externo. O player mostra uma mensagem recuperável e o operador pode testar outra extensão habilitada, enquanto o admin exibe o health e o erro upstream.

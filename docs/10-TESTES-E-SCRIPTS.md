@@ -1,49 +1,111 @@
-# 10. Testes Automatizados & Scripts de Validação — AniStream 🧪
+# 10. Testes e scripts de validação local
 
-Este documento lista todas as suítes de testes unitários do Vitest e scripts de diagnóstico pré-deploy para verificação do AniStream.
+Esta documentação descreve a validação local do AniStream, do painel operacional e da integração Kenjitsu. Nenhum comando desta página faz deploy em Railway.
 
----
+## 1. Pré-requisitos
 
-## 🧪 1. Suíte de Testes Unitários (Vitest)
+Para executar a validação completa:
 
-Para rodar a suíte completa de testes automatizados:
+- Node.js 20+;
+- Docker Desktop com Compose;
+- PostgreSQL e Redis locais, ou o stack `docker-compose.selfhosted.yml`;
+- repositórios irmãos `../kenjitsu`, `../kenjitsu-extensions` e `../extensions-source` para o Compose self-hosted;
+- banco inicializado com `npx prisma db push` quando executar sem Docker.
+
+## 2. Testes unitários
 
 ```bash
-npm run test
+npm test
 ```
 
-### Arquivos de Teste (`src/__tests__/`)
+A suíte Vitest cobre, entre outros pontos:
 
-1. **`hls-validator.test.ts`**: Valida a checagem de playlists HLS (`.m3u8`), status HTTP, `Content-Type` e presenças da tag `#EXTM3U`.
-2. **`normalize-title.test.ts`**: Testa a normalização de títulos de animes, remoção de diacríticos, temporadas e termos de dublagem.
-3. **`circuit-breaker.test.ts`**: Testa o padrão Circuit Breaker, contagem de falhas, abertura de circuito (OPEN) e fallback offline.
-4. **`m3u-parser.test.ts`**: Testa o parser de listas M3U/M3U8 e extração de metadados.
-5. **`admin-schemas.test.ts`**: Valida schemas Zod para rotas administrativas.
-6. **`crypto.test.ts`**: Testa a criptografia AES-256-GCM para URLs de mídias (`encryptData` / `decryptData`).
-7. **`ssrf.test.ts`**: Testa a proteção de validação SSRF contra endereços IP internos / privados.
+- schemas administrativos;
+- autenticação e criptografia de playback;
+- proteção SSRF;
+- circuit breaker;
+- normalização de títulos;
+- intervalos de abertura;
+- parser M3U/HLS legado;
+- lembretes e resolução de streams.
 
----
-
-## 📜 2. Scripts de Diagnóstico e Integração (`scratch/`)
-
-- `scratch/test-episode-sources-flow.js` — Script HTTP legado; a descoberta atual é live pelo Kenjitsu e não cadastra URLs manuais.
-- `scratch/test-sources-http-api.js` — Script HTTP legado; a resolução atual usa somente o Kenjitsu e suas extensões habilitadas.
-- `scratch/init-admin-and-test.js` — Script de validação da rota de setup, autenticação de admin e resolução de stream.
-
----
-
-## ⚡ 3. Comandos de Verificação Pré-Deploy
+Comandos relacionados:
 
 ```bash
-# 1. Checagem estrita de tipos TypeScript
+npm run test:watch
+npm run test:coverage
+```
+
+## 3. TypeScript, lint e build
+
+```bash
 npx tsc --noEmit
-
-# 2. Rodar suíte de testes Vitest
-npm run test
-
-# 3. Build limpo da imagem Docker sem cache
-docker compose build --no-cache app
-
-# 4. Inicialização dos containers em background
-docker compose up -d
+npm run lint
+npm run build
 ```
+
+`npm run pre-deploy` é apenas um gate local que executa testes unitários, verificação Docker e build; ele não publica a aplicação.
+
+## 4. Playwright e acessibilidade
+
+```bash
+npm run test:e2e
+```
+
+Os testes em `tests/e2e/` cobrem:
+
+- home, catálogo, player e favoritos;
+- auditoria de acessibilidade com axe;
+- formulários administrativos;
+- diálogos de confirmação e foco;
+- rotas canônicas do admin;
+- aliases `/admin/dashboard`, `/admin/sources` e `/admin/sources/tester`;
+- rota de edição com recurso inexistente;
+- command palette via teclado.
+
+O painel deve ser revisado em 320, 360, 390, 768, 1024, 1280 e 1440px. Os critérios incluem loading, vazio, erro recuperável, sucesso, desabilitado, sem permissão, dirty state, confirmação destrutiva, `aria-live`, `aria-invalid`, `aria-describedby`, reduced motion e zoom de 200%.
+
+## 5. Infraestrutura Docker
+
+```bash
+npm run test:docker
+docker compose -f docker-compose.selfhosted.yml up -d --build
+```
+
+Verificações úteis:
+
+```bash
+curl http://localhost:3000/api/health
+docker compose -f docker-compose.selfhosted.yml ps
+docker logs anistream_selfhosted_app
+docker logs anistream_selfhosted_kenjitsu
+```
+
+O health esperado confirma PostgreSQL, Redis, aplicação e Kenjitsu. O primeiro acesso pode redirecionar para `/setup` se não houver administrador.
+
+## 6. Smoke do Kenjitsu
+
+Smoke completo:
+
+```bash
+npm run test:kenjitsu
+```
+
+Smoke reduzido para diagnóstico local:
+
+```powershell
+$env:KENJITSU_SMOKE_EXTENSIONS="anizone,animefire"
+npm run test:kenjitsu
+```
+
+O script exige que as extensões estejam registradas no health do Kenjitsu e testa busca, detalhes, episódios e sources. Fontes NSFW só entram quando `KENJITSU_SMOKE_INCLUDE_NSFW=true`.
+
+Falhas de uma extensão devem ser tratadas como resultado de upstream: o painel mostra `degraded`, `down` ou `unknown`, registra `ProviderHealthLog` e preserva as demais fontes habilitadas.
+
+## 7. Scripts auxiliares
+
+- `scripts/verify-docker.js`: valida Dockerfile, Compose, Prisma e saída standalone.
+- `scripts/smoke-kenjitsu.mjs`: executa o smoke do inventário de extensões.
+- `scripts/deploy-local.js`: prepara a execução local; não publica em serviço externo.
+
+Scripts de cadastro manual de fontes/M3U são históricos e não devem ser usados para validar a arquitetura atual.

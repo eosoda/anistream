@@ -1,28 +1,28 @@
-# Documentação Oficial do AniStream — Índice Geral 📚
+# Documentação do AniStream
 
-Bem-vindo à documentação modular oficial do **AniStream**. Esta pasta contém guias detalhados sobre cada módulo, padrão arquitetural e recurso da aplicação.
+Este índice organiza a documentação técnica, de produto, execução local e operação do AniStream. A arquitetura atual usa o Kenjitsu self-hosted como fonte única de catálogo, episódios e mídia.
 
----
+## Sumário
 
-## 📑 Sumário da Documentação
-
-| Arquivo | Título | Descrição |
+| Arquivo | Tema | Quando consultar |
 | :--- | :--- | :--- |
-| [`01-VISAO-GERAL-E-STACK.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/01-VISAO-GERAL-E-STACK.md) | **Visão Geral e Stack Tecnológica** | Objetivos do projeto, stack principal, dependências e padrões de estilização. |
-| [`02-ROTAS-E-PAGINAS.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/02-ROTAS-E-PAGINAS.md) | **Rotas e Páginas (App Router)** | Mapeamento detalhado de cada página (`/`, `/anime/[id]`, `/favoritos`, `/lista`, etc.). |
-| [`03-COMPONENTES-E-DESIGN.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/03-COMPONENTES-E-DESIGN.md) | **Componentes & Design System** | Estrutura modular (`anime/`, `player/`, `catalog/`, `home/`, `layout/`, `ui/`). |
-| [`04-ESTADO-E-CONTEXTOS.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/04-ESTADO-E-CONTEXTOS.md) | **Gerenciamento de Estado & Contextos** | Provedores globais (`ToastContext`, `ConfirmationContext`, `FavoritesContext`) e Hooks. |
-| [`05-PLAYER-E-STREAMING.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/05-PLAYER-E-STREAMING.md) | **Player de Vídeo & Experiência de Streaming** | Atalhos, Pular Abertura (+85s), PiP Nativo, Light Dimmer e Autoplay. |
-| [`06-SERVICOS-E-APIS.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/06-SERVICOS-E-APIS.md) | **Serviços de API & Resiliência** | Kenjitsu self-hosted, extensões habilitáveis, cache Redis, circuit breaker e proteção SSRF. |
-| [`07-OFFLINE-E-CACHE-IDB.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/07-OFFLINE-E-CACHE-IDB.md) | **Armazenamento Offline e IndexedDB** | Estrutura das stores no IndexedDB, sincronia e fallback com dados estáticos. |
-| [`08-DEPLOYMENT-E-RAILWAY.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/08-DEPLOYMENT-E-RAILWAY.md) | **Guia de Hospedagem & Deploy no Railway** | Configuração do Docker Multi-stage, PostgreSQL Gerenciado e Deploy. |
-| [`09-PAINEL-ADMINISTRATIVO.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/09-PAINEL-ADMINISTRATIVO.md) | **Painel Administrativo e Gestão de Catálogo** | Setup Kenjitsu-only, catálogo, episódios e controle das extensões self-hosted. |
-| [`10-TESTES-E-SCRIPTS.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/10-TESTES-E-SCRIPTS.md) | **Testes Automatizados & Scripts de Validação** | Suítes de testes Vitest, validação pré-deploy Docker e guias de comandos. |
+| [`01-VISAO-GERAL-E-STACK.md`](./01-VISAO-GERAL-E-STACK.md) | Visão geral e stack | Para entender o runtime, dados e tecnologias. |
+| [`02-ROTAS-E-PAGINAS.md`](./02-ROTAS-E-PAGINAS.md) | Rotas públicas | Para localizar páginas do App Router. |
+| [`03-COMPONENTES-E-DESIGN.md`](./03-COMPONENTES-E-DESIGN.md) | Componentes e design system | Para criar ou ajustar componentes. |
+| [`04-ESTADO-E-CONTEXTOS.md`](./04-ESTADO-E-CONTEXTOS.md) | Estado e contextos | Para entender providers e hooks globais. |
+| [`05-PLAYER-E-STREAMING.md`](./05-PLAYER-E-STREAMING.md) | Player e streaming | Para playback, HLS, embeds e atalhos. |
+| [`06-SERVICOS-E-APIS.md`](./06-SERVICOS-E-APIS.md) | APIs e resiliência | Para Kenjitsu, Redis, SSRF e contratos administrativos. |
+| [`07-OFFLINE-E-CACHE-IDB.md`](./07-OFFLINE-E-CACHE-IDB.md) | Offline e IndexedDB | Para cache local e funcionamento offline. |
+| [`08-DEPLOYMENT-E-RAILWAY.md`](./08-DEPLOYMENT-E-RAILWAY.md) | Docker e deployment futuro | Para execução self-hosted e referência de hospedagem; Railway não é usado na validação atual. |
+| [`09-PAINEL-ADMINISTRATIVO.md`](./09-PAINEL-ADMINISTRATIVO.md) | Painel operacional | Para setup, dashboard, catálogo, extensões, auditoria e rotas admin. |
+| [`10-TESTES-E-SCRIPTS.md`](./10-TESTES-E-SCRIPTS.md) | Testes locais | Para Vitest, Playwright, Docker, TypeScript e smoke Kenjitsu. |
+| [`KENJITSU-SELF-HOSTED.md`](./KENJITSU-SELF-HOSTED.md) | Kenjitsu self-hosted | Para os três forks, Compose, health, smoke e atualização via upstream. |
 
----
+## Ordem recomendada
 
-## ⚡ Como Navegar nesta Documentação
-- Para entender a **estrutura de pastas e tecnologias**, comece pelo guia **[01-VISAO-GERAL-E-STACK.md](file:///c:/Users/junin/Documents/projetos/anistream/docs/01-VISAO-GERAL-E-STACK.md)**.
-- Para contribuir adicionando novos **recursos ou componentes**, leia **[03-COMPONENTES-E-DESIGN.md](file:///c:/Users/junin/Documents/projetos/anistream/docs/03-COMPONENTES-E-DESIGN.md)**.
-- Para entender o funcionamento do **player de reprodução**, consulte **[05-PLAYER-E-STREAMING.md](file:///c:/Users/junin/Documents/projetos/anistream/docs/05-PLAYER-E-STREAMING.md)**.
-- Para rodar **testes unitários e diagnósticos pré-deploy**, consulte **[10-TESTES-E-SCRIPTS.md](file:///c:/Users/junin/Documents/projetos/anistream/docs/10-TESTES-E-SCRIPTS.md)**.
+1. Leia [`KENJITSU-SELF-HOSTED.md`](./KENJITSU-SELF-HOSTED.md) para subir as dependências locais.
+2. Consulte [`01-VISAO-GERAL-E-STACK.md`](./01-VISAO-GERAL-E-STACK.md) e [`ARCHITECTURE.md`](../ARCHITECTURE.md) para o modelo técnico.
+3. Leia [`09-PAINEL-ADMINISTRATIVO.md`](./09-PAINEL-ADMINISTRATIVO.md) para operar o admin.
+4. Execute os gates de [`10-TESTES-E-SCRIPTS.md`](./10-TESTES-E-SCRIPTS.md) antes de abrir um PR.
+
+Os links desta documentação são relativos ao repositório para continuarem válidos em Windows, Linux, GitHub e clones locais.

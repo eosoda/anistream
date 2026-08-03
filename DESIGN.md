@@ -8,7 +8,7 @@
 
 **OWN-WORLD:** Near-black theater surfaces, warm orange playback accents, poster-led discovery, restrained elevation, crisp status color, and compact operational rows.
 
-**STORY:** Viewers recognize what is available, resume immediately, and understand fallback without technical noise. Operators scan health, compare records, and recover errors quickly.
+**STORY:** Viewers recognize what is available, resume immediately, and understand source availability without technical noise. Operators scan health, compare records, and recover errors quickly.
 
 **FIRST VIEWPORT:** Public pages lead with content and a single primary action. Watch pages lead with the player. Admin pages lead with status and tasks.
 

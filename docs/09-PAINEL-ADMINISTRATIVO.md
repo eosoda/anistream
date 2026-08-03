@@ -1,51 +1,125 @@
-# Painel Administrativo e Setup
+# Painel administrativo operacional
 
-O painel do AniStream usa o Kenjitsu self-hosted como fonte única de catálogo, metadados, episódios e mídia.
+O painel administrativo do AniStream usa o Kenjitsu self-hosted como fonte única de catálogo, metadados, episódios e mídia. A interface segue a direção **Livro de operações**: informações comparáveis, filas, tabelas, divisórias e feedback explícito para cada ação.
 
-## Setup inicial
+## 1. Setup inicial
 
-O assistente /setup tem quatro etapas:
+O assistente `/setup` é usado somente para preparar a instalação:
 
-1. validar a chave de instalação e a conexão PostgreSQL;
-2. criar a conta do administrador;
+1. validar a chave de instalação e a conexão com PostgreSQL;
+2. criar a conta de administrador;
 3. confirmar a integração com a API Kenjitsu;
-4. concluir e abrir o painel de extensões.
+4. concluir e abrir o painel.
 
-Não existe mais configuração de hosts de mídia, importação M3U, cadastro de URL de stream ou escolha de provedores externos no setup. O Kenjitsu retorna os hosts de reprodução e a aplicação mantém somente a proteção SSRF contra protocolos, portas e redes privadas.
+Não existe mais configuração de **Hosts de Mídia Autorizados**, lista M3U, cadastro manual de URL de stream ou escolha de provedores externos no setup. O Kenjitsu retorna os hosts de reprodução; o AniStream mantém apenas as proteções de sessão, SSRF e playback.
 
-## Painel de extensões
+## 2. Shell e navegação
 
-/admin/extensions é o ponto central para as fontes. Cada extensão pode ser:
+O shell compartilhado fica em `app/(main)/admin/layout.tsx` e fornece:
 
-- ativada ou desativada;
-- bloqueada ou liberada para NSFW;
-- testada individualmente;
-- acompanhada por status, latência, versão, origem e capacidades do manifest.
+- navegação agrupada em Monitorar, Gerenciar e Operar;
+- breadcrumbs e estado da sessão;
+- sidebar responsiva com `aria-current`;
+- command palette acionada por `Ctrl/Cmd + K`;
+- suporte a foco, Escape, reduced motion e zoom de 200%.
 
-As extensões são registradas no Kenjitsu self-hosted e podem ser atualizadas nos forks locais sem alterar os repositórios oficiais.
+As rotas legadas continuam funcionando como aliases:
 
-## Catálogo e episódios
-
-/admin/animes continua permitindo gerenciar o catálogo local e seus episódios. O modal de fontes do episódio consulta as extensões habilitadas em tempo real e permite testar os candidatos no player inline.
-
-URLs manuais e a persistência de fontes externas foram desativadas para manter o fluxo exclusivamente Kenjitsu. Registros legados ainda podem ser visualizados, desativados ou removidos quando necessário.
-
-## Rotas administrativas
-
-| Rota | Função |
+| Alias | Destino canônico |
 | :--- | :--- |
-| /admin/login | Login do administrador. |
-| /setup | Instalação inicial sem configuração de hosts. |
-| /admin/extensions | Ativação, bloqueio NSFW, health check e teste das extensões Kenjitsu. |
-| /admin/animes | Catálogo local e episódios. |
-| /admin/animes/[id]/editar | Metadados, episódios e descoberta ao vivo de fontes. |
-| /admin/sources | Rota legada que redireciona para /admin/extensions. |
+| `/admin/dashboard` | `/admin` |
+| `/admin/sources` | `/admin/extensions` |
+| `/admin/sources/tester` | `/admin/extensions` |
 
-### Endpoints relacionados a fontes
+## 3. Dashboard operacional
 
-- GET /api/admin/extensions — lista extensões, manifest e status.
-- PATCH /api/admin/extensions — altera enabled e nsfw.
-- POST /api/admin/extensions — testa uma extensão.
-- POST /api/admin/animes/[id]/episodes/[epId]/discover-sources — consulta fontes ao vivo pelo Kenjitsu.
-- POST /api/admin/animes/[id]/episodes/[epId]/sources — retorna 410; fontes manuais não fazem parte da arquitetura atual.
-- GET /api/admin/sources — consulta registros antigos para manutenção.
+`/admin` consulta `GET /api/admin/overview` e exibe:
+
+- faixa de saúde do PostgreSQL e Kenjitsu;
+- KPIs de animes, episódios, extensões e alertas;
+- score agregado de saúde das extensões;
+- fila de relatos pendentes;
+- atividade administrativa recente;
+- ações rápidas para catálogo, extensões, backups e manutenção.
+
+`GET /api/admin/metrics` permanece compatível para consumidores existentes. Falhas parciais do Kenjitsu aparecem como status `down` ou `unknown`, sem substituir o resultado por outra API.
+
+## 4. Catálogo e editor
+
+`/admin/animes` oferece:
+
+- busca por título, título original e título normalizado;
+- filtros por status, presença de episódios, ordenação e paginação;
+- seleção em lote para sincronizar ou excluir;
+- confirmação para ações destrutivas;
+- tabela desktop e cartões compactos em telas menores.
+
+O editor `/admin/animes/[id]/editar` é dividido em Identidade, Metadata, Playback e Episódios. Alterações não salvas ativam dirty state e uma save bar fixa. A sincronização pelo Kenjitsu fica bloqueada enquanto houver alterações locais pendentes para evitar sobrescrita acidental.
+
+As operações em lote usam `POST /api/admin/animes/bulk` com `action: sync|delete`. Cada item retorna sucesso ou erro, permitindo tratar falhas parciais.
+
+## 5. Extensões Kenjitsu
+
+`/admin/extensions` trata cada extensão como uma fonte operacional. A matriz permite filtrar por:
+
+- habilitação;
+- NSFW;
+- status `healthy`, `degraded`, `down` ou `unknown`;
+- origem do manifest;
+- capacidade declarada.
+
+O operador pode habilitar/desabilitar uma ou várias extensões, alternar o bloqueio NSFW e executar teste individual. O teste consulta o Kenjitsu, registra latência e resultado em `ProviderHealthLog` e mostra a última mensagem de erro.
+
+Endpoints:
+
+- `GET /api/admin/extensions?enabled=yes&nsfw=no&status=healthy` lista extensões filtradas;
+- `PATCH /api/admin/extensions` altera habilitação ou NSFW;
+- `POST /api/admin/extensions` testa uma extensão;
+- `POST /api/admin/extensions/bulk` executa `action: enable|disable`.
+
+Não há campos para hosts, M3U, URL externa ou configuração de fontes fora do Kenjitsu.
+
+## 6. Auditoria
+
+Toda mudança administrativa relevante registra um `AdminAuditLog` com:
+
+- ator e data;
+- ação e recurso;
+- resumo legível;
+- metadata sanitizada e limitada.
+
+São auditados catálogo, episódios, extensões, navegação, manutenção, backup, webhooks, comunicados, releases, autopilot e testes de providers.
+
+`GET /api/admin/audit` aceita:
+
+```text
+resourceType, resourceId, action, from, to, page, pageSize
+```
+
+O dashboard mostra as últimas entradas e as superfícies operacionais exibem o histórico relacionado quando aplicável.
+
+## 7. Outras superfícies
+
+As páginas `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/integrations`, `/admin/broadcasts` e `/admin/releases` usam o mesmo contrato visual e comportamental:
+
+- formulário com label, ajuda e estado inválido;
+- feedback de carregamento, sucesso e erro recuperável;
+- save bar quando há alterações pendentes;
+- confirmação para exclusões, restore, manutenção e outras zonas de risco;
+- histórico ou feedback assíncrono visível.
+
+## 8. Contratos úteis
+
+| Endpoint | Função |
+| :--- | :--- |
+| `GET /api/admin/overview` | Visão consolidada do painel. |
+| `GET /api/admin/metrics` | Métricas legadas compatíveis. |
+| `GET /api/admin/audit` | Auditoria filtrada e paginada. |
+| `GET /api/admin/animes` | Catálogo com filtros e paginação. |
+| `POST /api/admin/animes/bulk` | `sync` ou `delete` em lote. |
+| `GET /api/admin/extensions` | Matriz de extensões filtrável. |
+| `POST /api/admin/extensions/bulk` | `enable` ou `disable` em lote. |
+| `POST /api/admin/animes/[id]/sync` | Sincronização Kenjitsu de um anime. |
+| `POST /api/admin/animes/[id]/episodes/[epId]/discover-sources` | Candidatos live de mídia. |
+
+Endpoints legados de fontes manuais/M3U continuam identificáveis, mas não fazem parte do fluxo atual e respondem com migração ou indisponibilidade conforme o contrato da rota.
