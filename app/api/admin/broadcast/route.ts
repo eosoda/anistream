@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { CreateAnnouncementSchema } from '@/schemas/admin';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 // GET: Listar todos os anúncios (Admin)
 export async function GET() {
@@ -15,8 +17,10 @@ export async function GET() {
 }
 
 // POST: Criar novo anúncio em lote (Admin) com Validação Zod
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const auth = await verifyAdminAuth(req);
+    if (!auth.authenticated) return auth.errorResponse!;
     const body = await req.json();
     const parseResult = CreateAnnouncementSchema.safeParse(body);
 
@@ -39,6 +43,8 @@ export async function POST(req: Request) {
       },
     });
 
+    void recordAdminAudit({ actorId: auth.userId, action: 'broadcast.created', resourceType: 'broadcast', resourceId: announcement.id, summary: `Comunicado “${announcement.title}” publicado.`, metadata: { type: announcement.type, targetGroup: announcement.targetGroup } });
+
     return NextResponse.json({ success: true, announcement });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -46,8 +52,10 @@ export async function POST(req: Request) {
 }
 
 // DELETE: Deletar anúncio
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
+    const auth = await verifyAdminAuth(req);
+    if (!auth.authenticated) return auth.errorResponse!;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -55,7 +63,8 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'ID do anúncio é obrigatório' }, { status: 400 });
     }
 
-    await prisma.systemAnnouncement.delete({ where: { id } });
+    const announcement = await prisma.systemAnnouncement.delete({ where: { id } });
+    void recordAdminAudit({ actorId: auth.userId, action: 'broadcast.deleted', resourceType: 'broadcast', resourceId: id, summary: `Comunicado “${announcement.title}” excluído.` });
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

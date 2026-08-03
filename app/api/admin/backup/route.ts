@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 // GET: Exportar backup JSON completo do banco de dados
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyAdminAuth(request);
+    if (!auth.authenticated) return auth.errorResponse!;
     const animes = await prisma.anime.findMany({
       include: {
         episodes: {
@@ -39,6 +43,8 @@ export async function GET() {
       )
     );
 
+    void recordAdminAudit({ actorId: auth.userId, action: 'backup.exported', resourceType: 'backup', summary: 'Backup JSON exportado.', metadata: { animeCount: animes.length, announcementCount: announcements.length, releaseCount: releases.length, webhookCount: webhooks.length } });
+
     return new NextResponse(JSON.stringify(dump, null, 2), {
       headers: {
         'Content-Type': 'application/json',
@@ -51,8 +57,10 @@ export async function GET() {
 }
 
 // POST: Importar backup JSON completo com Upsert
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const auth = await verifyAdminAuth(req);
+    if (!auth.authenticated) return auth.errorResponse!;
     const body = await req.json();
     const { data } = body;
 
@@ -122,6 +130,8 @@ export async function POST(req: Request) {
         }
       }
     }
+
+    void recordAdminAudit({ actorId: auth.userId, action: 'backup.restored', resourceType: 'backup', summary: 'Backup JSON restaurado.', metadata: { importedAnimes, importedEpisodes } });
 
     return NextResponse.json({
       success: true,

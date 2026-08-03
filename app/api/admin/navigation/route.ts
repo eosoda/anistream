@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { apiSuccess, apiError } from '@/lib/api/response';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 const HOME_SECTION_IDS = new Set([
   'hero',
@@ -43,6 +45,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await verifyAdminAuth(request);
+    if (!auth.authenticated) return auth.errorResponse!;
     const body = await request.json();
     const { navigation, pages, homeSections } = body;
 
@@ -82,6 +86,14 @@ export async function POST(request: NextRequest) {
     }
 
     await Promise.all(updates);
+
+    void recordAdminAudit({
+      actorId: auth.userId,
+      action: 'navigation.updated',
+      resourceType: 'navigation',
+      summary: 'Configurações públicas de navegação atualizadas.',
+      metadata: { navigationCount: Array.isArray(navigation) ? navigation.length : 0, pageCount: Array.isArray(pages) ? pages.length : 0, homeSectionCount: Array.isArray(homeSections) ? homeSections.length : 0 },
+    });
 
     return apiSuccess({
       message: 'Configurações de navegação e páginas salvas com sucesso no banco de dados!',

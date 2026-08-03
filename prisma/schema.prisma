@@ -149,6 +149,7 @@ model AdminUser {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   sessions     AdminSession[]
+  auditLogs    AdminAuditLog[]
 
   @@map("admin_users")
 }
@@ -163,6 +164,23 @@ model AdminSession {
 
   @@index([token])
   @@index([userId])
+}
+
+model AdminAuditLog {
+  id           String    @id @default(cuid())
+  actorId      String?
+  action       String
+  resourceType String
+  resourceId   String?
+  summary      String
+  metadataJson String?
+  createdAt    DateTime  @default(now())
+
+  actor AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([resourceType, resourceId])
+  @@index([action, createdAt])
 }
 
 model SystemAnnouncement {

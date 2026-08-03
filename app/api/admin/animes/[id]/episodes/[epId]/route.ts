@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { OpeningIntervalSchema } from '@/schemas/episode';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 type RouteContext = { params: Promise<{ id: string; epId: string }> };
 
@@ -32,6 +33,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       openingEndSeconds: parsed.data.openingEndSeconds,
     },
   });
+  void recordAdminAudit({ actorId: auth.userId, action: 'episode.opening_updated', resourceType: 'episode', resourceId: epId, summary: `Abertura do episódio ${episode.number} atualizada.`, metadata: { animeId, openingStartSeconds: parsed.data.openingStartSeconds, openingEndSeconds: parsed.data.openingEndSeconds } });
   return NextResponse.json({ episode: updated });
 }
 
@@ -46,5 +48,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   }
 
   await prisma.episode.delete({ where: { id: epId } });
+  void recordAdminAudit({ actorId: auth.userId, action: 'episode.deleted', resourceType: 'episode', resourceId: epId, summary: `Episódio ${episode.number} excluído.`, metadata: { animeId, title: episode.title } });
   return NextResponse.json({ success: true, message: 'Episódio excluído com sucesso.' });
 }

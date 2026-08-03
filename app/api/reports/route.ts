@@ -1,11 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { dispatchWebhooks } from '@/lib/webhooks/notifier';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { recordAdminAudit } from '@/lib/admin/audit';
+import type { Prisma } from '@prisma/client';
 
 // GET: Listar chamados de erro (Admin)
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
   try {
+    const params = new URL(request.url).searchParams;
+    const status = params.get('status');
+    const limit = Math.min(100, Math.max(1, Number.parseInt(params.get('limit') || '25', 10) || 25));
+    const where: Prisma.EpisodeReportWhereInput = status && status !== 'all' ? { status } : {};
     const reports = await prisma.episodeReport.findMany({
+      where,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
       include: {
         episode: {
           include: {
@@ -13,7 +25,6 @@ export async function GET() {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json({ reports });
   } catch (err: any) {
@@ -62,8 +73,10 @@ export async function POST(req: Request) {
 }
 
 // PATCH: Atualizar status do chamado (Admin)
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
+    const auth = await verifyAdminAuth(req);
+    if (!auth.authenticated) return auth.errorResponse!;
     const body = await req.json();
     const { id, status } = body;
 
@@ -75,6 +88,8 @@ export async function PATCH(req: Request) {
       where: { id },
       data: { status },
     });
+
+    void recordAdminAudit({ actorId: auth.userId, action: 'report.updated', resourceType: 'episode-report', resourceId: id, summary: `Relato de episódio marcado como ${status}.`, metadata: { status } });
 
     return NextResponse.json({ success: true, report: updated });
   } catch (err: any) {

@@ -3,6 +3,8 @@ import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { kenjitsuClient, KenjitsuRequestError } from '@/lib/kenjitsu/client';
 import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId } from '@/lib/kenjitsu/types';
 import { getKenjitsuExtensionSettings, saveKenjitsuExtensionSettings } from '@/lib/kenjitsu/settings';
+import { prisma } from '@/lib/db/prisma';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 export async function POST(request: NextRequest) {
   const auth = await verifyAdminAuth(request);
@@ -28,18 +30,21 @@ export async function POST(request: NextRequest) {
     }
 
     const latencyMs = Date.now() - startedAt;
+    const healthStatus = ok ? 'healthy' : error ? 'down' : 'degraded';
+    await prisma.providerHealthLog.create({ data: { provider: id, status: healthStatus, latencyMs, error } }).catch(() => undefined);
     const settings = await getKenjitsuExtensionSettings();
     await saveKenjitsuExtensionSettings(settings.map((setting) =>
       setting.id === id
         ? {
             ...setting,
             lastTestedAt: new Date().toISOString(),
-            lastTestStatus: ok ? 'healthy' : error ? 'down' : 'degraded',
+            lastTestStatus: healthStatus,
             lastLatencyMs: latencyMs,
             lastError: error,
           }
         : setting,
     ));
+    void recordAdminAudit({ actorId: auth.userId, action: 'extension.tested', resourceType: 'extension', resourceId: id, summary: `Teste da extensão “${id}”: ${healthStatus}.`, metadata: { status: healthStatus, latencyMs, error } });
 
     return NextResponse.json({ success: true, ok, status, latencyMs, error, testedAt: new Date().toISOString() });
   } catch (error: any) {

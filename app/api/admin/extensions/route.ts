@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db/prisma';
 import { kenjitsuClient, KenjitsuRequestError } from '@/lib/kenjitsu/client';
 import {
   getKenjitsuExtensionSettings,
@@ -7,36 +8,63 @@ import {
 } from '@/lib/kenjitsu/settings';
 import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId } from '@/lib/kenjitsu/types';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { recordAdminAudit } from '@/lib/admin/audit';
+import type { AdminHealthState } from '@/types/admin';
 
 function isExtensionId(value: unknown): value is KenjitsuExtensionId {
   return typeof value === 'string' && KENJITSU_EXTENSION_IDS.includes(value as KenjitsuExtensionId);
 }
 
-async function authorized(request: NextRequest) {
-  const auth = await verifyAdminAuth(request);
-  return auth.authenticated ? null : auth.errorResponse || NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+function extensionStatus(setting: { lastTestStatus?: string | null }, manifest: { id: string } | undefined, kenjitsuError: boolean): AdminHealthState {
+  if (setting.lastTestStatus === 'healthy' || setting.lastTestStatus === 'degraded' || setting.lastTestStatus === 'down' || setting.lastTestStatus === 'unknown') return setting.lastTestStatus;
+  if (manifest) return 'healthy';
+  return kenjitsuError ? 'down' : 'unknown';
+}
+
+function filterExtensions<T extends { enabled: boolean; nsfw: boolean; status: AdminHealthState; manifest?: { source?: string; capabilities?: string[] } | null }>(extensions: T[], params: URLSearchParams) {
+  const enabled = params.get('enabled');
+  const nsfw = params.get('nsfw');
+  const requestedStatus = params.get('status');
+  const source = params.get('source');
+  const capability = params.get('capability');
+  return extensions.filter((extension) => {
+    if (enabled === 'yes' && !extension.enabled) return false;
+    if (enabled === 'no' && extension.enabled) return false;
+    if (nsfw === 'yes' && !extension.nsfw) return false;
+    if (nsfw === 'no' && extension.nsfw) return false;
+    if (requestedStatus && requestedStatus !== 'all' && extension.status !== requestedStatus) return false;
+    if (source && extension.manifest?.source !== source) return false;
+    if (capability && !extension.manifest?.capabilities?.includes(capability)) return false;
+    return true;
+  });
 }
 
 export async function GET(request: NextRequest) {
-  const denied = await authorized(request);
-  if (denied) return denied;
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
 
+  const params = new URL(request.url).searchParams;
   const settings = await getKenjitsuExtensionSettings();
+  let kenjitsuError = false;
   try {
     const health = await kenjitsuClient.getExtensionHealth();
     const byId = new Map(health.data.map((item) => [item.id, item]));
-    return NextResponse.json({ extensions: settings.map((setting) => ({ ...setting, manifest: byId.get(setting.id) || null })) });
+    const extensions = filterExtensions(settings.map((setting) => {
+      const manifest = byId.get(setting.id);
+      const status = extensionStatus(setting, manifest, false);
+      return { ...setting, status, manifest: manifest || null };
+    }), params);
+    return NextResponse.json({ extensions, total: extensions.length });
   } catch (error) {
-    return NextResponse.json({
-      extensions: settings.map((setting) => ({ ...setting, manifest: null })),
-      kenjitsuError: error instanceof Error ? error.message : 'Kenjitsu indisponível.',
-    });
+    kenjitsuError = true;
+    const extensions = filterExtensions(settings.map((setting) => ({ ...setting, status: extensionStatus(setting, undefined, kenjitsuError), manifest: null })), params);
+    return NextResponse.json({ extensions, total: extensions.length, kenjitsuError: error instanceof Error ? error.message : 'Kenjitsu indisponível.' }, { status: 200 });
   }
 }
 
 export async function PATCH(request: NextRequest) {
-  const denied = await authorized(request);
-  if (denied) return denied;
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
 
   const body = await request.json().catch(() => null);
   if (!isExtensionId(body?.id)) return NextResponse.json({ error: 'Extensão inválida.' }, { status: 400 });
@@ -44,18 +72,17 @@ export async function PATCH(request: NextRequest) {
   if (body.nsfw !== undefined && typeof body.nsfw !== 'boolean') return NextResponse.json({ error: 'nsfw deve ser booleano.' }, { status: 400 });
 
   const settings = await getKenjitsuExtensionSettings();
-  const updated = settings.map((setting) =>
-    setting.id === body.id
-      ? { ...setting, ...(body.enabled === undefined ? {} : { enabled: body.enabled }), ...(body.nsfw === undefined ? {} : { nsfw: body.nsfw }) }
-      : setting,
-  );
+  const updated = settings.map((setting) => setting.id === body.id
+    ? { ...setting, ...(body.enabled === undefined ? {} : { enabled: body.enabled }), ...(body.nsfw === undefined ? {} : { nsfw: body.nsfw }) }
+    : setting);
   await saveKenjitsuExtensionSettings(updated);
+  void recordAdminAudit({ actorId: auth.userId, action: 'extension.updated', resourceType: 'extension', resourceId: body.id, summary: `Extensão “${body.id}” atualizada.`, metadata: { enabled: body.enabled, nsfw: body.nsfw } });
   return NextResponse.json({ success: true, extensions: updated });
 }
 
 export async function POST(request: NextRequest) {
-  const denied = await authorized(request);
-  if (denied) return denied;
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
 
   const body = await request.json().catch(() => null);
   if (!isExtensionId(body?.id)) return NextResponse.json({ error: 'Extensão inválida.' }, { status: 400 });
@@ -71,12 +98,13 @@ export async function POST(request: NextRequest) {
     if (error instanceof KenjitsuRequestError && error.status < 500) status = 'degraded';
   }
 
+  const latencyMs = Date.now() - startedAt;
+  await prisma.providerHealthLog.create({ data: { provider: body.id, status, latencyMs, error: errorMessage } }).catch(() => undefined);
   const settings = await getKenjitsuExtensionSettings();
-  const updated = normalizeKenjitsuExtensionSettings(settings.map((setting) =>
-    setting.id === body.id
-      ? { ...setting, lastTestedAt: new Date().toISOString(), lastTestStatus: status, lastLatencyMs: Date.now() - startedAt, lastError: errorMessage }
-      : setting,
-  ));
+  const updated = normalizeKenjitsuExtensionSettings(settings.map((setting) => setting.id === body.id
+    ? { ...setting, lastTestedAt: new Date().toISOString(), lastTestStatus: status, lastLatencyMs: latencyMs, lastError: errorMessage }
+    : setting));
   await saveKenjitsuExtensionSettings(updated);
-  return NextResponse.json({ success: status !== 'down', status, latencyMs: Date.now() - startedAt, error: errorMessage });
+  void recordAdminAudit({ actorId: auth.userId, action: 'extension.tested', resourceType: 'extension', resourceId: body.id, summary: `Teste da extensão “${body.id}”: ${status}.`, metadata: { status, latencyMs, error: errorMessage } });
+  return NextResponse.json({ success: status !== 'down', status, latencyMs, error: errorMessage });
 }

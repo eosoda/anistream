@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { CreateEpisodeSchema } from '@/schemas/episode';
 import { prisma } from '@/lib/db/prisma';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 export async function POST(
   request: NextRequest,
@@ -36,6 +37,8 @@ export async function POST(
         durationSeconds: data.durationSeconds,
       },
     });
+
+    void recordAdminAudit({ actorId: auth.userId, action: 'episode.created', resourceType: 'episode', resourceId: newEpisode.id, summary: `Episódio ${newEpisode.season}x${newEpisode.number} criado.`, metadata: { animeId, title: newEpisode.title } });
 
     return NextResponse.json({ episode: newEpisode }, { status: 201 });
   } catch (err: any) {

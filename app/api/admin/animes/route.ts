@@ -3,6 +3,8 @@ import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { CreateAnimeSchema } from '@/schemas/anime';
 import { prisma } from '@/lib/db/prisma';
 import { normalizeAnimeTitle } from '@/lib/anime/normalize-title';
+import type { Prisma } from '@prisma/client';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuth(request);
@@ -10,27 +12,38 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get('q') || '';
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const limit = parseInt(searchParams.get('limit') || '20', 10);
-  const skip = (page - 1) * limit;
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || searchParams.get('limit') || '20', 10) || 20));
+  const status = searchParams.get('status');
+  const hasEpisodes = searchParams.get('hasEpisodes');
+  const sort = searchParams.get('sort') || 'updatedAt';
+  const skip = (page - 1) * pageSize;
 
   try {
-    const whereClause = q
-      ? {
-          OR: [
-            { title: { contains: q, mode: 'insensitive' as const } },
-            { normalizedTitle: { contains: normalizeAnimeTitle(q), mode: 'insensitive' as const } },
-            { originalTitle: { contains: q, mode: 'insensitive' as const } },
-          ],
-        }
-      : {};
+    const whereClause: Prisma.AnimeWhereInput = {};
+    if (q) {
+      whereClause.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { normalizedTitle: { contains: normalizeAnimeTitle(q), mode: 'insensitive' } },
+        { originalTitle: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    if (status) whereClause.status = status;
+    if (hasEpisodes === 'yes') whereClause.episodes = { some: {} };
+    if (hasEpisodes === 'no') whereClause.episodes = { none: {} };
+
+    const orderBy: Prisma.AnimeOrderByWithRelationInput = sort === 'title'
+      ? { title: 'asc' }
+      : sort === 'episodeCount'
+        ? { episodes: { _count: 'desc' } }
+        : { updatedAt: 'desc' };
 
     const [animes, total] = await Promise.all([
       prisma.anime.findMany({
         where: whereClause,
         skip,
-        take: limit,
-        orderBy: { updatedAt: 'desc' },
+        take: pageSize,
+        orderBy,
         include: {
           _count: {
             select: { episodes: true },
@@ -45,8 +58,9 @@ export async function GET(request: NextRequest) {
       pagination: {
         total,
         page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        limit: pageSize,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
       },
     });
   } catch (err: any) {
@@ -99,10 +113,19 @@ export async function POST(request: NextRequest) {
         slug,
         description: data.description,
         posterUrl: data.posterUrl,
-        bannerUrl: data.bannerUrl,
+        backdropUrl: data.bannerUrl,
         releaseYear: data.releaseYear,
         status: data.status,
       },
+    });
+
+    void recordAdminAudit({
+      actorId: auth.userId,
+      action: 'anime.created',
+      resourceType: 'anime',
+      resourceId: newAnime.id,
+      summary: `Anime “${newAnime.title}” cadastrado.`,
+      metadata: { title: newAnime.title, slug: newAnime.slug },
     });
 
     return NextResponse.json({ anime: newAnime }, { status: 201 });

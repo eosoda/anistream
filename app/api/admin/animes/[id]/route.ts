@@ -3,6 +3,7 @@ import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { UpdateAnimeSchema } from '@/schemas/anime';
 import { prisma } from '@/lib/db/prisma';
 import { normalizeAnimeTitle } from '@/lib/anime/normalize-title';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await verifyAdminAuth(request);
@@ -62,13 +63,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         ...(data.slug ? { slug: data.slug } : {}),
         ...(data.description !== undefined ? { description: data.description } : {}),
         ...(data.posterUrl !== undefined ? { posterUrl: data.posterUrl } : {}),
-        ...(data.bannerUrl !== undefined ? { bannerUrl: data.bannerUrl } : {}),
+        ...(data.bannerUrl !== undefined ? { backdropUrl: data.bannerUrl } : {}),
         ...(data.releaseYear !== undefined ? { releaseYear: data.releaseYear } : {}),
         ...(data.status !== undefined ? { status: data.status } : {}),
         ...(data.openingStartSeconds !== undefined ? { openingStartSeconds: data.openingStartSeconds } : {}),
         ...(data.openingEndSeconds !== undefined ? { openingEndSeconds: data.openingEndSeconds } : {}),
       },
     });
+
+    void recordAdminAudit({ actorId: auth.userId, action: 'anime.updated', resourceType: 'anime', resourceId: id, summary: `Anime “${updatedAnime.title}” atualizado.`, metadata: { fields: Object.keys(data) } });
 
     return NextResponse.json({ anime: updatedAnime });
   } catch (err: any) {
@@ -83,9 +86,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const { id } = await params;
 
   try {
-    await prisma.anime.delete({
+    const anime = await prisma.anime.delete({
       where: { id },
     });
+
+    void recordAdminAudit({ actorId: auth.userId, action: 'anime.deleted', resourceType: 'anime', resourceId: id, summary: `Anime “${anime.title}” excluído.`, metadata: { cascadeEpisodes: true } });
 
     return NextResponse.json({ success: true, message: 'Anime excluído com sucesso' });
   } catch (err: any) {

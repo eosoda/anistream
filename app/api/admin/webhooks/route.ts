@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { CreateWebhookSchema } from '@/schemas/admin';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { recordAdminAudit } from '@/lib/admin/audit';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyAdminAuth(request);
+    if (!auth.authenticated) return auth.errorResponse!;
     const webhooks = await prisma.webhookConfig.findMany({
       orderBy: { createdAt: 'desc' },
     });
@@ -13,13 +17,22 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const auth = await verifyAdminAuth(req);
+    if (!auth.authenticated) return auth.errorResponse!;
     const body = await req.json();
     const { action = 'create', url, platform = 'DISCORD' } = body;
 
     if (action === 'test') {
-      if (!url) return NextResponse.json({ error: 'URL do Webhook necessária.' }, { status: 400 });
+      if (typeof url !== 'string' || !url.trim()) return NextResponse.json({ error: 'URL do Webhook necessária.' }, { status: 400 });
+      let webhookHost: string;
+      try {
+        webhookHost = new URL(url).host;
+      } catch {
+        return NextResponse.json({ error: 'URL do Webhook inválida.' }, { status: 400 });
+      }
+      void recordAdminAudit({ actorId: auth.userId, action: 'webhook.tested', resourceType: 'webhook', summary: 'Teste de webhook disparado.', metadata: { platform, host: webhookHost } });
 
       if (platform === 'DISCORD' || url.includes('discord.com')) {
         await fetch(url, {
@@ -61,20 +74,25 @@ export async function POST(req: Request) {
       },
     });
 
+    void recordAdminAudit({ actorId: auth.userId, action: 'webhook.created', resourceType: 'webhook', resourceId: webhook.id, summary: `Webhook “${webhook.name}” criado.`, metadata: { platform: webhook.platform } });
+
     return NextResponse.json({ success: true, webhook });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
+    const auth = await verifyAdminAuth(req);
+    if (!auth.authenticated) return auth.errorResponse!;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
     if (!id) return NextResponse.json({ error: 'ID necessário' }, { status: 400 });
 
-    await prisma.webhookConfig.delete({ where: { id } });
+    const webhook = await prisma.webhookConfig.delete({ where: { id } });
+    void recordAdminAudit({ actorId: auth.userId, action: 'webhook.deleted', resourceType: 'webhook', resourceId: id, summary: `Webhook “${webhook.name}” excluído.`, metadata: { platform: webhook.platform } });
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
