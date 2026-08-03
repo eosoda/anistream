@@ -3,7 +3,12 @@ import type { JikanAnime, JikanCharacter, JikanEpisode, JikanRelation } from '@/
 import type { LocalAnimeSearchItem, LocalAnimeSearchResponse } from '@/types/local-search';
 import { kenjitsuClient, KenjitsuRequestError } from './client';
 import { getEnabledKenjitsuExtensions } from './settings';
-import type { KenjitsuMetaAnime } from './types';
+import { mapWithConcurrency } from './concurrency';
+import type {
+  KenjitsuExtensionId,
+  KenjitsuExtensionSearchItem,
+  KenjitsuMetaAnime,
+} from './types';
 
 type AnimeInputId = string | number;
 
@@ -194,6 +199,114 @@ function sortCatalog(items: KenjitsuMetaAnime[], filters?: KenjitsuCatalogFilter
   });
 }
 
+const MAPPED_KENJITSU_EXTENSION_IDS = [
+  'anizone',
+  'anikoto',
+  'anidb',
+  'anibd',
+  'animeheaven',
+] as const satisfies readonly KenjitsuExtensionId[];
+
+const normalizeExtensionTitle = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+
+const comparableExtensionTitle = (value: string): string =>
+  normalizeExtensionTitle(value)
+    .replace(/\b(?:dublado|legendado|dual audio|todos os episodios|assistir online|online|hd|hdtv|full hd)\b/g, ' ')
+    .replace(/\b(?:classico|original)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const usableExtensionSearchItem = (item: KenjitsuExtensionSearchItem): boolean => {
+  const id = String(item.id ?? '').trim();
+  return Boolean(id && id !== '/' && id !== '#');
+};
+
+function selectExtensionSearchItem(items: KenjitsuExtensionSearchItem[], titles: string[]): KenjitsuExtensionSearchItem | null {
+  const usable = items.filter(usableExtensionSearchItem);
+  if (!usable.length) return null;
+
+  const normalizedTitles = titles.map(comparableExtensionTitle).filter(Boolean);
+  const exact = usable.find((item) => {
+    const names = [item.name, item.romaji].filter((value): value is string => Boolean(value)).map(comparableExtensionTitle);
+    return names.some((name) => normalizedTitles.includes(name));
+  });
+  if (exact) return exact;
+
+  // A fuzzy prefix match can silently turn Naruto into Naruto Shippuden or
+  // Boruto. Returning no match is safer than attaching another anime's
+  // episodes and playback sources to the requested catalog item.
+  return null;
+}
+
+function extensionSearchTitles(metadata: KenjitsuMetaAnime, preferredTitles: readonly string[]): string[] {
+  const titles: string[] = [];
+  const seen = new Set<string>();
+  for (const value of [
+    ...preferredTitles,
+    metadata.title?.english,
+    metadata.title?.romaji,
+    metadata.title?.native,
+    ...(metadata.synonyms || []),
+  ]) {
+    if (!value?.trim()) continue;
+    const key = normalizeExtensionTitle(value);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    titles.push(value.trim());
+    // One romanized title and one native title are enough to cover the
+    // supported sources without burning the Kenjitsu request budget on every
+    // synonym when an upstream is unavailable.
+    if (titles.length >= 2) break;
+  }
+  return titles;
+}
+
+export async function resolveKenjitsuExtensionInfo(
+  anilistId: number,
+  extensionId: KenjitsuExtensionId,
+  preferredTitles: readonly string[] = [],
+  metadataInput?: KenjitsuMetaAnime | null,
+): Promise<{ info: Awaited<ReturnType<typeof kenjitsuClient.getExtensionInfo>>; providerId: string | number } | null> {
+  const metadata = metadataInput ?? (await kenjitsuClient.getMetadata(anilistId)).data;
+  if (!metadata) return null;
+
+  let providerId: string | number | null = null;
+  if ((MAPPED_KENJITSU_EXTENSION_IDS as readonly string[]).includes(extensionId)) {
+    try {
+      const mapping = await kenjitsuClient.getMapping(anilistId, extensionId);
+      providerId = mapping.data?.provider?.id ?? mapping.provider?.id ?? null;
+    } catch {
+      // Ported and newer providers can still resolve through their own search endpoint.
+    }
+  }
+
+  if (providerId == null) {
+    const titles = extensionSearchTitles(metadata, preferredTitles);
+    for (const title of titles) {
+      try {
+        const search = await kenjitsuClient.searchExtension(extensionId, title, 1);
+        const match = selectExtensionSearchItem(search.data || [], titles);
+        if (match?.id != null) {
+          providerId = match.id;
+          break;
+        }
+      } catch {
+        // A single dead upstream must not prevent other Kenjitsu extensions from resolving.
+      }
+    }
+  }
+
+  if (providerId == null) return null;
+  const info = await kenjitsuClient.getExtensionInfo(extensionId, providerId);
+  return { info, providerId };
+}
+
 async function resolveAnilistId(input: AnimeInputId): Promise<number> {
   const value = String(input);
   if (value.startsWith('anilist:')) {
@@ -202,6 +315,13 @@ async function resolveAnilistId(input: AnimeInputId): Promise<number> {
   }
 
   if (/^\d+$/.test(value)) {
+    try {
+      const direct = await kenjitsuClient.getMetadata(Number(value));
+      if (direct.data?.anilistId) return Number(direct.data.anilistId);
+    } catch {
+      // The numeric input can also be a legacy MAL id; keep the search/local lookup below.
+    }
+
     const candidates = await kenjitsuClient.searchMetadata(value, 1, 50);
     const exactMal = candidates.data?.find((item) => Number(item.malId) === Number(value));
     if (exactMal?.anilistId) return Number(exactMal.anilistId);
@@ -306,23 +426,24 @@ export async function getAnimeRelations(input: AnimeInputId): Promise<JikanRelat
 export async function getAnimeEpisodes(input: AnimeInputId): Promise<JikanEpisode[]> {
   const anilistId = await resolveAnilistId(input);
   const extensionIds = await getEnabledKenjitsuExtensions();
-  const mappings = await Promise.allSettled(
-    extensionIds.map(async (extensionId) => {
-      const mapping = await kenjitsuClient.getMapping(anilistId, extensionId);
-      if (!mapping.provider?.id) return [] as JikanEpisode[];
-      const info = await kenjitsuClient.getExtensionInfo(extensionId, mapping.provider.id);
-      const providerEpisodes = info.providerEpisodes || info.data?.providerEpisodes || [];
+  const metadata = await kenjitsuClient.getMetadata(anilistId);
+  const mappings = await mapWithConcurrency(
+    extensionIds,
+    async (extensionId) => {
+      const resolved = await resolveKenjitsuExtensionInfo(anilistId, extensionId, [], metadata.data);
+      if (!resolved) return [] as JikanEpisode[];
+      const providerEpisodes = resolved.info.providerEpisodes || resolved.info.data?.providerEpisodes || [];
       return providerEpisodes.flatMap((episode) => {
         if (episode.episodeNumber == null) return [];
         return [{ mal_id: Number(episode.episodeNumber), title: episode.title || `Episodio ${episode.episodeNumber}`, aired: null, url: episode.episodeId || null }];
       });
-    }),
+    },
+    { concurrency: 4 },
   );
 
   const episodes = new Map<number, JikanEpisode>();
   mappings.forEach((result) => {
-    if (result.status !== 'fulfilled') return;
-    result.value.forEach((episode) => {
+    result?.forEach((episode) => {
       const current = episodes.get(episode.mal_id);
       if (!current || (current.title?.startsWith('Episodio ') && !episode.title?.startsWith('Episodio '))) episodes.set(episode.mal_id, episode);
     });

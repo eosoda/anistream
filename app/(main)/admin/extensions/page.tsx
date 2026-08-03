@@ -104,7 +104,15 @@ export default function AdminExtensionsPage() {
       const response = await fetch('/api/admin/extensions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
       const payload = await response.json();
       if (!response.ok && !payload.status) throw new Error(payload.error || 'Falha no teste da extensão.');
-      setMessage({ tone: payload.status === 'down' ? 'danger' : 'success', text: `${id}: ${payload.status || 'down'}${payload.latencyMs ? ` · ${payload.latencyMs}ms` : ''}` });
+      const chain = [
+        payload.searchResultCount != null ? `${payload.searchResultCount} resultados` : null,
+        payload.episodeCount != null ? `${payload.episodeCount} episódios` : null,
+        payload.sourceCount != null ? `${payload.sourceCount} sources` : null,
+      ].filter(Boolean).join(' · ');
+      setMessage({
+        tone: payload.status === 'healthy' ? 'success' : payload.status === 'degraded' ? 'info' : 'danger',
+        text: `${id}: ${payload.status || 'down'}${payload.latencyMs ? ` · ${payload.latencyMs}ms` : ''}${chain ? ` · ${chain}` : ''}${payload.error ? ` · ${payload.error}` : ''}`,
+      });
       await load();
     } catch (error) {
       setMessage({ tone: 'danger', text: error instanceof Error ? error.message : 'Falha no teste da extensão.' });

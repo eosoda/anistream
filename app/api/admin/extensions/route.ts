@@ -6,6 +6,7 @@ import {
   normalizeKenjitsuExtensionSettings,
   saveKenjitsuExtensionSettings,
 } from '@/lib/kenjitsu/settings';
+import { resolveKenjitsuExtensionInfo } from '@/lib/kenjitsu/catalog';
 import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId } from '@/lib/kenjitsu/types';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { recordAdminAudit } from '@/lib/admin/audit';
@@ -17,7 +18,7 @@ function isExtensionId(value: unknown): value is KenjitsuExtensionId {
 
 function extensionStatus(setting: { lastTestStatus?: string | null }, manifest: { id: string } | undefined, kenjitsuError: boolean): AdminHealthState {
   if (setting.lastTestStatus === 'healthy' || setting.lastTestStatus === 'degraded' || setting.lastTestStatus === 'down' || setting.lastTestStatus === 'unknown') return setting.lastTestStatus;
-  if (manifest) return 'healthy';
+  if (manifest) return 'unknown';
   return kenjitsuError ? 'down' : 'unknown';
 }
 
@@ -90,9 +91,32 @@ export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   let status: 'healthy' | 'degraded' | 'down' = 'down';
   let errorMessage: string | null = null;
+  let searchResultCount = 0;
+  let episodeCount = 0;
+  let sourceCount = 0;
   try {
     const result = await kenjitsuClient.searchExtension(body.id, 'Naruto', 1);
-    status = result.data?.length ? 'healthy' : 'degraded';
+    searchResultCount = result.data?.length || 0;
+    const metadata = await kenjitsuClient.getMetadata(20);
+    const resolved = await resolveKenjitsuExtensionInfo(20, body.id, ['Naruto'], metadata.data);
+    if (!resolved) {
+      status = 'degraded';
+      errorMessage = 'A busca não retornou uma correspondência exata para Naruto.';
+    } else {
+      const info = resolved.info;
+      const episodes = info.providerEpisodes || info.data?.providerEpisodes || [];
+      episodeCount = episodes.length;
+      const episode = episodes.find((item) => item.episodeId);
+      if (!episode?.episodeId) {
+        status = 'degraded';
+        errorMessage = 'A extensão não retornou episódios.';
+      } else {
+        const sources = await kenjitsuClient.getExtensionSources(body.id, episode.episodeId, 'sub');
+        sourceCount = sources.data?.sources?.length || 0;
+        status = sourceCount > 0 ? 'healthy' : 'degraded';
+        if (!sourceCount) errorMessage = 'A extensão não retornou sources válidos.';
+      }
+    }
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : 'Falha no teste.';
     if (error instanceof KenjitsuRequestError && error.status < 500) status = 'degraded';
@@ -106,5 +130,5 @@ export async function POST(request: NextRequest) {
     : setting));
   await saveKenjitsuExtensionSettings(updated);
   void recordAdminAudit({ actorId: auth.userId, action: 'extension.tested', resourceType: 'extension', resourceId: body.id, summary: `Teste da extensão “${body.id}”: ${status}.`, metadata: { status, latencyMs, error: errorMessage } });
-  return NextResponse.json({ success: status !== 'down', status, latencyMs, error: errorMessage });
+  return NextResponse.json({ success: status !== 'down', status, latencyMs, error: errorMessage, searchResultCount, episodeCount, sourceCount });
 }

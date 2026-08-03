@@ -14,23 +14,16 @@ export const KENJITSU_EXTENSION_IDS = [
   'animescx',
   'animesdigital',
   'animesdrive',
-  'animesgames',
   'animesgratis',
   'animesonlinecc',
   'animesonlinecloud',
   'animesonlinevip',
-  'animesotaku',
   'animesroll',
   'anitube',
   'betteranimeio',
-  'darkmahou',
   'dattebayobr',
   'donghuanosekai',
-  'doramogo',
-  'funanimetv',
   'goyabu',
-  'hentaistube',
-  'meusanimes',
   'muitohentai',
   'pifansubs',
   'smartanimes',
@@ -40,7 +33,7 @@ export const KENJITSU_EXTENSION_IDS = [
 
 export type KenjitsuExtensionId = (typeof KENJITSU_EXTENSION_IDS)[number];
 
-export const KENJITSU_NSFW_EXTENSION_IDS = ['hentaistube', 'muitohentai'] as const;
+export const KENJITSU_NSFW_EXTENSION_IDS = ['muitohentai'] as const;
 
 export interface KenjitsuResponse<T> {
   data: T;

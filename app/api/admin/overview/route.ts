@@ -50,11 +50,9 @@ export async function GET(request: NextRequest) {
     const manifest = healthById.get(setting.id);
     const status = healthFromSetting(setting.lastTestStatus) !== 'unknown'
       ? healthFromSetting(setting.lastTestStatus)
-      : manifest
-        ? 'healthy'
-        : healthResult.error
-          ? 'down'
-          : 'unknown';
+      : healthResult.error
+        ? 'down'
+        : 'unknown';
     return {
       id: setting.id,
       name: manifest?.name || setting.id,
