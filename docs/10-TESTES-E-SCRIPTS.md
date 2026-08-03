@@ -6,7 +6,7 @@ Esta documentação descreve a validação local do AniStream, do painel operaci
 
 Para executar a validação completa:
 
-- Node.js 20+;
+- Node.js 22.19+;
 - Docker Desktop com Compose;
 - PostgreSQL e Redis locais, ou o stack `docker-compose.selfhosted.yml`;
 - repositórios irmãos `../kenjitsu`, `../kenjitsu-extensions` e `../extensions-source` para o Compose self-hosted;

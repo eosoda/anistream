@@ -40,7 +40,7 @@ O **AniStream** é uma aplicação web para descoberta, acompanhamento e reprodu
 
 ## Requisitos
 
-- Node.js 20+;
+- Node.js 22.19+;
 - Docker Desktop com Compose;
 - os repositórios irmãos `../kenjitsu`, `../kenjitsu-extensions` e `../extensions-source` para o stack self-hosted;
 - PostgreSQL/Redis locais quando executar sem Docker.

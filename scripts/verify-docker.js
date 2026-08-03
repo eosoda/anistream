@@ -47,9 +47,9 @@ function requireText(content, expected, label) {
 
 logHeader('1. Dockerfile standalone');
 const dockerfile = readFile('Dockerfile');
-requireText(dockerfile, 'FROM node:20-alpine AS deps', 'Estagio deps com Node 20 Alpine');
-requireText(dockerfile, 'FROM node:20-alpine AS builder', 'Estagio builder presente');
-requireText(dockerfile, 'FROM node:20-alpine AS runner', 'Estagio runner presente');
+requireText(dockerfile, 'FROM node:22-alpine AS deps', 'Estagio deps com Node 22 Alpine');
+requireText(dockerfile, 'FROM node:22-alpine AS builder', 'Estagio builder presente');
+requireText(dockerfile, 'FROM node:22-alpine AS runner', 'Estagio runner presente');
 requireText(dockerfile, 'COPY package.json package-lock.json ./', 'Build usa lockfile');
 requireText(dockerfile, 'RUN npm ci', 'Dependencias instaladas de forma reproduzivel');
 requireText(dockerfile, 'RUN npx prisma generate', 'Prisma Client gerado no builder');

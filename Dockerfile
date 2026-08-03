@@ -1,7 +1,7 @@
 # Imagem self-hosted do AniStream: Next.js standalone + Kenjitsu Compose
 
 # 1. Dependencias
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -9,7 +9,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 # 2. Compilacao
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 RUN npm run build
 
 # 3. Execucao como usuario sem privilegios
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
