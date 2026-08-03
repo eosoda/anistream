@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { apiSuccess } from '@/lib/api/response';
 import type { HomeSectionConfig, NavItemConfig, PageFeatureConfig } from '@/types/navigation';
+import { DEFAULT_HOMEPAGE_DOCUMENT, homepageSectionSummary } from '@/lib/homepage/defaults';
+import { getPublishedHomepageDocument } from '@/lib/homepage/repository';
 
 export type { HomeSectionConfig, NavItemConfig, PageFeatureConfig } from '@/types/navigation';
 
@@ -37,26 +39,17 @@ const DEFAULT_PAGES: PageFeatureConfig[] = [
   },
 ];
 
-const DEFAULT_HOME_SECTIONS: HomeSectionConfig[] = [
-  { id: 'hero', name: 'Banner Hero (Destaques)', enabled: true, order: 1 },
-  { id: 'quick_filter', name: 'Filtros Rápidos (Multi-Filter)', enabled: true, order: 2 },
-  { id: 'continue_watching', name: 'Continuar Assistindo', enabled: true, order: 3 },
-  { id: 'trending', name: 'Em Alta', enabled: true, order: 4 },
-  { id: 'season_now', name: 'Temporada Atual', enabled: true, order: 5 },
-  { id: 'top_popular', name: 'Mais Populares', enabled: true, order: 6 },
-  { id: 'top_rated', name: 'Mais Bem Avaliados', enabled: true, order: 7 },
-];
-const HOME_SECTION_IDS = new Set(DEFAULT_HOME_SECTIONS.map((section) => section.id));
+const DEFAULT_HOME_SECTIONS: HomeSectionConfig[] = homepageSectionSummary(DEFAULT_HOMEPAGE_DOCUMENT);
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const settingsList = await prisma.systemSetting.findMany({
       where: {
-        key: { in: ['public_navigation', 'page_features', 'home_sections'] },
+        key: { in: ['public_navigation', 'page_features'] },
       },
     });
 
-    const settingsMap = new Map<string, any>();
+    const settingsMap = new Map<string, unknown>();
     for (const item of settingsList) {
       try {
         settingsMap.set(item.key, JSON.parse(item.value));
@@ -65,27 +58,28 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const navigation: NavItemConfig[] = settingsMap.get('public_navigation') || DEFAULT_NAVIGATION;
-    const pages: PageFeatureConfig[] = settingsMap.get('page_features') || DEFAULT_PAGES;
-    const storedHomeSections = settingsMap.get('home_sections');
-    const homeSections: HomeSectionConfig[] = Array.isArray(storedHomeSections)
-      ? storedHomeSections.filter((section) => HOME_SECTION_IDS.has(section.id))
-      : DEFAULT_HOME_SECTIONS;
+    const navigation: NavItemConfig[] = Array.isArray(settingsMap.get('public_navigation'))
+      ? settingsMap.get('public_navigation') as NavItemConfig[]
+      : DEFAULT_NAVIGATION;
+    const pages: PageFeatureConfig[] = Array.isArray(settingsMap.get('page_features'))
+      ? settingsMap.get('page_features') as PageFeatureConfig[]
+      : DEFAULT_PAGES;
+    const publishedHomepage = await getPublishedHomepageDocument();
+    const homeSections: HomeSectionConfig[] = homepageSectionSummary(publishedHomepage.document);
 
     return apiSuccess(
       {
-        navigation: navigation.sort((a, b) => a.order - b.order),
+        navigation: navigation.slice().sort((a, b) => a.order - b.order),
         pages,
-        homeSections: homeSections.sort((a, b) => a.order - b.order),
+        homeSections,
       },
       {
         headers: {
           'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=1800',
         },
-      }
+      },
     );
-  } catch (err: any) {
-    // Fallback gracioso com valores padrão
+  } catch {
     return apiSuccess({
       navigation: DEFAULT_NAVIGATION,
       pages: DEFAULT_PAGES,

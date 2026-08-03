@@ -24,6 +24,13 @@ export async function verifyAdminAuth(
     };
   }
 
+  return verifyAdminToken(token);
+}
+
+export async function verifyAdminToken(
+  token: string
+): Promise<{ authenticated: boolean; userId?: string; errorResponse?: NextResponse }> {
+
   // Se o token for a chave mestra simples configurada nas envs
   if (token === env.ADMIN_SESSION_SECRET) {
     return { authenticated: true, userId: 'admin-master' };
