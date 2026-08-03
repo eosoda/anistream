@@ -8,7 +8,7 @@ Para executar a validação completa:
 
 - Node.js 22.19+;
 - Docker Desktop com Compose;
-- PostgreSQL e Redis locais, ou o stack `docker-compose.selfhosted.yml`;
+- PostgreSQL e Redis locais, ou o stack definido em `docker-compose.yml`;
 - repositórios irmãos `../kenjitsu`, `../kenjitsu-extensions` e `../extensions-source` para o Compose self-hosted;
 - banco inicializado com `npx prisma db push` quando executar sem Docker.
 
@@ -69,14 +69,14 @@ O painel deve ser revisado em 320, 360, 390, 768, 1024, 1280 e 1440px. Os crité
 
 ```bash
 npm run test:docker
-docker compose -f docker-compose.selfhosted.yml up -d --build
+docker compose up -d --build
 ```
 
 Verificações úteis:
 
 ```bash
 curl http://localhost:3000/api/health
-docker compose -f docker-compose.selfhosted.yml ps
+docker compose ps
 docker logs anistream_selfhosted_app
 docker logs anistream_selfhosted_kenjitsu
 ```

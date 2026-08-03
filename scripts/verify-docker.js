@@ -57,8 +57,8 @@ requireText(dockerfile, 'USER nextjs', 'Runner sem privilegios');
 requireText(dockerfile, 'HEALTHCHECK', 'Healthcheck da imagem configurado');
 requireText(dockerfile, 'npx prisma db push --skip-generate && exec node server.js', 'Boot falha explicitamente quando o schema nao pode ser sincronizado');
 
-logHeader('2. Compose self-hosted canonico');
-const compose = readFile('docker-compose.selfhosted.yml');
+logHeader('2. Compose unico');
+const compose = readFile('docker-compose.yml');
 requireText(compose, 'postgres:', 'PostgreSQL presente');
 requireText(compose, 'redis:', 'Redis do AniStream presente');
 requireText(compose, 'kenjitsu-redis:', 'Redis dedicado do Kenjitsu presente');
@@ -68,9 +68,6 @@ requireText(compose, 'KENJITSU_BASE_URL', 'URL interna do Kenjitsu configurada')
 requireText(compose, 'SOURCE_ENCRYPTION_KEY', 'Criptografia de playback configurada');
 requireText(compose, 'healthcheck:', 'Healthchecks configurados');
 requireText(compose, 'condition: service_healthy', 'Dependencias aguardam health');
-
-const composeAlias = readFile('docker-compose.yml');
-requireText(composeAlias, 'docker-compose.selfhosted.yml', 'docker-compose.yml aponta para o Compose canonico');
 
 logHeader('3. Contexto de build');
 const dockerIgnore = readFile('.dockerignore');

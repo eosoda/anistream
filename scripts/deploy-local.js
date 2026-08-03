@@ -27,7 +27,7 @@ console.log('\n========================================');
 console.log('🐳 Passo 2: Comando de Inicialização do Docker Compose');
 console.log('========================================\n');
 console.log('Para iniciar ou atualizar os containers no seu ambiente local/VPS, execute:\n');
-console.log('👉 docker compose -f docker-compose.selfhosted.yml up -d --build --remove-orphans\n');
+console.log('👉 docker compose up -d --build --remove-orphans\n');
 console.log('Se você estiver em um ambiente PowerShell no Windows:');
 console.log('👉 ./scripts/deploy.ps1\n');
 console.log('Se estiver em um terminal Linux / Bash:');

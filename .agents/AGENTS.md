@@ -121,7 +121,7 @@ Todas as rotas admin devem validar sessão com `verifyAdminAuth` e preservar men
 Use os três repositórios irmãos e o Compose self-hosted:
 
 ```bash
-docker compose -f docker-compose.selfhosted.yml up -d --build
+docker compose up -d --build
 ```
 
 Serviços padrão:

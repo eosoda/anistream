@@ -105,7 +105,7 @@ HLS é validado por `src/lib/streams/hls-validator.ts`. A validação confirma s
 O ambiente oficial desta fase é local:
 
 ```bash
-docker compose -f docker-compose.selfhosted.yml up -d --build
+docker compose up -d --build
 ```
 
 O Compose sobe AniStream, Kenjitsu, PostgreSQL e os dois Redis. Os três repositórios irmãos (`kenjitsu`, `kenjitsu-extensions` e `extensions-source`) são usados como contexto local para a imagem self-hosted.

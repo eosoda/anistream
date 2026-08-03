@@ -51,7 +51,7 @@ Copie `.env.example` para `.env` e ajuste apenas segredos, portas ou endpoints n
 
 ```bash
 npm install
-docker compose -f docker-compose.selfhosted.yml up -d --build
+docker compose up -d --build
 ```
 
 Para o Compose, confirme em `.env`:

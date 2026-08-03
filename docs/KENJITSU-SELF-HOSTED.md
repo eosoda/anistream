@@ -17,7 +17,7 @@ Os três projetos são mantidos em forks da conta `eosoda`, com `origin` apontan
 Na pasta `anistream`:
 
 ```bash
-docker compose -f docker-compose.selfhosted.yml up -d --build
+docker compose up -d --build
 ```
 
 Serviços padrão:
@@ -47,7 +47,7 @@ KENJITSU_REQUEST_TIMEOUT_MS="10000"
 KENJITSU_CACHE_TTL_SECONDS="300"
 ```
 
-O exemplo acima é para executar o AniStream fora do Compose. Dentro dos containers, use `DATABASE_URL` com host `postgres` e `KENJITSU_BASE_URL="http://kenjitsu:3000"`, conforme a rede do `docker-compose.selfhosted.yml`.
+O exemplo acima é para executar o AniStream fora do Compose. Dentro dos containers, use `DATABASE_URL` com host `postgres` e `KENJITSU_BASE_URL="http://kenjitsu:3000"`, conforme a rede do `docker-compose.yml`.
 
 Não configure hosts autorizados de mídia, playlists M3U ou URLs manuais. As URLs de reprodução vêm do Kenjitsu e ainda passam pela proteção SSRF do AniStream.
 

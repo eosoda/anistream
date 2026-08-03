@@ -11,6 +11,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "🐳 Compilando e iniciando os containers..." -ForegroundColor Yellow
-docker compose -f docker-compose.selfhosted.yml up -d --build --remove-orphans
+docker compose up -d --build --remove-orphans
 
 Write-Host "✨ Deploy local finalizado com sucesso! Acesse http://localhost:3000" -ForegroundColor Green

@@ -91,7 +91,7 @@ NEXT_PUBLIC_APP_URL="${appUrl}"
   console.log(`  URL de Instalação Direta : http://localhost:3000/setup?key=${initialSetupKey}`);
   console.log('===================================================================\n');
   console.log('🚀 Para iniciar o Docker com as novas variáveis, execute:');
-  console.log('   docker compose -f docker-compose.selfhosted.yml up -d --build\n');
+  console.log('   docker compose up -d --build\n');
 }
 
 run();

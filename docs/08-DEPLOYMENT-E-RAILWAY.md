@@ -13,7 +13,7 @@ O Compose self-hosted sobe:
 5. AniStream Next.js em modo standalone.
 
 ```bash
-docker compose -f docker-compose.selfhosted.yml up -d --build
+docker compose up -d --build
 ```
 
 Health checks:
@@ -21,7 +21,7 @@ Health checks:
 ```bash
 curl http://localhost:3000/api/health
 curl http://localhost:3001/api/extensions/health
-docker compose -f docker-compose.selfhosted.yml ps
+docker compose ps
 ```
 
 ## 2. Contexto dos repositórios
