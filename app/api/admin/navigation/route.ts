@@ -1,85 +1,62 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { apiSuccess, apiError } from '@/lib/api/response';
+import { ZodError } from 'zod';
+import { apiError, apiSuccess } from '@/lib/api/response';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { recordAdminAudit } from '@/lib/admin/audit';
-import { getAdminHomepageState } from '@/lib/homepage/repository';
-import { homepageSectionSummary } from '@/lib/homepage/defaults';
+import {
+  NavigationConflictError,
+  getNavigationConfiguration,
+  saveNavigationConfiguration,
+} from '@/lib/navigation/repository';
+import { buildNavigationPreview } from '@/lib/navigation/presentation';
+import { parseNavigationSave } from '@/schemas/navigation';
+
+function validationDetails(error: unknown) {
+  return error instanceof ZodError
+    ? error.issues.map((issue) => ({ path: issue.path, message: issue.message }))
+    : undefined;
+}
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuth(request);
   if (!auth.authenticated) return auth.errorResponse!;
 
   try {
-    const settingsList = await prisma.systemSetting.findMany({
-      where: {
-        key: { in: ['public_navigation', 'page_features'] },
-      },
-    });
-
-    const settingsMap = new Map<string, unknown>();
-    for (const item of settingsList) {
-      try {
-        settingsMap.set(item.key, JSON.parse(item.value));
-      } catch {
-        settingsMap.set(item.key, null);
-      }
-    }
-
-    const homepage = await getAdminHomepageState();
-    return apiSuccess({
-      navigation: Array.isArray(settingsMap.get('public_navigation')) ? settingsMap.get('public_navigation') : null,
-      pages: Array.isArray(settingsMap.get('page_features')) ? settingsMap.get('page_features') : null,
-      homeSections: homepageSectionSummary(homepage.published),
-      homepageSummary: homepage.summary,
-    });
+    const config = await getNavigationConfiguration();
+    return apiSuccess({ ...config, preview: buildNavigationPreview(config) });
   } catch (error) {
     return apiError('ADMIN_NAVIGATION_FETCH_ERROR', error instanceof Error ? error.message : 'Não foi possível carregar a navegação.', 500);
   }
 }
+
 export async function POST(request: NextRequest) {
   const auth = await verifyAdminAuth(request);
   if (!auth.authenticated) return auth.errorResponse!;
 
   try {
-    const body = await request.json();
-    const { navigation, pages } = body;
-    const updates: Promise<unknown>[] = [];
+    const input = parseNavigationSave(await request.json());
+    const before = await getNavigationConfiguration();
+    const saved = await saveNavigationConfiguration(input);
 
-    if (Array.isArray(navigation)) {
-      updates.push(
-        prisma.systemSetting.upsert({
-          where: { key: 'public_navigation' },
-          update: { value: JSON.stringify(navigation) },
-          create: { key: 'public_navigation', value: JSON.stringify(navigation) },
-        }),
-      );
-    }
-
-    if (Array.isArray(pages)) {
-      updates.push(
-        prisma.systemSetting.upsert({
-          where: { key: 'page_features' },
-          update: { value: JSON.stringify(pages) },
-          create: { key: 'page_features', value: JSON.stringify(pages) },
-        }),
-      );
-    }
-
-    await Promise.all(updates);
-    void recordAdminAudit({
+    await recordAdminAudit({
       actorId: auth.userId,
       action: 'navigation.updated',
       resourceType: 'navigation',
-      summary: 'Configurações públicas de navegação atualizadas.',
+      resourceId: 'public-experience',
+      summary: 'Configuração pública de navegação atualizada.',
       metadata: {
-        navigationCount: Array.isArray(navigation) ? navigation.length : 0,
-        pageCount: Array.isArray(pages) ? pages.length : 0,
+        beforeRevision: before.revision,
+        revision: saved.revision,
+        enabledNavigationCount: saved.navigation.filter((item) => item.enabled).length,
+        mobileBottomIds: saved.mobileBottomIds,
+        disabledPages: saved.pages.filter((page) => !page.enabled).map((page) => page.id),
       },
     });
 
-    return apiSuccess({ message: 'Configurações de navegação e páginas salvas com sucesso.' });
+    return apiSuccess({ ...saved, preview: buildNavigationPreview(saved) });
   } catch (error) {
+    if (error instanceof NavigationConflictError) return apiError('NAVIGATION_VERSION_CONFLICT', error.message, 409);
+    if (error instanceof ZodError) return apiError('NAVIGATION_INVALID', 'Revise os campos destacados antes de publicar.', 422, validationDetails(error));
     return apiError('ADMIN_NAVIGATION_SAVE_ERROR', error instanceof Error ? error.message : 'Não foi possível salvar a navegação.', 500);
   }
 }
