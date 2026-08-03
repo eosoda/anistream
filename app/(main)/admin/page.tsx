@@ -1,25 +1,131 @@
 'use client';
+
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Activity, AlertTriangle, DatabaseBackup, Film, Loader2, Puzzle, RefreshCw, Server, Settings, Tv } from 'lucide-react';
-import { StatusRegion } from '@/components/ui';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowUpRight,
+  Database,
+  Film,
+  History,
+  Puzzle,
+  RefreshCw,
+  Server,
+  Settings,
+  Tv,
+} from 'lucide-react';
+import { AdminEmptyState, AdminFeedback, AdminPageHeader, AdminPanel, AdminStatusBadge } from '@/components/admin/AdminPrimitives';
+import type { AdminOverview } from '@/types/admin';
 
-interface Report { id: string; status: string; type: string; episode?: { number?: number; anime?: { title?: string } } }
-interface Circuit { extensionId: string; state: string }
+function formatDate(value?: string | null) {
+  if (!value) return '—';
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+}
+
+const quickLinks = [
+  { label: 'Catálogo', description: 'Animes e episódios', href: '/admin/animes', icon: Film },
+  { label: 'Extensões', description: 'Saúde e ativação Kenjitsu', href: '/admin/extensions', icon: Puzzle },
+  { label: 'Sistema', description: 'Manutenção e disponibilidade', href: '/admin/system', icon: Settings },
+  { label: 'Backups', description: 'Exportar ou restaurar dados', href: '/admin/backups', icon: Database },
+];
 
 export default function AdminDashboardPage() {
-  const [metrics, setMetrics] = useState<Record<string, any> | null>(null); const [reports, setReports] = useState<Report[]>([]); const [circuits, setCircuits] = useState<Circuit[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
-  const load = useCallback(async () => { setLoading(true); setError(''); try { const [metricsResponse, reportsResponse, circuitResponse] = await Promise.all([fetch('/api/admin/metrics'), fetch('/api/reports'), fetch('/api/admin/circuit-breaker')]); const [metricsData, reportsData, circuitData] = await Promise.all([metricsResponse.json(), reportsResponse.json(), circuitResponse.json()]); if (!metricsResponse.ok) throw new Error(metricsData.error || 'Falha ao carregar métricas.'); setMetrics(metricsData); setReports(reportsData.reports || []); setCircuits(circuitData?.data?.extensions || []); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha ao carregar o painel.'); } finally { setLoading(false); } }, []);
-  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
-  if (loading) return <div className="grid min-h-[55dvh] place-items-center"><StatusRegion className="flex items-center gap-3 text-sm text-[var(--text-secondary)]"><Loader2 className="animate-spin text-[var(--accent)]" />Carregando saúde do sistema…</StatusRegion></div>;
-  const kpis = metrics?.kpis || {}; const pending = reports.filter((report) => report.status === 'PENDING');
-  const cards = [{ label: 'Animes', value: kpis.animeCount || 0, Icon: Film }, { label: 'Episódios', value: kpis.episodeCount || 0, Icon: Tv }, { label: 'Extensões ativas', value: kpis.enabledExtensionsCount || 0, Icon: Puzzle }, { label: 'Alertas pendentes', value: pending.length, Icon: AlertTriangle }];
-  return <div className="mx-auto max-w-7xl space-y-6 p-2 sm:p-6">
-    <header className="flex flex-col justify-between gap-4 border-b border-[var(--border-subtle)] pb-5 sm:flex-row sm:items-center"><div><div className="flex items-center gap-2 text-[var(--accent)]"><Activity size={20} /><span className="text-sm font-semibold">Visão operacional</span></div><h1 className="mt-2 text-2xl font-bold">Saúde do AniStream</h1><p className="mt-1 text-sm text-[var(--text-secondary)]">KPIs, alertas e disponibilidade dos serviços.</p></div><button onClick={() => void load()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--border-strong)] px-4 text-sm font-semibold"><RefreshCw size={17} />Atualizar</button></header>
-    <StatusRegion assertive className="text-sm text-[var(--danger)]">{error}</StatusRegion>
-    <section aria-label="Indicadores principais" className="grid grid-cols-2 gap-3 lg:grid-cols-4">{cards.map(({ label, value, Icon }) => <article key={label} className="surface-panel rounded-[var(--radius-media)] p-4"><div className="flex items-center justify-between text-[var(--text-secondary)]"><span className="text-sm font-medium">{label}</span><Icon size={18} /></div><p className="mt-3 font-mono-data text-3xl font-bold">{value}</p></article>)}</section>
-    <div className="grid gap-6 lg:grid-cols-2"><section className="surface-panel rounded-[var(--radius-media)] p-5"><h2 className="flex items-center gap-2 text-lg font-bold"><Puzzle size={19} className="text-[var(--accent)]" />Extensões Kenjitsu</h2><div className="mt-4 divide-y divide-[var(--border-subtle)]">{circuits.length ? circuits.map((item) => <div key={item.extensionId} className="flex min-h-12 items-center justify-between gap-3 py-2"><span className="text-sm font-semibold">{item.extensionId}</span><span className={`text-sm ${item.state === 'OPEN' ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>{item.state === 'OPEN' ? 'Indisponível' : 'Operacional'}</span></div>) : <p className="py-4 text-sm text-[var(--text-muted)]">Nenhum diagnóstico de extensão disponível.</p>}</div></section>
-    <section className="surface-panel rounded-[var(--radius-media)] p-5"><h2 className="flex items-center gap-2 text-lg font-bold"><AlertTriangle size={19} className="text-[var(--warning)]" />Atividade recente</h2><div className="mt-4 divide-y divide-[var(--border-subtle)]">{pending.length ? pending.slice(0, 6).map((report) => <div key={report.id} className="py-3"><p className="text-sm font-semibold">{report.episode?.anime?.title || 'Anime'} · Episódio {report.episode?.number || '—'}</p><p className="mt-1 text-xs text-[var(--text-muted)]">{report.type}</p></div>) : <p className="py-4 text-sm text-[var(--text-muted)]">Nenhum alerta pendente.</p>}</div></section></div>
-    <nav aria-label="Operações administrativas" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{[['Sistema','/admin/system',Settings],['Comunicados','/admin/broadcasts',Activity],['Backups','/admin/backups',DatabaseBackup],['Integrações','/admin/integrations',Server],['Releases','/admin/releases',RefreshCw]].map(([label, href, Icon]) => { const OperationIcon = Icon as typeof Activity; return <Link key={href as string} href={href as string} className="surface-panel flex min-h-14 items-center gap-3 rounded-[var(--radius-control)] px-4 text-sm font-semibold hover:border-[var(--border-strong)]"><OperationIcon size={18} className="text-[var(--accent)]" />{label as string}</Link>; })}</nav>
-  </div>;
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/admin/overview', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Falha ao carregar a visão geral.');
+      setOverview(payload);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Falha ao carregar a visão geral.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void load();
+    }, 30_000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+    };
+  }, [load]);
+
+  if (loading && !overview) {
+    return (
+      <div className="space-y-6" role="status" aria-live="polite">
+        <div className="admin-page-header"><div className="space-y-3"><div className="h-3 w-28 animate-pulse rounded bg-[var(--admin-panel-raised)]" /><div className="h-9 w-64 animate-pulse rounded bg-[var(--admin-panel-raised)]" /><div className="h-4 w-96 max-w-full animate-pulse rounded bg-[var(--admin-panel-raised)]" /></div><div className="h-11 w-28 animate-pulse rounded-[var(--admin-radius)] bg-[var(--admin-panel-raised)]" /></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="admin-panel h-28 animate-pulse" />)}</div>
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]"><div className="admin-panel h-80 animate-pulse" /><div className="admin-panel h-80 animate-pulse" /></div>
+      </div>
+    );
+  }
+
+  const kpis = overview?.kpis;
+  const extensions = [...(overview?.extensions || [])].sort((a, b) => Number(a.status === 'healthy') - Number(b.status === 'healthy')).slice(0, 8);
+
+  return (
+    <div className="space-y-6">
+      <AdminPageHeader
+        eyebrow="Operação"
+        title="Visão geral"
+        description="Estado do catálogo, das extensões Kenjitsu e das tarefas que precisam de atenção."
+        breadcrumbs={[{ label: 'Painel' }]}
+        actions={<button type="button" className="admin-button is-secondary" onClick={() => void load()} disabled={loading}><RefreshCw size={16} className={loading ? 'animate-spin' : undefined} />Atualizar</button>}
+      />
+
+      {error && <AdminFeedback tone="danger">{error}</AdminFeedback>}
+
+      {overview && (
+        <>
+          <section className="admin-overview-strip" aria-label="Saúde dos serviços">
+            <div className="flex min-w-0 items-center gap-3"><Activity size={18} className="text-[var(--accent)]" /><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[var(--admin-dim)]">Estado agora</p><p className="mt-1 text-sm font-semibold text-[var(--admin-text)]">Atualizado em {formatDate(overview.generatedAt)}</p></div></div>
+            <div className="flex flex-wrap items-center gap-2">{overview.services.map((service) => <span key={service.id} className="inline-flex items-center gap-2 text-xs text-[var(--admin-muted)]"><span className="text-[var(--admin-dim)]">{service.label}</span><AdminStatusBadge status={service.status} label={service.status === 'healthy' ? 'OK' : undefined} /></span>)}<span className="font-mono-data text-xs text-[var(--admin-muted)]">Saúde {overview.kpis.overallHealthScore}%</span></div>
+          </section>
+
+          <section aria-label="Indicadores principais" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: 'Animes no catálogo', value: kpis?.animeCount || 0, icon: Film },
+              { label: 'Episódios', value: kpis?.episodeCount || 0, icon: Tv },
+              { label: 'Extensões ativas', value: kpis?.enabledExtensionsCount || 0, icon: Puzzle },
+              { label: 'Alertas pendentes', value: kpis?.pendingAlertsCount || 0, icon: AlertTriangle },
+            ].map((item) => { const Icon = item.icon; return <AdminPanel key={item.label} className="flex items-center justify-between gap-3 p-4"><div><p className="text-xs font-semibold text-[var(--admin-muted)]">{item.label}</p><p className="mt-2 font-mono-data text-2xl font-bold text-[var(--admin-text)]">{item.value.toLocaleString('pt-BR')}</p></div><span className="grid size-10 place-items-center rounded-[10px] bg-[var(--admin-panel-raised)] text-[var(--accent)]"><Icon size={18} /></span></AdminPanel>; })}
+          </section>
+
+          <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+            <AdminPanel>
+              <div className="admin-panel-header"><div><h2 className="text-base font-bold text-[var(--admin-text)]">Fila de atenção</h2><p className="mt-1 text-xs text-[var(--admin-muted)]">Relatos que ainda exigem uma decisão.</p></div><Link href="/admin/animes" className="admin-button is-ghost">Ver catálogo <ArrowUpRight size={15} /></Link></div>
+              {overview.alerts.length ? <div className="divide-y divide-[var(--admin-line)]">{overview.alerts.map((alert) => <div key={alert.id} className="flex items-start gap-3 px-4 py-3.5"><span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-[9px] bg-[rgba(245,170,50,.12)] text-[var(--warning)]"><AlertTriangle size={16} /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-[var(--admin-text)]">{alert.animeTitle} <span className="font-normal text-[var(--admin-muted)]">· episódio {alert.episodeNumber ?? '—'}</span></p><p className="mt-1 truncate text-xs text-[var(--admin-muted)]">{alert.description || alert.type}</p></div><span className="shrink-0 text-[.68rem] text-[var(--admin-dim)]">{formatDate(alert.createdAt)}</span></div>)}</div> : <AdminEmptyState title="Nenhum alerta pendente" description="A fila está limpa. Novos relatos aparecerão aqui quando chegarem." />}
+            </AdminPanel>
+
+            <AdminPanel>
+              <div className="admin-panel-header"><div><h2 className="text-base font-bold text-[var(--admin-text)]">Extensões Kenjitsu</h2><p className="mt-1 text-xs text-[var(--admin-muted)]">As fontes ativas no caminho de resolução.</p></div><Link href="/admin/extensions" className="admin-button is-ghost">Gerenciar <ArrowUpRight size={15} /></Link></div>
+              {extensions.length ? <div className="divide-y divide-[var(--admin-line)]">{extensions.map((extension) => <div key={extension.id} className="flex items-center gap-3 px-4 py-3"><span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-[var(--admin-panel-raised)] text-[var(--accent)]"><Puzzle size={15} /></span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[var(--admin-text)]">{extension.name}</strong><small className="block truncate text-xs text-[var(--admin-muted)]">{extension.enabled ? 'Ativa' : 'Desativada'}{extension.latencyMs != null ? ` · ${extension.latencyMs}ms` : ''}</small></span><AdminStatusBadge status={extension.status} /></div>)}</div> : <AdminEmptyState title="Sem extensões carregadas" description="O Kenjitsu ainda não retornou o inventário de extensões." />}
+            </AdminPanel>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+            <AdminPanel>
+              <div className="admin-panel-header"><div><h2 className="flex items-center gap-2 text-base font-bold text-[var(--admin-text)]"><History size={17} className="text-[var(--accent)]" />Atividade recente</h2><p className="mt-1 text-xs text-[var(--admin-muted)]">Alterações administrativas registradas.</p></div><Link href="/admin/system" className="admin-button is-ghost">Histórico <ArrowUpRight size={15} /></Link></div>
+              {overview.activity.length ? <div className="divide-y divide-[var(--admin-line)]">{overview.activity.map((entry) => <div key={entry.id} className="flex items-start justify-between gap-4 px-4 py-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-[var(--admin-text)]">{entry.summary}</p><p className="mt-1 text-xs text-[var(--admin-muted)]">{entry.actorName || 'Sistema'} · {entry.action}</p></div><time className="shrink-0 text-[.68rem] text-[var(--admin-dim)]">{formatDate(entry.createdAt)}</time></div>)}</div> : <AdminEmptyState title="Nenhuma atividade registrada" description="As próximas alterações feitas no painel aparecerão neste histórico." />}
+            </AdminPanel>
+            <AdminPanel>
+              <div className="admin-panel-header"><div><h2 className="flex items-center gap-2 text-base font-bold text-[var(--admin-text)]"><Server size={17} className="text-[var(--accent)]" />Atalhos de operação</h2><p className="mt-1 text-xs text-[var(--admin-muted)]">Ações frequentes sem perder o contexto.</p></div></div>
+              <nav className="grid gap-1.5 p-2" aria-label="Atalhos administrativos">{quickLinks.map((link) => { const Icon = link.icon; return <Link key={link.href} href={link.href} className="flex items-center gap-3 rounded-[9px] p-3 hover:bg-white/[.045]"><span className="grid size-8 place-items-center rounded-[8px] bg-[var(--admin-panel-raised)] text-[var(--accent)]"><Icon size={15} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[var(--admin-text)]">{link.label}</strong><small className="block text-xs text-[var(--admin-muted)]">{link.description}</small></span><ArrowUpRight size={15} className="text-[var(--admin-dim)]" /></Link>; })}</nav>
+            </AdminPanel>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

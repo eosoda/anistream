@@ -1,39 +1,190 @@
 'use client';
-import { FormEvent, useEffect, useState } from 'react';
-import { Button, FormField, StatusRegion } from '@/components/ui';
-import { useConfirmation } from '@/context/ConfirmationContext';
 
-async function post(url: string, body: unknown) { const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error || 'Não foi possível concluir a ação.'); return payload; }
+import { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, Download, Loader2, Upload } from 'lucide-react';
+import { AdminEmptyState, AdminFeedback, AdminPanel } from '@/components/admin';
+import { useConfirmation } from '@/context/ConfirmationContext';
+import type { AdminAuditEntry } from '@/types/admin';
+
+type Feedback = { tone: 'success' | 'danger' | 'warning' | 'info'; message: string } | null;
+
+async function post(url: string, body: unknown) {
+  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || 'Não foi possível concluir a ação.');
+  return payload;
+}
+
+function OperationForm({ eyebrow, title, description, onSubmit, feedback, children, submitLabel, submitting = false }: { eyebrow: string; title: string; description: string; onSubmit: (event: FormEvent) => void; feedback: Feedback; children: ReactNode; submitLabel: string; submitting?: boolean }) {
+  return (
+    <form onSubmit={onSubmit} className="admin-panel overflow-hidden">
+      <div className="admin-panel-header">
+        <div><p className="admin-eyebrow">{eyebrow}</p><h2 className="admin-section-title">{title}</h2><p className="admin-section-description">{description}</p></div>
+      </div>
+      <div className="grid gap-4 p-4 sm:p-5">
+        {children}
+        {feedback && <AdminFeedback tone={feedback.tone}>{feedback.message}</AdminFeedback>}
+        <div className="flex justify-end"><button type="submit" className="admin-button is-primary" disabled={submitting}>{submitting && <Loader2 size={16} className="animate-spin" />}{submitLabel}</button></div>
+      </div>
+    </form>
+  );
+}
 
 export function BroadcastOperation() {
-  const [title, setTitle] = useState(''); const [content, setContent] = useState(''); const [message, setMessage] = useState('');
-  const submit = async (event: FormEvent) => { event.preventDefault(); try { await post('/api/admin/broadcast', { title, content, type: 'INFO' }); setMessage('Comunicado publicado.'); setTitle(''); setContent(''); } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao publicar.'); } };
-  return <OperationForm title="Novo comunicado" onSubmit={submit} message={message}><FormField label="Título">{(props) => <input {...props} required value={title} onChange={(e) => setTitle(e.target.value)} className="admin-field" />}</FormField><FormField label="Mensagem">{(props) => <textarea {...props} required rows={5} value={content} onChange={(e) => setContent(e.target.value)} className="admin-field resize-y" />}</FormField><Button type="submit">Publicar comunicado</Button></OperationForm>;
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setFeedback(null);
+    try {
+      await post('/api/admin/broadcast', { title, content, type: 'INFO' });
+      setTitle('');
+      setContent('');
+      setFeedback({ tone: 'success', message: 'Comunicado publicado e registrado na auditoria.' });
+    } catch (error) {
+      setFeedback({ tone: 'danger', message: error instanceof Error ? error.message : 'Falha ao publicar o comunicado.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return <OperationForm eyebrow="Comunicação" title="Novo comunicado" description="Mensagem operacional que será exibida aos usuários." onSubmit={submit} feedback={feedback} submitLabel="Publicar comunicado" submitting={submitting}>
+    <label className="admin-field-group"><span className="admin-field-label">Título</span><input className="admin-field" required value={title} onChange={(event) => setTitle(event.target.value)} /></label>
+    <label className="admin-field-group"><span className="admin-field-label">Mensagem</span><textarea className="admin-field min-h-36 resize-y" required rows={5} value={content} onChange={(event) => setContent(event.target.value)} /></label>
+  </OperationForm>;
 }
 
 export function SystemOperation() {
-  const [enabled, setEnabled] = useState(false); const [messageText, setMessageText] = useState('Estamos em manutenção para atualização de servidores.'); const [status, setStatus] = useState(''); const [loading, setLoading] = useState(true);
-  useEffect(() => { const controller = new AbortController(); fetch('/api/maintenance', { signal: controller.signal }).then((response) => response.json()).then((data) => { setEnabled(Boolean(data.maintenance)); if (data.message) setMessageText(data.message); }).catch((error) => { if (error.name !== 'AbortError') setStatus('Não foi possível carregar o estado atual.'); }).finally(() => setLoading(false)); return () => controller.abort(); }, []);
-  const submit = async (event: FormEvent) => { event.preventDefault(); try { await post('/api/admin/maintenance', { enabled: !enabled, message: messageText }); setEnabled(!enabled); setStatus(`Modo manutenção ${!enabled ? 'ativado' : 'desativado'}.`); } catch (error) { setStatus(error instanceof Error ? error.message : 'Falha ao atualizar.'); } };
-  return <OperationForm title="Modo manutenção" onSubmit={submit} message={status}><FormField label="Mensagem pública">{(props) => <textarea {...props} rows={4} value={messageText} onChange={(e) => setMessageText(e.target.value)} className="admin-field" />}</FormField><Button type="submit" disabled={loading} variant={enabled ? 'danger' : 'primary'}>{loading ? 'Carregando estado…' : enabled ? 'Desativar manutenção' : 'Ativar manutenção'}</Button></OperationForm>;
+  const [enabled, setEnabled] = useState(false);
+  const [messageText, setMessageText] = useState('Estamos em manutenção para atualização de servidores.');
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/maintenance', { signal: controller.signal }).then((response) => response.json()).then((data) => { setEnabled(Boolean(data.maintenance)); if (data.message) setMessageText(data.message); }).catch((error) => { if (error.name !== 'AbortError') setFeedback({ tone: 'danger', message: 'Não foi possível carregar o estado atual.' }); }).finally(() => setLoading(false));
+    return () => controller.abort();
+  }, []);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setFeedback(null);
+    try {
+      const nextEnabled = !enabled;
+      await post('/api/admin/maintenance', { enabled: nextEnabled, message: messageText });
+      setEnabled(nextEnabled);
+      setFeedback({ tone: 'success', message: `Modo manutenção ${nextEnabled ? 'ativado' : 'desativado'} e registrado na auditoria.` });
+    } catch (error) {
+      setFeedback({ tone: 'danger', message: error instanceof Error ? error.message : 'Falha ao atualizar a disponibilidade.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return <OperationForm eyebrow="Disponibilidade" title="Modo manutenção" description="Controle a mensagem pública durante uma janela operacional." onSubmit={submit} feedback={feedback} submitLabel={loading ? 'Carregando estado…' : enabled ? 'Desativar manutenção' : 'Ativar manutenção'} submitting={loading || submitting}>
+    <label className="admin-field-group"><span className="admin-field-label">Mensagem pública</span><textarea className="admin-field min-h-28 resize-y" rows={4} value={messageText} onChange={(event) => setMessageText(event.target.value)} /></label>
+    <div className="flex items-center gap-2 text-xs text-[var(--admin-muted)]"><span className={`admin-status-badge ${enabled ? 'is-degraded' : 'is-healthy'}`}><span className="admin-status-dot" aria-hidden="true" />{enabled ? 'Manutenção ativa' : 'Operação normal'}</span><span>O próximo clique alterna o estado.</span></div>
+  </OperationForm>;
 }
 
 export function BackupOperation() {
-  const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); const { confirm } = useConfirmation();
-  const restore = async (file?: File) => { if (!file || busy) return; const accepted = await confirm({ title: 'Restaurar este backup?', description: <>O arquivo <strong>{file.name}</strong> ({Math.ceil(file.size / 1024)} KB) será aplicado ao catálogo atual. Exporte um backup antes de continuar.</>, confirmText: 'Restaurar dados', cancelText: 'Cancelar', variant: 'danger' }); if (!accepted) return; setBusy(true); try { const data = JSON.parse(await file.text()); const payload = await post('/api/admin/backup', data); setMessage(payload.message || 'Backup restaurado.'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Arquivo inválido.'); } finally { setBusy(false); } };
-  return <section className="operation-card"><h2 className="text-lg font-bold">Backup e restauração</h2><p className="text-sm text-[var(--text-secondary)]">Exporte uma cópia antes de restaurar dados. A restauração altera o catálogo atual.</p><div className="flex flex-wrap gap-3"><a href="/api/admin/backup" download className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-[var(--accent)] px-4 text-sm font-semibold text-black">Exportar JSON</a><label aria-disabled={busy} className="inline-flex min-h-11 cursor-pointer items-center rounded-[var(--radius-control)] border border-[var(--danger)] px-4 text-sm font-semibold text-[var(--danger)]">{busy ? 'Restaurando…' : 'Restaurar JSON'}<input type="file" disabled={busy} accept="application/json,.json" className="sr-only" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void restore(file); }} /></label></div><StatusRegion>{message}</StatusRegion></section>;
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [busy, setBusy] = useState(false);
+  const { confirm } = useConfirmation();
+  const restore = async (file?: File) => {
+    if (!file || busy) return;
+    const accepted = await confirm({ title: 'Restaurar este backup?', description: <>O arquivo <strong>{file.name}</strong> ({Math.ceil(file.size / 1024)} KB) será aplicado ao catálogo atual. Exporte um backup antes de continuar.</>, confirmText: 'Restaurar dados', cancelText: 'Cancelar', variant: 'danger' });
+    if (!accepted) return;
+    setBusy(true);
+    setFeedback(null);
+    try {
+      const payload = await post('/api/admin/backup', JSON.parse(await file.text()));
+      setFeedback({ tone: 'success', message: payload.message || 'Backup restaurado e registrado na auditoria.' });
+    } catch (error) {
+      setFeedback({ tone: 'danger', message: error instanceof Error ? error.message : 'Arquivo inválido ou restauração interrompida.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <AdminPanel>
+    <div className="admin-panel-header"><div><p className="admin-eyebrow">Proteção de dados</p><h2 className="admin-section-title">Backup e restauração</h2><p className="admin-section-description">Exporte uma cópia antes de restaurar. A restauração altera o catálogo atual.</p></div></div>
+    <div className="space-y-4 p-4 sm:p-5">
+      <div className="flex flex-wrap gap-2"><a href="/api/admin/backup" download className="admin-button is-secondary"><Download size={16} /> Exportar JSON</a><label className="admin-button is-danger cursor-pointer"><Upload size={16} />{busy ? 'Restaurando…' : 'Restaurar JSON'}<input type="file" disabled={busy} accept="application/json,.json" className="sr-only" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void restore(file); }} /></label></div>
+      {feedback && <AdminFeedback tone={feedback.tone}>{feedback.message}</AdminFeedback>}
+      <p className="text-xs leading-relaxed text-[var(--admin-dim)]">A operação é destrutiva e exige confirmação explícita. O arquivo não é enviado a nenhum serviço externo.</p>
+    </div>
+  </AdminPanel>;
 }
 
 export function IntegrationOperation() {
-  const [name, setName] = useState(''); const [url, setUrl] = useState(''); const [message, setMessage] = useState('');
-  const submit = async (event: FormEvent) => { event.preventDefault(); try { await post('/api/admin/webhooks', { name, url }); setMessage('Integração salva.'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao salvar.'); } };
-  return <OperationForm title="Novo webhook" onSubmit={submit} message={message}><FormField label="Nome">{(props) => <input {...props} required value={name} onChange={(e) => setName(e.target.value)} className="admin-field" />}</FormField><FormField label="URL do webhook">{(props) => <input {...props} required type="url" value={url} onChange={(e) => setUrl(e.target.value)} className="admin-field font-mono-data" />}</FormField><Button type="submit">Salvar integração</Button></OperationForm>;
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setFeedback(null);
+    try {
+      await post('/api/admin/webhooks', { name, url });
+      setName('');
+      setUrl('');
+      setFeedback({ tone: 'success', message: 'Webhook salvo e registrado na auditoria.' });
+    } catch (error) {
+      setFeedback({ tone: 'danger', message: error instanceof Error ? error.message : 'Falha ao salvar a integração.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return <OperationForm eyebrow="Conectividade" title="Novo webhook" description="Integração opcional para eventos operacionais do aplicativo." onSubmit={submit} feedback={feedback} submitLabel="Salvar integração" submitting={submitting}>
+    <label className="admin-field-group"><span className="admin-field-label">Nome</span><input className="admin-field" required value={name} onChange={(event) => setName(event.target.value)} /></label>
+    <label className="admin-field-group"><span className="admin-field-label">URL do webhook</span><input className="admin-field font-mono" required type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" /></label>
+    <p className="text-xs leading-relaxed text-[var(--admin-dim)]">As fontes de catálogo e playback permanecem exclusivamente no Kenjitsu. Este formulário gerencia apenas webhooks administrativos.</p>
+  </OperationForm>;
 }
 
 export function ReleaseOperation() {
-  const [version, setVersion] = useState(''); const [title, setTitle] = useState(''); const [content, setContent] = useState(''); const [message, setMessage] = useState('');
-  const submit = async (event: FormEvent) => { event.preventDefault(); try { await post('/api/changelog', { version, title, content, type: 'IMPROVEMENT' }); setMessage('Release publicada.'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao publicar.'); } };
-  return <OperationForm title="Publicar release" onSubmit={submit} message={message}><FormField label="Versão" hint="Exemplo: 2.2.0">{(props) => <input {...props} required value={version} onChange={(e) => setVersion(e.target.value)} className="admin-field font-mono-data" />}</FormField><FormField label="Título">{(props) => <input {...props} required value={title} onChange={(e) => setTitle(e.target.value)} className="admin-field" />}</FormField><FormField label="Notas da versão">{(props) => <textarea {...props} required rows={8} value={content} onChange={(e) => setContent(e.target.value)} className="admin-field" />}</FormField><Button type="submit">Publicar no changelog</Button></OperationForm>;
+  const [version, setVersion] = useState('');
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setFeedback(null);
+    try {
+      await post('/api/changelog', { version, title, content, type: 'IMPROVEMENT' });
+      setVersion('');
+      setTitle('');
+      setContent('');
+      setFeedback({ tone: 'success', message: 'Release publicada no changelog e registrada na auditoria.' });
+    } catch (error) {
+      setFeedback({ tone: 'danger', message: error instanceof Error ? error.message : 'Falha ao publicar a release.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return <OperationForm eyebrow="Publicação" title="Publicar release" description="Registre uma versão pública com notas claras para os usuários." onSubmit={submit} feedback={feedback} submitLabel="Publicar no changelog" submitting={submitting}>
+    <label className="admin-field-group"><span className="admin-field-label">Versão</span><input className="admin-field font-mono" required value={version} onChange={(event) => setVersion(event.target.value)} placeholder="2.2.0" /></label>
+    <label className="admin-field-group"><span className="admin-field-label">Título</span><input className="admin-field" required value={title} onChange={(event) => setTitle(event.target.value)} /></label>
+    <label className="admin-field-group"><span className="admin-field-label">Notas da versão</span><textarea className="admin-field min-h-44 resize-y" required rows={8} value={content} onChange={(event) => setContent(event.target.value)} /></label>
+  </OperationForm>;
 }
 
-function OperationForm({ title, onSubmit, message, children }: { title: string; onSubmit: (event: FormEvent) => void; message: string; children: React.ReactNode }) { return <form onSubmit={onSubmit} className="operation-card"><h2 className="text-lg font-bold">{title}</h2>{children}<StatusRegion className="min-h-5 text-sm text-[var(--text-secondary)]">{message}</StatusRegion></form>; }
+export function AuditHistory({ resourceType }: { resourceType?: string }) {
+  const [entries, setEntries] = useState<AdminAuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    const query = resourceType ? `&resourceType=${encodeURIComponent(resourceType)}` : '';
+    fetch(`/api/admin/audit?pageSize=12${query}`, { signal: controller.signal }).then(async (response) => { const payload = await response.json(); if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar a auditoria.'); setEntries(payload.entries || []); }).catch((loadError) => { if (loadError.name !== 'AbortError') setError(loadError instanceof Error ? loadError.message : 'Falha ao carregar a auditoria.'); }).finally(() => setLoading(false));
+    return () => controller.abort();
+  }, [resourceType]);
+  return <AdminPanel><div className="admin-panel-header"><div><p className="admin-eyebrow">Rastro de mudanças</p><h2 className="admin-section-title">Atividade recente</h2><p className="admin-section-description">Ações administrativas com metadata sanitizada.</p></div></div>{error ? <div className="p-5"><AdminFeedback tone="danger">{error}</AdminFeedback></div> : loading ? <div className="flex min-h-32 items-center justify-center text-sm text-[var(--admin-muted)]"><Loader2 size={17} className="mr-2 animate-spin" /> Carregando atividade…</div> : entries.length === 0 ? <AdminEmptyState title="Sem atividade registrada" description="As próximas alterações administrativas aparecerão aqui." /> : <div className="divide-y divide-[var(--admin-line)]">{entries.map((entry) => <div key={entry.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_auto] sm:gap-4"><div className="min-w-0"><p className="text-sm font-semibold text-[var(--admin-text)]">{entry.summary}</p><p className="mt-1 font-mono text-[11px] text-[var(--admin-dim)]">{entry.action} · {entry.resourceType}{entry.resourceId ? `/${entry.resourceId}` : ''}</p></div><time className="text-xs text-[var(--admin-muted)]" dateTime={entry.createdAt}>{new Date(entry.createdAt).toLocaleString('pt-BR')}</time></div>)}</div>}</AdminPanel>;
+}
