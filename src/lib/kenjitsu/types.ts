@@ -42,6 +42,13 @@ export interface KenjitsuResponse<T> {
   [key: string]: unknown;
 }
 
+export interface KenjitsuPaginatedResponse<T> extends KenjitsuResponse<T> {
+  hasNextPage?: boolean;
+  currentPage?: number;
+  lastPage?: number;
+  perPage?: number;
+}
+
 export interface KenjitsuMetaAnime {
   malId?: number | null;
   anilistId?: number | null;
@@ -68,6 +75,22 @@ export interface KenjitsuMetaAnime {
   endDate?: string | null;
   studio?: string | null;
   producers?: string[] | null;
+}
+
+export interface KenjitsuAiringSchedule {
+  malId?: number | null;
+  anilistId?: number | null;
+  image?: string | null;
+  bannerImage?: string | null;
+  title?: {
+    romaji?: string | null;
+    english?: string | null;
+    native?: string | null;
+  };
+  status?: string | null;
+  episode?: number | null;
+  airingAt?: number | null;
+  timeUntilAiring?: number | null;
 }
 
 export interface KenjitsuProviderId {

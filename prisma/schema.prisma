@@ -33,6 +33,8 @@ model Anime {
   aliases     AnimeAlias[]
   identifiers AnimeIdentifier[]
   episodes    Episode[]
+  releaseScheduleRule ReleaseScheduleRule?
+  releaseScheduleExceptions ReleaseScheduleException[]
 
   @@index([normalizedTitle])
   @@index([slug])
@@ -235,6 +237,40 @@ model SystemSetting {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model ReleaseScheduleRule {
+  id          String   @id @default(cuid())
+  animeId     String   @unique
+  mode        String   @default("ADD") // ADD, OVERRIDE, HIDE
+  weekday     Int?
+  timeMinutes Int?
+  timezone    String   @default("Asia/Tokyo")
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+
+  @@index([weekday, enabled])
+}
+
+model ReleaseScheduleException {
+  id          String   @id @default(cuid())
+  animeId     String
+  dateKey     String
+  mode        String   @default("MOVE") // ADD, MOVE, HIDE
+  weekday     Int?
+  timeMinutes Int?
+  timezone    String   @default("Asia/Tokyo")
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+
+  @@unique([animeId, dateKey])
+  @@index([dateKey, enabled])
 }
 
 model HomepageLayout {
