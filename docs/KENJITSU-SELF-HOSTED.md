@@ -86,7 +86,7 @@ O smoke verifica registro das extensões e executa busca, detalhes, episódios e
 
 Uma falha isolada do upstream não deve ser transformada em fallback silencioso. O resultado deve ser investigado no manifest/endpoint da extensão e permanecer visível no painel.
 
-Por seguranca, o smoke normal exige correspondencia exata para extensoes portadas. As extensoes nativas usam o mapping do AniList. Quando a busca de uma fonte retorna resultados genericos ou paginas de episodio, e possivel testar somente a cadeia da primeira entrada com `KENJITSU_SMOKE_PROBE_FALLBACK=true`; o resultado aparece como aviso e nao vira fallback na resolucao do catalogo.
+Por segurança, o smoke normal exige correspondência exata para extensões portadas. As extensões nativas usam o mapping do AniList. Quando a busca de uma fonte retorna resultados genéricos ou páginas de episódio, é possível testar somente a cadeia da primeira entrada com `KENJITSU_SMOKE_PROBE_FALLBACK=true`; o resultado aparece como aviso e não vira fallback na resolução do catálogo.
 
 O inventário self-hosted atual possui 30 extensões. As entradas `animesgames`, `animesotaku`, `hentaistube`, `meusanimes`, `funanimetv`, `darkmahou` e `doramogo` foram removidas do registro porque seus domínios não entregam mais uma fonte utilizável (DNS/timeout, 404, página encerrada ou domínio estacionado). Os módulos continuam preservados em `../extensions-source` para reavaliação caso os sites retornem ou o upstream publique uma migração de domínio.
 

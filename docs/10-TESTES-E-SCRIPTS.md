@@ -105,7 +105,7 @@ O script exige que as extensões estejam registradas no health do Kenjitsu e tes
 
 Falhas de uma extensão devem ser tratadas como resultado de upstream: o painel mostra `degraded`, `down` ou `unknown`, registra `ProviderHealthLog` e preserva as demais fontes habilitadas.
 
-O caminho padrao exige correspondencia exata do titulo para evitar que `Naruto` seja ligado a `Naruto Shippuden` ou `Boruto`. Extensoes nativas sao validadas pelo endpoint de mapping do AniList, que e o caminho usado pelo catalogo. Para diagnosticar uma fonte que possui busca ampla, mas nao retorna o titulo solicitado, use o probe explicito:
+O caminho padrão exige correspondência exata do título para evitar que `Naruto` seja ligado a `Naruto Shippuden` ou `Boruto`. Extensões nativas são validadas pelo endpoint de mapping do AniList, que é o caminho usado pelo catálogo. Para diagnosticar uma fonte que possui busca ampla, mas não retorna o título solicitado, use o probe explícito:
 
 ```powershell
 $env:KENJITSU_SMOKE_EXTENSIONS="animeito,muitohentai,pifansubs"
@@ -113,7 +113,7 @@ $env:KENJITSU_SMOKE_PROBE_FALLBACK="true"
 npm run test:kenjitsu
 ```
 
-O probe usa apenas o primeiro resultado e o reporta como `WARN`; ele nao altera a resolucao segura do catalogo. `WARN` significa cadeia de episodios/sources funcional, mas busca ou taxonomia que precisa de revisao. `FAIL` significa erro no inventario, detalhes, episodios ou sources.
+O probe usa apenas o primeiro resultado e o reporta como `WARN`; ele não altera a resolução segura do catálogo. `WARN` significa cadeia de episódios/sources funcional, mas busca ou taxonomia que precisa de revisão. `FAIL` significa erro no inventário, detalhes, episódios ou sources.
 
 O inventário local deve anunciar 30 extensões. Fontes removidas por indisponibilidade do domínio não devem ser reativadas manualmente: primeiro confirme uma atualização no `extensions-source`, depois porte a correção para o fork self-hosted e repita o smoke.
 

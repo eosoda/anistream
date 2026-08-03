@@ -39,6 +39,14 @@ O **AniStream** é uma aplicação web para descoberta, acompanhamento e reprodu
 - Retomada de reprodução, Picture-in-Picture, autoplay, atalhos e pular abertura.
 - Validação HLS, relay seguro e proteção SSRF para URLs recebidas do upstream.
 
+## Estado atual do stack self-hosted
+
+- O único Compose mantido é `docker-compose.yml`, compatível com execução local e futura hospedagem containerizada.
+- O Kenjitsu é a API única de catálogo, metadados, episódios e playback.
+- O registro atual possui 30 extensões: 25 portadas no fork `kenjitsu-extensions` e 5 nativas no Kenjitsu.
+- Extensões com domínios indisponíveis foram removidas do registro, mas seus módulos continuam preservados em `../extensions-source` para eventual atualização de domínio.
+- O fluxo de atualização passa por `upstream` → fork self-hosted → smoke local → merge na `main`; os repositórios oficiais não são alterados.
+
 ## Requisitos
 
 - Node.js 22.19+;

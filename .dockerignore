@@ -1,18 +1,34 @@
-Dockerfile
-.dockerignore
-node_modules
-.next
-.git
+# Dependencies and generated output
+node_modules/
+.next/
+out/
+coverage/
+test-results/
+artifacts/
+*.tsbuildinfo
+playwright-report/
+blob-report/
+
+# Repository and local tooling metadata
+.git/
+.github/
+.agents/
+.impeccable/
 .gitignore
-.env
-.env.local
-.env.production
-.env*.local
+.dockerignore
+scratch/
+.setup-key
+
+# Secrets and local environment files
+.env*
+!.env.example
+
+# Documentation and test-only files are not needed in the runtime image
 README.md
 ARCHITECTURE.md
-docs
-tests
+DESIGN.md
+PRODUCT.md
+docs/
+tests/
 vitest.config.ts
 playwright.config.ts
-.agents
-.setup-key
