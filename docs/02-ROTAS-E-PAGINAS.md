@@ -50,6 +50,8 @@ O shell compartilhado fica em `app/(main)/admin/layout.tsx` e fornece navegaçã
 | `/admin/sources` | Alias que redireciona para `/admin/extensions`. |
 | `/admin/sources/tester` | Alias que redireciona para `/admin/extensions`. |
 
+O painel `/admin/navigation` é o centro operacional de menu público, atalhos mobile, footer e disponibilidade de páginas. Ele usa somente destinos internos oficiais; a Busca permanece fixa no segundo slot mobile e os outros três slots são configuráveis.
+
 ## Preview protegido
 
 | Rota | Função |
@@ -65,6 +67,16 @@ O shell compartilhado fica em `app/(main)/admin/layout.tsx` e fornece navegaçã
 | `PUT /api/admin/homepage` | Salva o rascunho com controle otimista de versão. |
 | `POST /api/admin/homepage/publish` | Publica o rascunho após confirmação e invalida o cache público. |
 | `POST /api/admin/homepage/discard` | Restaura o rascunho para a última publicação. |
+
+## APIs de navegação pública
+
+| Endpoint | Função |
+| :--- | :--- |
+| `GET /api/admin/navigation` | Configuração autenticada, revisão, defaults materializados e preview. |
+| `POST /api/admin/navigation` | Publica destinos, slots mobile e redirects com auditoria. |
+| `GET /api/settings/public` | Entrega `navigation`, `mobileBottomIds`, `pages` e `revision` ao shell público. |
+
+Páginas desativadas são removidas da navegação, redirecionam acessos diretos para uma rota interna habilitada e exibem um aviso breve acessível.
 
 ## APIs do calendário
 
