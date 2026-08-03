@@ -13,10 +13,10 @@ Bem-vindo à documentação modular oficial do **AniStream**. Esta pasta contém
 | [`03-COMPONENTES-E-DESIGN.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/03-COMPONENTES-E-DESIGN.md) | **Componentes & Design System** | Estrutura modular (`anime/`, `player/`, `catalog/`, `home/`, `layout/`, `ui/`). |
 | [`04-ESTADO-E-CONTEXTOS.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/04-ESTADO-E-CONTEXTOS.md) | **Gerenciamento de Estado & Contextos** | Provedores globais (`ToastContext`, `ConfirmationContext`, `FavoritesContext`) e Hooks. |
 | [`05-PLAYER-E-STREAMING.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/05-PLAYER-E-STREAMING.md) | **Player de Vídeo & Experiência de Streaming** | Atalhos, Pular Abertura (+85s), PiP Nativo, Light Dimmer e Autoplay. |
-| [`06-SERVICOS-E-APIS.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/06-SERVICOS-E-APIS.md) | **Serviços de API & Resiliência** | Fila de Throttling (350ms) da API Jikan v4, AniList GraphQL e tratamento de erros. |
+| [`06-SERVICOS-E-APIS.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/06-SERVICOS-E-APIS.md) | **Serviços de API & Resiliência** | Kenjitsu self-hosted, extensões habilitáveis, cache Redis, circuit breaker e proteção SSRF. |
 | [`07-OFFLINE-E-CACHE-IDB.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/07-OFFLINE-E-CACHE-IDB.md) | **Armazenamento Offline e IndexedDB** | Estrutura das stores no IndexedDB, sincronia e fallback com dados estáticos. |
 | [`08-DEPLOYMENT-E-RAILWAY.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/08-DEPLOYMENT-E-RAILWAY.md) | **Guia de Hospedagem & Deploy no Railway** | Configuração do Docker Multi-stage, PostgreSQL Gerenciado e Deploy. |
-| [`09-PAINEL-ADMINISTRATIVO.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/09-PAINEL-ADMINISTRATIVO.md) | **Painel Administrativo & Gestão de Catálogo** | CRUD de Animes, Auto-preenchimento Jikan/MAL, Mídias Autorizadas (Domínios Confiáveis), episódios e fontes M3U. |
+| [`09-PAINEL-ADMINISTRATIVO.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/09-PAINEL-ADMINISTRATIVO.md) | **Painel Administrativo e Gestão de Catálogo** | Setup Kenjitsu-only, catálogo, episódios e controle das extensões self-hosted. |
 | [`10-TESTES-E-SCRIPTS.md`](file:///c:/Users/junin/Documents/projetos/anistream/docs/10-TESTES-E-SCRIPTS.md) | **Testes Automatizados & Scripts de Validação** | Suítes de testes Vitest, validação pré-deploy Docker e guias de comandos. |
 
 ---

@@ -1,6 +1,6 @@
 # 05. Player de Vídeo & Experiência de Streaming — AniStream 🎥
 
-O player de vídeo do AniStream ([`components/player/VideoPlayer.tsx`](file:///c:/Users/sodinha/Documents/projetos/anistream/components/player/VideoPlayer.tsx)) e o sistema de resolvedor de mídias ([`src/lib/streams/resolver.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/resolver.ts)) oferecem uma experiência completa de reprodução com suporte adaptativo, proxy seguro e múltiplos provedores.
+O player de vídeo do AniStream ([`components/player/VideoPlayer.tsx`](file:///c:/Users/sodinha/Documents/projetos/anistream/components/player/VideoPlayer.tsx)) e o sistema de resolvedor de mídias ([`src/lib/streams/resolver.ts`](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/resolver.ts)) oferecem uma experiência completa de reprodução com suporte adaptativo, proxy seguro e extensões Kenjitsu.
 
 ---
 

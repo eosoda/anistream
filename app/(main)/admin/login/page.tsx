@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
 
       setSuccess('Login efetuado com sucesso! Redirecionando...');
       setTimeout(() => {
-        router.push('/admin/sources');
+        router.push('/admin/extensions');
       }, 1000);
     } catch (err: any) {
       setError(err.message);

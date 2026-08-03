@@ -18,15 +18,8 @@ export async function validateStreamSource(
 ): Promise<StreamValidationResult> {
   const startTime = Date.now();
 
-  // 1. Defesa SSRF e Host Autorizado
-  const isServerDiscoveredRelay =
-    source.requiresProxy === true &&
-    (source.id.startsWith('xpass-') ||
-      source.id.startsWith('anime-sdk-') ||
-      source.id.startsWith('consumet-'));
-  const ssrfCheck = await validateUrlSsrf(source.url, {
-    requireAuthorizedHost: !isServerDiscoveredRelay,
-  });
+  // Defesa SSRF para hosts efêmeros retornados pelo Kenjitsu.
+  const ssrfCheck = await validateUrlSsrf(source.url);
   if (!ssrfCheck.valid) {
     return {
       valid: false,

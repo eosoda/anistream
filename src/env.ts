@@ -6,6 +6,13 @@ const envSchema = z.object({
     .url('DATABASE_URL deve ser uma URL de conexão válida')
     .default('postgresql://user:password@localhost:5432/anistream_db?schema=public'),
   REDIS_URL: z.string().optional(),
+  KENJITSU_BASE_URL: z
+    .string()
+    .url('KENJITSU_BASE_URL deve ser uma URL vÃ¡lida')
+    .default('http://localhost:3001'),
+  KENJITSU_API_KEY: z.string().optional(),
+  KENJITSU_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(10000),
+  KENJITSU_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(86400).default(300),
   ADMIN_SESSION_SECRET: z
     .string()
     .min(16, 'ADMIN_SESSION_SECRET deve ter pelo menos 16 caracteres')
@@ -18,15 +25,6 @@ const envSchema = z.object({
     .string()
     .min(16, 'SOURCE_ENCRYPTION_KEY chave de criptografia de no mínimo 16 caracteres')
     .default('32-bytes-encryption-key-for-aes-256-gcm!'),
-  AUTHORIZED_MEDIA_HOSTS: z
-    .string()
-    .default('media.mydomain.com,cdn.mydomain.com,storage.googleapis.com,s3.amazonaws.com')
-    .transform((val) => val.split(',').map((h) => h.trim().toLowerCase())),
-  AUTHORIZED_METADATA_API_URL: z
-    .string()
-    .url()
-    .default('https://api.jikan.moe/v4'),
-  AUTHORIZED_METADATA_API_KEY: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z
     .string()
     .url()

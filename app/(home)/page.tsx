@@ -1,27 +1,46 @@
 'use client';
 
 import { Flame, Star, Calendar, TrendingUp } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { BannerHero } from '@/components/home/BannerHero';
 import { AnimeCarousel } from '@/components/anime/AnimeCarousel';
 import { ContinueWatchingSection } from '@/components/home/ContinueWatchingSection';
 import { DeferredHomeCarousel } from '@/components/home/DeferredHomeCarousel';
-import { FALLBACK_ANIMES } from '@/data/fallbackAnime';
-
-const HERO_ANIMES = FALLBACK_ANIMES.slice(0, 5);
-const TRENDING_ANIMES = FALLBACK_ANIMES.slice(0, 8);
-const SEASON_ANIMES = FALLBACK_ANIMES.slice(0, 12);
-const POPULAR_ANIMES = FALLBACK_ANIMES.slice(0, 8);
-const TOP_RATED_ANIMES = [...FALLBACK_ANIMES]
-  .sort((a, b) => (b.score || 0) - (a.score || 0))
-  .slice(0, 8);
+import { kenjitsuService } from '@/services/kenjitsu';
 
 export default function HomePage() {
+  const trendingQuery = useQuery({
+    queryKey: ['home', 'trending'],
+    queryFn: () => kenjitsuService.getTopAnime('trending', undefined, 1, 12),
+    staleTime: 5 * 60 * 1000,
+  });
+  const seasonQuery = useQuery({
+    queryKey: ['home', 'airing'],
+    queryFn: () => kenjitsuService.getSeasonNow(1, 12),
+    staleTime: 5 * 60 * 1000,
+  });
+  const popularQuery = useQuery({
+    queryKey: ['home', 'popular'],
+    queryFn: () => kenjitsuService.getTopAnime('popular', undefined, 1, 12),
+    staleTime: 5 * 60 * 1000,
+  });
+  const ratedQuery = useQuery({
+    queryKey: ['home', 'rating'],
+    queryFn: () => kenjitsuService.getTopAnime('rating', undefined, 1, 12),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const trending = trendingQuery.data?.data || [];
+  const season = seasonQuery.data?.data || [];
+  const popular = popularQuery.data?.data || [];
+  const rated = ratedQuery.data?.data || [];
+
   return (
     <div className="w-full space-y-4 pb-12">
       {/* Hero Banner Section */}
       <BannerHero
-        animes={HERO_ANIMES}
-        isLoading={false}
+        animes={trending.slice(0, 5)}
+        isLoading={trendingQuery.isLoading}
       />
 
       {/* Main Content Sections */}
@@ -34,8 +53,8 @@ export default function HomePage() {
           title="Em Alta"
           subtitle="Os animes mais comentados e assistidos do momento"
           icon={<Flame size={22} className="text-[#FF6B00]" />}
-          animes={TRENDING_ANIMES}
-          isLoading={false}
+          animes={trending.slice(0, 8)}
+          isLoading={trendingQuery.isLoading}
           viewAllHref="/populares"
         />
 
@@ -44,7 +63,8 @@ export default function HomePage() {
           title="Temporada Atual"
           subtitle="Episódios semanais sendo exibidos agora no Japão"
           icon={<Calendar size={22} className="text-[#FF6B00]" />}
-          animes={SEASON_ANIMES}
+          animes={season}
+          queryFn={() => kenjitsuService.getSeasonNow(1, 12)}
           viewAllHref="/temporadas"
         />
 
@@ -53,7 +73,8 @@ export default function HomePage() {
           title="Mais Populares"
           subtitle="Os clássicos e grandes sucessos aclamados pela comunidade"
           icon={<TrendingUp size={22} className="text-[#FF6B00]" />}
-          animes={POPULAR_ANIMES}
+          animes={popular}
+          queryFn={() => kenjitsuService.getTopAnime('popular', undefined, 1, 12)}
           viewAllHref="/populares"
         />
 
@@ -62,7 +83,8 @@ export default function HomePage() {
           title="Mais Bem Avaliados"
           subtitle="Títulos com as maiores notas e qualificações de fãs"
           icon={<Star size={22} className="text-[#FF6B00]" />}
-          animes={TOP_RATED_ANIMES}
+          animes={rated}
+          queryFn={() => kenjitsuService.getTopAnime('rating', undefined, 1, 12)}
           viewAllHref="/populares"
         />
 

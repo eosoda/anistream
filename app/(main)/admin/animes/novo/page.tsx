@@ -33,7 +33,7 @@ export default function AdminNewAnimePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Auto-preenchimento via API Jikan / MAL
+  // Auto-preenchimento via catalogo Kenjitsu
   const handleAutofill = async () => {
     if (!title.trim()) {
       setError('Digite o título do anime antes de buscar os dados automáticos.');
@@ -61,7 +61,7 @@ export default function AdminNewAnimePage() {
         setPosterUrl(match.posterUrl || '');
         setBannerUrl(match.bannerUrl || match.posterUrl || '');
         setDescription(match.description || '');
-        setSuccess('Metadados importados com sucesso da API Jikan!');
+        setSuccess('Metadados importados com sucesso do Kenjitsu!');
       }
     } catch (err: any) {
       setError(err.message);
@@ -139,7 +139,7 @@ export default function AdminNewAnimePage() {
           ) : (
             <Sparkles size={16} />
           )}
-          <span>Preencher Automaticamente via MAL</span>
+          <span>Preencher automaticamente pelo Kenjitsu</span>
         </button>
       </div>
 

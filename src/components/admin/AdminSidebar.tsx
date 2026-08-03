@@ -6,8 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Film,
-  Radio,
-  TestTube2,
   Navigation,
   ChevronLeft,
   ChevronRight,
@@ -19,6 +17,7 @@ import {
   DatabaseBackup,
   PlugZap,
   Rocket,
+  Puzzle,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -51,16 +50,10 @@ export function AdminSidebar({
       icon: <Film size={18} />,
     },
     {
-      name: 'Fontes & Servidores',
-      href: '/admin/sources',
+      name: 'Extensões Kenjitsu',
+      href: '/admin/extensions',
       exact: true,
-      icon: <Radio size={18} />,
-    },
-    {
-      name: 'Testador de Mídia',
-      href: '/admin/sources/tester',
-      exact: false,
-      icon: <TestTube2 size={18} />,
+      icon: <Puzzle size={18} />,
     },
     {
       name: 'Navegação & Links',

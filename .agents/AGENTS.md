@@ -11,8 +11,8 @@
 - **Styling**: Vanilla CSS (`app/globals.css`), TailwindCSS utilities, Glassmorphism, Dark Palette (`#0B0B0F`, `#FF6B00`)
 - **Icons & Motion**: Lucide React icons, Motion (`motion/react`)
 - **Data Fetching**: `@tanstack/react-query` (v5)
-- **APIs & Metadata Layer**: AniList GraphQL API (~100ms), Jikan API v4 (350ms throttle), Kitsu API fallback
-- **Stream Providers (8 Independent Sources)**: Kenjitsu/AniZone, GogoAnime (Consumet with 5-instance fallback), HiAnime/Zoro, Anify, AnimesOnline Scraper, WarezCDN/Superflix, XPass/2Embed, Authorized M3U Catalog
+- **APIs & Metadata Layer**: Kenjitsu self-hosted API for catalog, metadata, episodes and sources
+- **Stream Providers**: Kenjitsu native and ported extensions registered in the self-hosted fork
 - **Offline Storage**: IndexedDB custom wrapper (`utils/offlineCacheDB.ts`)
 
 ---
@@ -70,35 +70,31 @@ QueryClientProvider
 
 ---
 
-## ⚡ Resilient Multi-Source Metadata Layer (`src/lib/anime/metadata-fetcher.ts`)
-- **AniList GraphQL API (Primary Priority)**: Responds in **~100ms** bypassing rate limits or HTTP 504 errors from MyAnimeList.
-- **Jikan v4 + Timeout (4.5s)**: Throttled queue (350ms) with fast AbortController cancellation in case of instability.
-- **Kitsu API (Tertiary Fallback)**: Alternative response to guarantee metadata retrieval.
+## ⚡ Kenjitsu Self-Hosted Metadata Layer (`src/lib/anime/metadata-fetcher.ts`)
+- **Kenjitsu self-hosted**: Single source for catalog, metadata, episodes, characters, relations and media.
+- **Kenjitsu client + timeout/cache**: Requests use `KENJITSU_REQUEST_TIMEOUT_MS` and Redis TTL settings; there is no silent API fallback.
 - **Alias Pairing (`AnimeAlias`)**: Automatically saves all alternative names (English, Romaji, Native, synonyms) into PostgreSQL's `AnimeAlias` table for exact episode and media title matching.
 - **Deterministic Import**: `ImportAnimeModal.tsx` sends the exact selected card metadata object directly to the backend.
 
----
-
-## 🎬 8 Stream Providers, HLS Validation & VideoPlayer
-- **8 Integrated External Providers (`services/providers/externalProviders.ts`)**:
-  - `Kenjitsu / AniZone`, `GogoAnime Consumet` (fallback across 5 instances), `HiAnime / Zoro`, `Anify API`, `AnimesOnline Scraper`, `WarezCDN / Superflix`, `XPass / 2Embed`, `Authorized M3U Catalog`.
+## 🎬 Kenjitsu Extensions, HLS Validation & VideoPlayer
+- **Kenjitsu extensions**: Native and ported extensions are enabled, disabled and tested in `/admin/extensions`; they are maintained in self-hosted local forks.
 - **HLS Playlist Validation ([hls-validator.ts](file:///c:/Users/sodinha/Documents/projetos/anistream/src/lib/streams/hls-validator.ts))**: Validates HTTP status, `Content-Type`, and `#EXTM3U` header tag in the manifest.
 - **On-Demand Lazy Resolution & Headers**: Video URL resolution runs exclusively when the user clicks "Play". The proxy faithfully forwards `User-Agent`, `Referer`, and `Origin` headers.
 - **Admin Episode Manager (`EpisodeSourcesModal.tsx`)**:
-  - Real-time provider discovery with checkboxes, manual source addition (`.m3u8`, `.mp4`, `embed`), ON/OFF toggle (`enabled`), edit, delete, and **inline test player** directly inside the modal.
+  - Real-time Kenjitsu discovery, legacy-record maintenance, and **inline test player** directly inside the modal.
 
 ---
 
-## 🔒 Media Security & Authorized Hosts (`AUTHORIZED_MEDIA_HOSTS`)
-- **3-Layer Dynamic Resolution**: SSRF validation (`src/lib/security/ssrf.ts`) unifies authorized domains from `.env`, automatic extraction from `MediaProvider` (DB), and manual entries in `SystemSetting`.
-- **Admin Control**: Legacy static locks were removed so administrators have full autonomy to test and decide which sources to authorize in the Admin Panel (`/admin/sources`).
-- **In-Memory Cache**: Security checks use an in-memory cache with a 60s TTL and real-time reactive invalidation.
+## 🔒 Segurança de mídia
+- A aplicação não exige uma lista administrativa de hosts: o Kenjitsu retorna CDNs e URLs efêmeras.
+- `src/lib/security/ssrf.ts` bloqueia protocolos, portas, credenciais, DNS para redes privadas e IPs reservados.
+- O relay usa descritores AES-GCM assinados por token de playback; fontes manuais não são cadastradas.
 
 ---
 
 ## 🔌 API Architecture, Circuit Breaker & Resilience
 - **Standardized Responses (`src/lib/api/response.ts`)**: All routes use `apiSuccess<T>` (`{ success: true, data: T, meta?: ... }`) and `apiError` (`{ success: false, error: { code, message, details }, timestamp }`).
-- **Circuit Breaker (`src/lib/api/circuit-breaker.ts`)**: Protects external API calls. After 5 consecutive failures in 60s, the circuit opens for 30s and automatically activates local fallback without causing interface timeouts.
+- **Circuit Breaker (`src/lib/api/circuit-breaker.ts`)**: Protects Kenjitsu and its extensions. After repeated failures, the circuit opens for the configured cooldown; it reports upstream unavailability instead of switching to another API.
 - **Edge Caching**: Public catalog routes use `Cache-Control: public, s-maxage=1800, stale-while-revalidate=86400`. Streaming and admin routes use `no-store, private`.
 
 ---
@@ -124,4 +120,3 @@ All available npm scripts registered in `package.json`:
 | **`npm run lint`** | `eslint .` | Runs ESLint syntax and code quality check. |
 | **`npm run clean`** | `next clean` | Cleans Next.js build cache. |
 | **`npx tsc --noEmit`** | `tsc --noEmit` | **Mandatory Type Check**: Always verify clean TypeScript compilation before finishing tasks. |
-

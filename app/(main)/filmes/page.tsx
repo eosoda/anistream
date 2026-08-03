@@ -217,7 +217,7 @@ export default function FilmesPage() {
       {isError && (
         <EmptyState
           title="Erro ao carregar lista de filmes"
-          description="Ocorreu um problema ao conectar com a API do Jikan. Tente novamente."
+          description="Ocorreu um problema ao conectar com o catalogo Kenjitsu. Tente novamente."
           onRetry={refetch}
           retryText="Tentar novamente"
         />

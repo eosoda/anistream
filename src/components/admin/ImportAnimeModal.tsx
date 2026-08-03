@@ -23,7 +23,7 @@ interface ImportAnimeModalProps {
   onSuccess: () => void;
 }
 
-interface JikanSearchResult {
+interface KenjitsuSearchResult {
   malId?: number;
   anilistId?: number;
   title: string;
@@ -48,7 +48,7 @@ export function ImportAnimeModal({
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [importingId, setImportingId] = useState<number | null>(null);
-  const [results, setResults] = useState<JikanSearchResult[]>([]);
+  const [results, setResults] = useState<KenjitsuSearchResult[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Busca instantânea com debounce (350ms)
@@ -93,7 +93,7 @@ export function ImportAnimeModal({
     }
   };
 
-  const handleImport = async (item: JikanSearchResult) => {
+  const handleImport = async (item: KenjitsuSearchResult) => {
     const trackingId = item.malId ?? item.anilistId ?? -1;
     setImportingId(trackingId);
     try {
@@ -143,7 +143,7 @@ export function ImportAnimeModal({
               <Sparkles size={24} />
             </div>
             <div>
-              <h3 id={titleId} className="text-xl font-black text-white">Importar Anime (AniList / MAL)</h3>
+              <h3 id={titleId} className="text-xl font-black text-white">Importar Anime pelo Kenjitsu</h3>
               <p className="text-xs text-gray-400">
                 Selecione um anime para importar metadados, capas e episódios para o PostgreSQL
               </p>

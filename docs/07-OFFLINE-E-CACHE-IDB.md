@@ -32,7 +32,7 @@ Caso o navegador esteja rodando em **Modo Anônimo / Privado** (onde a abertura 
 ```mermaid
 graph TD
     Req[Requisição de Dados do Anime] --> OnlineCheck{Navegador está Online?}
-    OnlineCheck -- Sim --> FetchAPI[Chamada à API Jikan / AniList via Throttle]
+    OnlineCheck -- Sim --> FetchAPI[Chamada ao catálogo Kenjitsu]
     FetchAPI -- Sucesso --> SaveIDB[Salvar Resposta no IndexedDB] --> ReturnData[Exibir na Tela]
     FetchAPI -- Falha / HTTP 429 --> ReadIDB[Ler do Cache IndexedDB]
     OnlineCheck -- Não --> ReadIDB

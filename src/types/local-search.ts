@@ -2,6 +2,7 @@ import type { JikanAnime } from '@/types/anime';
 
 export interface LocalAnimeSearchItem {
   malId: number;
+  anilistId?: number | null;
   title: string;
   originalTitle: string | null;
   posterUrl: string | null;
@@ -65,5 +66,6 @@ export function localSearchItemToAnime(item: LocalAnimeSearchItem): JikanAnime {
     explicit_genres: [],
     themes: [],
     demographics: [],
+    kenjitsu: { anilistId: item.anilistId ?? item.malId },
   };
 }

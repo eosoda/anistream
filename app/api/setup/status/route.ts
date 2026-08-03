@@ -11,7 +11,6 @@ export async function GET(request: NextRequest) {
     let adminCount = 0;
     let animeCount = 0;
     let episodeCount = 0;
-    let sourceCount = 0;
 
     try {
       const dbStart = Date.now();
@@ -22,7 +21,6 @@ export async function GET(request: NextRequest) {
       adminCount = await prisma.adminUser.count();
       animeCount = await prisma.anime.count();
       episodeCount = await prisma.episode.count();
-      sourceCount = await prisma.episodeSource.count();
     } catch (err: any) {
       console.error('[Setup Status DB Error]', err);
       dbConnected = false;
@@ -50,7 +48,6 @@ export async function GET(request: NextRequest) {
         adminCount,
         animeCount,
         episodeCount,
-        sourceCount,
       },
       totalDurationMs: Date.now() - startTime,
     });

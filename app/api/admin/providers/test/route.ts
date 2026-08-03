@@ -1,108 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
-import {
-  getAnimeSdkProviderKey,
-  testAnimeSdkProvider,
-} from '@/lib/providers/anime-sdk';
-import {
-  getConsumetProviderKey,
-  testConsumetProvider,
-} from '@/lib/providers/consumet';
+import { kenjitsuClient, KenjitsuRequestError } from '@/lib/kenjitsu/client';
+import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId } from '@/lib/kenjitsu/types';
+import { getKenjitsuExtensionSettings, saveKenjitsuExtensionSettings } from '@/lib/kenjitsu/settings';
 
-export async function POST(req: NextRequest) {
-  const auth = await verifyAdminAuth(req);
+export async function POST(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
   if (!auth.authenticated) return auth.errorResponse!;
 
   try {
-    const body = await req.json();
-    const { id, url } = body;
-    const provider = id
-      ? await prisma.mediaProvider.findUnique({ where: { id } })
-      : null;
-    const targetUrl = url || provider?.url;
-
-    if (!targetUrl) {
-      return NextResponse.json(
-        { error: 'URL para teste é obrigatória.' },
-        { status: 400 }
-      );
-    }
+    const body = await request.json();
+    const id = String(body.id || '') as KenjitsuExtensionId;
+    if (!KENJITSU_EXTENSION_IDS.includes(id)) return NextResponse.json({ error: 'Extensao Kenjitsu invalida.' }, { status: 400 });
 
     const startedAt = Date.now();
-    let status = 0;
     let ok = false;
+    let status = 200;
     let error: string | null = null;
-
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20_000);
-
-      if (provider?.type === 'ANIME_SDK') {
-        const key = getAnimeSdkProviderKey(provider.name);
-        if (!key) throw new Error('Adaptador AnimeSDK não reconhecido.');
-        const result = await testAnimeSdkProvider(key, controller.signal);
-        status = 200;
-        ok = result.sourceCount > 0;
-      } else if (provider?.type === 'CONSUMET') {
-        const key = getConsumetProviderKey(provider.name);
-        if (!key) throw new Error('Adaptador Consumet não reconhecido.');
-        const result = await testConsumetProvider(key, controller.signal);
-        status = 200;
-        ok = result.sourceCount > 0;
-      } else {
-        const response = await fetch(targetUrl, {
-          method:
-            targetUrl.includes('api') || targetUrl.includes('koyeb')
-              ? 'GET'
-              : 'HEAD',
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'AniStream-ProviderTester/2.0',
-            Accept: 'application/json, text/html, */*',
-          },
-          cache: 'no-store',
-        });
-        status = response.status;
-        ok = response.ok || [200, 206, 301, 302].includes(status);
-        if (!ok) error = `Resposta HTTP de erro (${status})`;
-      }
-
-      clearTimeout(timeoutId);
+      const response = await kenjitsuClient.searchExtension(id, 'Naruto');
+      ok = Array.isArray(response.data) && response.data.length > 0;
+      status = ok ? 200 : 204;
     } catch (caught) {
-      const caughtError = caught as Error;
-      ok = false;
-      status = caughtError.name === 'AbortError' ? 504 : 500;
-      error =
-        caughtError.name === 'AbortError'
-          ? 'Teste funcional excedeu 20 segundos.'
-          : caughtError.message || 'Erro ao testar o provedor.';
+      const failure = caught as KenjitsuRequestError;
+      status = failure instanceof KenjitsuRequestError ? failure.status : 502;
+      error = failure instanceof Error ? failure.message : 'Falha ao testar a extensao.';
     }
 
     const latencyMs = Date.now() - startedAt;
-    if (provider) {
-      await prisma.mediaProvider.update({
-        where: { id: provider.id },
-        data: {
-          lastTestedAt: new Date(),
-          lastStatus: status,
-          lastLatencyMs: latencyMs,
-        },
-      });
-    }
+    const settings = await getKenjitsuExtensionSettings();
+    await saveKenjitsuExtensionSettings(settings.map((setting) =>
+      setting.id === id
+        ? {
+            ...setting,
+            lastTestedAt: new Date().toISOString(),
+            lastTestStatus: ok ? 'healthy' : error ? 'down' : 'degraded',
+            lastLatencyMs: latencyMs,
+            lastError: error,
+          }
+        : setting,
+    ));
 
-    return NextResponse.json({
-      success: true,
-      ok,
-      status,
-      latencyMs,
-      error,
-      testedAt: new Date().toISOString(),
-    });
-  } catch (caught) {
-    return NextResponse.json(
-      { error: (caught as Error).message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, ok, status, latencyMs, error, testedAt: new Date().toISOString() });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 502 });
   }
 }

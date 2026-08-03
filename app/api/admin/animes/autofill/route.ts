@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     if (results.length === 0) {
       return NextResponse.json(
-        { error: 'Nenhum anime encontrado nas bases (AniList / Jikan / Kitsu)' },
+        { error: 'Nenhum anime encontrado no catalogo do Kenjitsu' },
         { status: 404 }
       );
     }

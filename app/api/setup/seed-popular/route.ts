@@ -1,102 +1,79 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { getAnimeEpisodes, getTopAnime } from '@/lib/kenjitsu/catalog';
+
+function slugify(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
 
 export async function POST() {
   try {
-    // 1. Buscar animes populares da API do Jikan (Top 25 da primeira página)
-    const res = await fetch('https://api.jikan.moe/v4/top/anime?limit=25', {
-      headers: { 'User-Agent': 'AniStream-SetupSeed/1.0' },
-      next: { revalidate: 3600 },
-    });
-
-    if (!res.ok) {
-      throw new Error(`Falha na API Jikan (HTTP ${res.status})`);
-    }
-
-    const data = await res.json();
-    const topAnimes = data?.data || [];
-
+    const catalog = await getTopAnime('popular', 1, 25);
     let seededCount = 0;
+    let episodeCount = 0;
 
-    for (const animeData of topAnimes) {
-      const title = animeData.title_english || animeData.title || 'Anime Sem Título';
-      const rawSlug = (animeData.title_english || animeData.title || `anime-${animeData.mal_id}`)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      const slug = rawSlug || `anime-${animeData.mal_id}`;
-
-      const posterUrl =
-        animeData.images?.jpg?.large_image_url ||
-        animeData.images?.jpg?.image_url ||
-        'https://picsum.photos/300/450';
-
-      const genres = Array.isArray(animeData.genres)
-        ? animeData.genres.map((g: any) => g.name).join(', ')
-        : 'Ação, Aventura';
-
-      // 2. Salvar ou atualizar Anime no PostgreSQL
+    for (const animeData of catalog.data) {
+      const title = animeData.title || animeData.title_english || animeData.title_japanese || 'Anime sem titulo';
+      const slug = slugify(title) || `anime-${animeData.kenjitsu?.anilistId || animeData.mal_id}`;
       const anime = await prisma.anime.upsert({
         where: { slug },
         update: {
           title,
           normalizedTitle: title.toLowerCase(),
-          synopsis: animeData.synopsis || 'Sem sinopse disponível.',
-          posterUrl,
-          backdropUrl: posterUrl,
-          rating: animeData.score || 8.0,
-          year: animeData.year || new Date().getFullYear(),
-          status: animeData.status === 'Currently Airing' ? 'AIRING' : 'FINISHED',
-          genres,
+          originalTitle: animeData.title_japanese,
+          synopsis: animeData.synopsis,
+          description: animeData.synopsis,
+          posterUrl: animeData.images?.jpg?.large_image_url || null,
+          backdropUrl: animeData.bannerImage || null,
+          rating: animeData.score,
+          year: animeData.year,
+          releaseYear: animeData.year,
+          status: animeData.status,
+          genres: animeData.genres?.map((genre) => genre.name).join(', '),
         },
         create: {
           title,
           normalizedTitle: title.toLowerCase(),
+          originalTitle: animeData.title_japanese,
           slug,
-          synopsis: animeData.synopsis || 'Sem sinopse disponível.',
-          posterUrl,
-          backdropUrl: posterUrl,
-          rating: animeData.score || 8.0,
-          year: animeData.year || new Date().getFullYear(),
-          status: animeData.status === 'Currently Airing' ? 'AIRING' : 'FINISHED',
-          genres,
+          synopsis: animeData.synopsis,
+          description: animeData.synopsis,
+          posterUrl: animeData.images?.jpg?.large_image_url || null,
+          backdropUrl: animeData.bannerImage || null,
+          rating: animeData.score,
+          year: animeData.year,
+          releaseYear: animeData.year,
+          status: animeData.status,
+          genres: animeData.genres?.map((genre) => genre.name).join(', '),
         },
       });
 
-      // 3. Gerar 3 episódios iniciais padrão para cada anime
-      const episodesCount = Math.min(animeData.episodes || 12, 3);
-      for (let epNum = 1; epNum <= episodesCount; epNum++) {
-        await prisma.episode.upsert({
-          where: {
-            animeId_season_number: {
-              animeId: anime.id,
-              season: 1,
-              number: epNum,
-            },
-          },
-          update: {},
-          create: {
-            animeId: anime.id,
-            season: 1,
-            number: epNum,
-            title: `Episódio ${epNum}`,
-            overview: `Episódio ${epNum} de ${title}`,
-          },
+      for (const identifier of [
+        animeData.kenjitsu?.malId ? { provider: 'mal', value: String(animeData.kenjitsu.malId) } : null,
+        animeData.kenjitsu?.anilistId ? { provider: 'anilist', value: String(animeData.kenjitsu.anilistId) } : null,
+        animeData.kenjitsu?.anilistId ? { provider: 'kenjitsu', value: String(animeData.kenjitsu.anilistId) } : null,
+      ].filter(Boolean) as Array<{ provider: string; value: string }>) {
+        await prisma.animeIdentifier.upsert({
+          where: { provider_value: identifier },
+          update: { animeId: anime.id },
+          create: { animeId: anime.id, ...identifier },
         });
       }
 
+      const episodes = await getAnimeEpisodes(animeData.kenjitsu?.anilistId || animeData.mal_id);
+      for (const episode of episodes) {
+        await prisma.episode.upsert({
+          where: { animeId_season_number: { animeId: anime.id, season: 1, number: episode.mal_id } },
+          update: { title: episode.title },
+          create: { animeId: anime.id, season: 1, number: episode.mal_id, title: episode.title },
+        });
+        episodeCount++;
+      }
       seededCount++;
     }
 
-    return NextResponse.json({
-      success: true,
-      message: `Catálogo inicial populado com sucesso! ${seededCount} animes adicionados.`,
-      seededCount,
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: 'Erro ao popular dados populares', message: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, message: `Catalogo Kenjitsu populado com ${seededCount} animes.`, seededCount, episodeCount });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Erro ao popular catalogo pelo Kenjitsu', message: error.message }, { status: 502 });
   }
 }

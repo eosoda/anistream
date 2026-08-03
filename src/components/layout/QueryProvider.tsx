@@ -9,7 +9,7 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 1000 * 60 * 10, // 10 minutes cache to avoid Jikan rate limits
+            staleTime: 1000 * 60 * 10, // Cache curto para reduzir chamadas repetidas ao Kenjitsu
             gcTime: 1000 * 60 * 30, // 30 minutes garbage collection
             refetchOnWindowFocus: false,
             retry: 1,

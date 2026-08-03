@@ -6,7 +6,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)
 ![Status](https://img.shields.io/badge/Status-Ativo-emerald?style=for-the-badge)
 
-**AniStream** é uma plataforma web moderna, rápida e responsiva para exploração, acompanhamento e reprodução de animes. Desenvolvida com Next.js 15 (App Router), React 19, TypeScript e dados consumidos em tempo real das APIs MyAnimeList (Jikan v4) e AniList GraphQL.
+**AniStream** é uma plataforma web moderna, rápida e responsiva para exploração, acompanhamento e reprodução de animes. Desenvolvida com Next.js 15 (App Router), React 19, TypeScript e dados consumidos exclusivamente pela API Kenjitsu self-hosted.
 
 ---
 
@@ -17,9 +17,9 @@
 - **Redirecionamento Automático**: No primeiro boot da aplicação com banco virgem (`0` administradores), qualquer acesso é direcionado automaticamente para `/setup`.
 - **Proteção por Chave Randômica (Setup Key)**: A rota `/setup` é protegida contra acessos não autorizados por uma chave única (`Setup Key`) exibida nos logs do container Docker (`docker logs anistream_app`).
 
-### 📡 Provedores de Mídia, APIs Externas & Embeds (`/setup` e `/admin/sources`)
-- **Provedores de Mídia Integrados**: Suporte aplaylists M3U/M3U8, catálogos JSON e APIs externas (`AniZone/Kenjitsu`, `Miruro`, `Anify`, `Consumet/Gogoanime`, `TVmaze`, `2Embed`, `Xpass`, `ApiPlayer`).
-- **Ativação, Prioridade e Teste ao Vivo**: Chave liga/desliga (`enabled`), ajuste numérico de prioridade para a cadeia de fallback e teste sintético medindo latência (ms) e diagnósticos de status HTTP (404, 429, 5xx).
+### 📡 Extensões Kenjitsu (`/admin/extensions`)
+- **Fontes nativas**: AniZone, AniKoto, AniDB, AniBD e AnimeHeaven são gerenciadas pelo fork self-hosted do Kenjitsu.
+- **Ativação e teste ao vivo**: cada extensão pode ser ativada/desativada, marcada como NSFW e testada pelo painel, sem cadeia de fallback externa.
 
 ### 🎥 Player de Vídeo Avançado, Streams HLS & Embeds
 - **Suporte HLS Adaptativo & iFrames**: Suporte a playlists HLS `.m3u8` via `hls.js` e renderização nativa em elementos `<iframe>` para provedores de embed.
@@ -79,7 +79,7 @@ Mais detalhes na documentação dedicada: [10-TESTES-E-SCRIPTS.md](file:///c:/Us
 Suba toda a infraestrutura (PostgreSQL 16, Redis 7 e AniStream Web) com um único comando:
 
 ```bash
-docker-compose up -d --build
+docker compose -f docker-compose.selfhosted.yml up -d --build
 ```
 
 ### Configuração Inicial (Primeiro Acesso):
@@ -122,4 +122,4 @@ Acesse [http://localhost:3000](http://localhost:3000) no seu navegador.
 - **Ícones & Animações**: Lucide React, Motion (`motion/react`)
 - **Data Fetching**: `@tanstack/react-query` v5
 - **Armazenamento**: LocalStorage, IndexedDB (`utils/offlineCacheDB.ts`)
-- **APIs**: [Jikan REST API v4](https://jikan.moe), [AniList GraphQL API](https://anilist.gitbook.io/anilist-apiv2-docs)
+- **API de dados e mídia**: [Kenjitsu](https://github.com/eosoda/kenjitsu) com [documentação](https://kenjitsu-docs.vercel.app/)

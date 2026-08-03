@@ -117,7 +117,7 @@ export async function GET(
     }
   }
 
-  // 4. SSRF & Host Allowlist Validation
+  // 4. SSRF validation
   const ssrfCheck = await validateUrlSsrf(realUrl);
   if (!ssrfCheck.valid) {
     return NextResponse.json(

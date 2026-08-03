@@ -45,6 +45,7 @@ export interface JikanEntity {
 }
 
 export interface JikanAnime {
+  /** Kept as `mal_id` for UI compatibility; new catalog records use AniList IDs. */
   mal_id: number;
   url: string;
   images: JikanImage;
@@ -90,8 +91,9 @@ export interface JikanAnime {
   explicit_genres: JikanGenre[];
   themes: JikanGenre[];
   demographics: JikanGenre[];
-  // Enhanced banner image from AniList fallback
+  // Banner image provided by the Kenjitsu metadata response
   bannerImage?: string | null;
+  kenjitsu?: { anilistId?: number | null; malId?: number | null };
 }
 
 export interface JikanEpisode {

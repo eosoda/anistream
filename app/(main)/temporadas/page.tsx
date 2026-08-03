@@ -83,7 +83,7 @@ export default function SeasonsPage() {
       {isError && (
         <EmptyState
           title="Erro ao carregar animes da temporada"
-          description="A API do Jikan pode estar temporariamente fora do ar. Tente carregar novamente."
+          description="O catalogo Kenjitsu pode estar temporariamente indisponivel. Tente carregar novamente."
           onRetry={refetch}
           retryText="Tentar novamente"
         />

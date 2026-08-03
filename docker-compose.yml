@@ -50,9 +50,10 @@ services:
       SOURCE_ENCRYPTION_KEY: ${SOURCE_ENCRYPTION_KEY:-32-bytes-encryption-key-for-aes-256-gcm!}
       INITIAL_SETUP_KEY: ${INITIAL_SETUP_KEY:-}
       SETUP_KEY: ${SETUP_KEY:-}
-      AUTHORIZED_MEDIA_HOSTS: ${AUTHORIZED_MEDIA_HOSTS:-media.mydomain.com,cdn.mydomain.com,storage.googleapis.com,s3.amazonaws.com}
-      AUTHORIZED_METADATA_API_URL: ${AUTHORIZED_METADATA_API_URL:-https://api.jikan.moe/v4}
-      AUTHORIZED_METADATA_API_KEY: ${AUTHORIZED_METADATA_API_KEY:-}
+      KENJITSU_BASE_URL: ${KENJITSU_BASE_URL:-http://kenjitsu:3000}
+      KENJITSU_API_KEY: ${KENJITSU_API_KEY:-}
+      KENJITSU_REQUEST_TIMEOUT_MS: ${KENJITSU_REQUEST_TIMEOUT_MS:-10000}
+      KENJITSU_CACHE_TTL_SECONDS: ${KENJITSU_CACHE_TTL_SECONDS:-300}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
     healthcheck:
       test: ['CMD-SHELL', 'wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1']

@@ -8,7 +8,7 @@ import { SetupGuard } from '@/components/layout/SetupGuard';
 
 export const metadata: Metadata = {
   title: 'AniStream - Catálogo & Streaming de Animes',
-  description: 'Acompanhe os melhores animes, lançamentos de temporadas, top populares e catálogo completo com dados Jikan e AniList.',
+  description: 'Acompanhe os melhores animes, lancamentos de temporadas e catalogo completo via Kenjitsu self-hosted.',
 };
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist', display: 'swap' });

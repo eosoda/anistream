@@ -286,7 +286,7 @@ export default function AnimeListPage() {
       {isError && (
         <EmptyState
           title="Erro ao carregar lista de animes"
-          description="Falha ao sincronizar com a API do Jikan. Tente novamente."
+          description="Falha ao sincronizar com o catalogo Kenjitsu. Tente novamente."
           onRetry={refetch}
           retryText="Tentar novamente"
         />

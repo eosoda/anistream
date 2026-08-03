@@ -20,8 +20,9 @@
 
 ### Consumo de Dados & Estado
 - **@tanstack/react-query (v5)**: Gerenciamento avançado de estado de servidor, cache, invalidação e refetching automático.
-- **Jikan API v4 (MyAnimeList REST API)**: Fonte primária de metadados de animes, episódios, personagens, fotos e rankings.
-- **AniList API (GraphQL)**: Fonte complementar para capas em alta resolução.
+- **Kenjitsu self-hosted**: Fonte única de catálogo, metadados, episódios, personagens, relações e mídias.
+- **Extensões Kenjitsu**: Fontes de reprodução habilitáveis e testáveis pelo painel administrativo.
+- **Redis**: Cache de respostas do Kenjitsu e coordenação de requisições quando configurado.
 
 ### Armazenamento Local & Offline
 - **LocalStorage**: Persistência de favoritos do usuário, preferências de visualização e progresso de vídeos.

@@ -53,7 +53,7 @@ export default function PopularPage() {
       {isError && (
         <EmptyState
           title="Erro ao carregar ranking de animes"
-          description="A API do Jikan pode estar com alta demanda no momento. Clique abaixo para carregar novamente."
+          description="O catalogo Kenjitsu pode estar com alta demanda no momento. Clique abaixo para carregar novamente."
           onRetry={refetch}
           retryText="Tentar novamente"
         />

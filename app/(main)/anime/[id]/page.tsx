@@ -27,7 +27,6 @@ import {
   Info,
 } from 'lucide-react';
 import { jikanService } from '@/services/jikan';
-import { anilistService } from '@/services/anilist';
 import { RatingBadge } from '@/components/ui/RatingBadge';
 import { GenreBadge } from '@/components/ui/GenreBadge';
 import { EpisodeList } from '@/components/player/EpisodeList';
@@ -65,13 +64,6 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
     enabled: !isNaN(animeId),
   });
 
-  // 2. Fetch Extra Banner Image from AniList Fallback
-  const { data: aniListMedia } = useReactQuery({
-    queryKey: ['aniListMedia', animeId],
-    queryFn: () => anilistService.getMediaByMalId(animeId),
-    enabled: !isNaN(animeId),
-  });
-
   // 3. Fetch Episodes
   const { data: episodes, isLoading: isLoadingEpisodes } = useReactQuery({
     queryKey: ['animeEpisodes', animeId],
@@ -102,7 +94,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
       <div className="max-w-4xl mx-auto px-4 py-16">
         <EmptyState
           title="Anime não encontrado"
-          description="Não foi possível carregar os detalhes deste anime. O título pode não existir ou a API do Jikan pode estar temporariamente sob alta demanda."
+          description="Nao foi possivel carregar os detalhes deste anime pelo catalogo Kenjitsu. Tente novamente."
           actionHref="/populares"
           actionText="Explorar Catálogo Popular"
         />
@@ -123,7 +115,6 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
 
   // High-res backdrop
   const bannerUrl =
-    aniListMedia?.bannerImage ||
     anime.bannerImage ||
     anime.trailer?.images?.maximum_image_url ||
     anime.images?.jpg?.large_image_url;

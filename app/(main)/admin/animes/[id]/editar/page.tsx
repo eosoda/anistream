@@ -202,7 +202,7 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
   const handleDeleteEpisode = async (epId: string, epNum: number) => {
     const confirmed = await confirm({
       title: `Excluir episódio ${epNum}?`,
-      description: 'As fontes cadastradas para este episódio também serão removidas.',
+      description: 'Os registros legados associados a este episódio também serão removidos.',
       confirmText: 'Excluir episódio',
       cancelText: 'Cancelar',
       variant: 'danger',
@@ -230,7 +230,7 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
       const res = await fetch(`/api/admin/animes/${id}/sync`, { method: 'POST' });
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccess(data.message || 'Episódios e fontes sincronizados com sucesso!');
+        setSuccess(data.message || 'Episódios sincronizados pelo Kenjitsu com sucesso!');
         await loadAnime();
       } else {
         setError(data.error || 'Falha ao sincronizar episódios');
@@ -270,7 +270,7 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
           className="px-4 py-2.5 rounded-2xl bg-[#FF6B00] hover:bg-[#FF6B00]/80 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-[#FF6B00]/20 disabled:opacity-50"
         >
           {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-          <span>Sincronizar Episódios/Fontes</span>
+          <span>Sincronizar pelo Kenjitsu</span>
         </button>
       </div>
 
@@ -489,7 +489,7 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
                         <Film size={12} />
                         <span>Abertura</span>
                       </button>
-                      {/* Botão para Abrir Modal de Gerenciamento de Fontes */}
+                      {/* Consulta ao vivo de mídias do Kenjitsu e manutenção opcional de registros legados */}
                       <button
                         type="button"
                         onClick={() =>
@@ -503,7 +503,7 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
                         className="px-2.5 py-1.5 rounded-xl bg-[#FF6B00]/20 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white font-bold text-[10px] transition-all flex items-center gap-1 border border-[#FF6B00]/30"
                       >
                         <Tv size={12} />
-                        <span>Fontes ({ep.sources?.length || 0})</span>
+                        <span>Consultar mídia</span>
                       </button>
 
                       {/* Botão de Excluir Episódio */}
@@ -524,7 +524,7 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      {/* Modal de Gerenciamento de Fontes do Episódio Selecionado */}
+      {/* Consulta de mídia Kenjitsu do episódio selecionado */}
       {selectedEpForSources && (
         <EpisodeSourcesModal
           isOpen={Boolean(selectedEpForSources)}

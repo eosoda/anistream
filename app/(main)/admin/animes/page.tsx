@@ -116,14 +116,14 @@ export default function AdminAnimesPage() {
         showToast({
           type: 'success',
           title: 'Sincronização Concluída! 🔄',
-          message: data.message || `Episódios e fontes de "${title}" sincronizados com sucesso.`,
+          message: data.message || `Episódios de "${title}" sincronizados pelo Kenjitsu.`,
         });
         fetchAnimes(search, page);
       } else {
         showToast({
           type: 'error',
           title: 'Falha na Sincronização',
-          message: data.error || 'Erro ao sincronizar episódios e fontes.',
+          message: data.error || 'Erro ao sincronizar episódios pelo Kenjitsu.',
         });
       }
     } catch (err: any) {
@@ -146,7 +146,7 @@ export default function AdminAnimesPage() {
   const handleDelete = async (id: string, title: string) => {
     const confirmed = await confirm({
       title: 'Excluir anime e episódios?',
-      description: `“${title}” e todos os episódios e fontes associados serão excluídos permanentemente.`,
+      description: `“${title}” e todos os episódios associados serão excluídos permanentemente.`,
       confirmText: 'Excluir anime',
       cancelText: 'Cancelar',
       variant: 'danger',
@@ -190,7 +190,7 @@ export default function AdminAnimesPage() {
           <div>
             <h1 className="text-2xl font-black text-white">Gerenciamento de Catálogo</h1>
             <p className="text-xs text-gray-400">
-              Cadastre, edite, importe via MAL e gerencie o catálogo de animes
+              Cadastre, edite, importe pelo Kenjitsu e gerencie o catálogo de animes
             </p>
           </div>
         </div>
@@ -221,7 +221,7 @@ export default function AdminAnimesPage() {
             className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all border border-white/10"
           >
             <Download size={15} className="text-[#FF6B00]" />
-            <span>Importar Anime (MAL/Jikan)</span>
+            <span>Importar Anime (Kenjitsu)</span>
           </button>
 
           {/* Cadastrar Manual */}
@@ -266,7 +266,7 @@ export default function AdminAnimesPage() {
           <Film size={40} className="text-gray-500 mb-1" />
           <h3 className="text-base font-bold text-white">Nenhum anime cadastrado</h3>
           <p className="text-xs text-gray-400 max-w-sm">
-            Clique no botão acima para importar um anime do MAL/Jikan ou cadastrar um novo.
+            Clique no botao acima para importar um anime do catalogo Kenjitsu ou cadastrar um novo.
           </p>
         </div>
       ) : (
@@ -319,7 +319,7 @@ export default function AdminAnimesPage() {
                   onClick={() => handleSyncAnime(anime.id, anime.title)}
                   disabled={syncingId === anime.id}
                   className="py-2 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white font-bold text-xs flex items-center justify-center gap-1 transition-all border border-emerald-500/20"
-                  title="Sincronizar Episódios e Fontes"
+                  title="Sincronizar episódios pelo Kenjitsu"
                 >
                   {syncingId === anime.id ? (
                     <Loader2 size={14} className="animate-spin" />
