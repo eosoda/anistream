@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const dbStartedAt = Date.now();
   const kenjitsuStartedAt = Date.now();
 
-  const [database, settings, reports, healthResult, auditResult, counts] = await Promise.all([
+  const [database, settings, reports, healthResult, auditResult, countsResult] = await Promise.all([
     prisma.$queryRaw`SELECT 1`
       .then(() => ({ status: 'healthy' as const, latencyMs: Date.now() - dbStartedAt, detail: null }))
       .catch((error: unknown) => ({
@@ -41,7 +41,13 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       include: { actor: { select: { name: true, email: true } } },
     }).catch(() => []),
-    Promise.all([prisma.anime.count(), prisma.episode.count()]).catch(() => [0, 0] as [number, number]),
+    Promise.all([prisma.anime.count(), prisma.episode.count()])
+      .then((values) => ({ status: 'healthy' as const, values, detail: null }))
+      .catch((error: unknown) => ({
+        status: 'down' as const,
+        values: [0, 0] as [number, number],
+        detail: error instanceof Error ? error.message : 'Não foi possível consultar o catálogo local.',
+      })),
   ]);
 
   const health = healthResult.response?.data || [];
@@ -67,18 +73,27 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  const healthyExtensions = extensions.filter((item) => item.status === 'healthy').length;
-  const overallHealthScore = extensions.length ? Math.round((healthyExtensions / extensions.length) * 100) : 0;
+  const enabledExtensions = extensions.filter((item) => item.enabled);
+  const healthyExtensions = enabledExtensions.filter((item) => item.status === 'healthy').length;
+  const overallHealthScore = enabledExtensions.length ? Math.round((healthyExtensions / enabledExtensions.length) * 100) : 0;
 
   return NextResponse.json({
     generatedAt,
     kpis: {
-      animeCount: counts[0],
-      episodeCount: counts[1],
+      animeCount: countsResult.values[0],
+      episodeCount: countsResult.values[1],
       totalExtensionsCount: extensions.length,
-      enabledExtensionsCount: extensions.filter((item) => item.enabled).length,
+      enabledExtensionsCount: enabledExtensions.length,
       pendingAlertsCount: reports.length,
       overallHealthScore,
+      healthyExtensionsCount: healthyExtensions,
+      healthDenominator: enabledExtensions.length,
+    },
+    catalog: {
+      status: countsResult.status,
+      source: 'postgresql',
+      checkedAt: generatedAt,
+      detail: countsResult.detail,
     },
     services: [
       { id: 'database', label: 'Banco de dados', status: database.status, checkedAt: generatedAt, latencyMs: database.latencyMs, detail: database.detail },

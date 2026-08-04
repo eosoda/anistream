@@ -3,11 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { JikanAnime, JikanEpisode } from '@/types/anime';
 import { offlineCacheDB } from '@/utils/offlineCacheDB';
-
-const FAVORITES_KEY = 'anistream_favorites_v1';
-const NEW_EPISODES_MAP_KEY = 'anistream_new_episodes_map_v1';
-const SEEN_EPISODES_KEY = 'anistream_seen_episodes_v1';
-const LAST_CHECK_TIME_KEY = 'anistream_last_check_time_v1';
+import { clientStateStorageKeys, migrateClientState } from '@/lib/storage/client-state-migration';
 
 export interface NewEpisodeInfo {
   hasNewEpisode: boolean;
@@ -55,9 +51,10 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const restoreTimer = window.setTimeout(() => {
       try {
-        const storedFavs = localStorage.getItem(FAVORITES_KEY);
-        const storedMap = localStorage.getItem(NEW_EPISODES_MAP_KEY);
-        const storedTime = localStorage.getItem(LAST_CHECK_TIME_KEY);
+        migrateClientState();
+        const storedFavs = localStorage.getItem(clientStateStorageKeys.favorites);
+        const storedMap = localStorage.getItem(clientStateStorageKeys.newEpisodes);
+        const storedTime = localStorage.getItem(clientStateStorageKeys.lastCheck);
         if (storedFavs) setFavorites(JSON.parse(storedFavs));
         if (storedMap) setNewEpisodesMap(JSON.parse(storedMap));
         if (storedTime) setLastCheckTime(new Date(parseInt(storedTime, 10)));
@@ -73,7 +70,8 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const saveFavorites = (updated: JikanAnime[]) => {
     setFavorites(updated);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+      migrateClientState();
+      localStorage.setItem(clientStateStorageKeys.favorites, JSON.stringify(updated));
     }
   };
 
@@ -91,7 +89,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
             prev.forEach((a) => map.set(a.mal_id, a));
             const merged = Array.from(map.values());
             if (typeof window !== 'undefined') {
-              localStorage.setItem(FAVORITES_KEY, JSON.stringify(merged));
+              localStorage.setItem(clientStateStorageKeys.favorites, JSON.stringify(merged));
             }
             return merged;
           } else if (prev.length > 0) {
@@ -116,7 +114,8 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     setFavorites((prev) => {
       if (prev.some((a) => a.mal_id === anime.mal_id)) return prev;
       const updated = [anime, ...prev];
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+      migrateClientState();
+      localStorage.setItem(clientStateStorageKeys.favorites, JSON.stringify(updated));
       return updated;
     });
     offlineCacheDB.saveFavorite(anime);
@@ -125,7 +124,8 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const removeFavorite = (malId: number) => {
     setFavorites((prev) => {
       const updated = prev.filter((a) => a.mal_id !== malId);
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+      migrateClientState();
+      localStorage.setItem(clientStateStorageKeys.favorites, JSON.stringify(updated));
       return updated;
     });
     offlineCacheDB.removeFavorite(malId);
@@ -135,7 +135,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       const copy = { ...prev };
       delete copy[malId];
       if (typeof window !== 'undefined') {
-        localStorage.setItem(NEW_EPISODES_MAP_KEY, JSON.stringify(copy));
+        localStorage.setItem(clientStateStorageKeys.newEpisodes, JSON.stringify(copy));
       }
       return copy;
     });
@@ -157,7 +157,8 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const getSeenRecords = (): Record<number, SeenRecord> => {
     if (typeof window === 'undefined') return {};
     try {
-      const stored = localStorage.getItem(SEEN_EPISODES_KEY);
+      migrateClientState();
+      const stored = localStorage.getItem(clientStateStorageKeys.seenEpisodes);
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
@@ -175,7 +176,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       lastSeenEp: currentEpNum,
       lastSeenTimestamp: Date.now(),
     };
-    localStorage.setItem(SEEN_EPISODES_KEY, JSON.stringify(seenRecords));
+    localStorage.setItem(clientStateStorageKeys.seenEpisodes, JSON.stringify(seenRecords));
 
     // Update new episodes map
     setNewEpisodesMap((prev) => {
@@ -190,7 +191,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         },
       };
 
-      localStorage.setItem(NEW_EPISODES_MAP_KEY, JSON.stringify(updatedMap));
+      localStorage.setItem(clientStateStorageKeys.newEpisodes, JSON.stringify(updatedMap));
       return updatedMap;
     });
   }, [newEpisodesMap]);
@@ -211,7 +212,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       };
     });
 
-    localStorage.setItem(SEEN_EPISODES_KEY, JSON.stringify(seenRecords));
+    localStorage.setItem(clientStateStorageKeys.seenEpisodes, JSON.stringify(seenRecords));
 
     setNewEpisodesMap((prev) => {
       const updatedMap: Record<number, NewEpisodeInfo> = {};
@@ -223,7 +224,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         };
       });
 
-      localStorage.setItem(NEW_EPISODES_MAP_KEY, JSON.stringify(updatedMap));
+      localStorage.setItem(clientStateStorageKeys.newEpisodes, JSON.stringify(updatedMap));
       return updatedMap;
     });
   }, [newEpisodesMap]);
@@ -325,8 +326,8 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         setLastCheckTime(new Date(now));
 
         if (typeof window !== 'undefined') {
-          localStorage.setItem(NEW_EPISODES_MAP_KEY, JSON.stringify(updatedMap));
-          localStorage.setItem(LAST_CHECK_TIME_KEY, now.toString());
+          localStorage.setItem(clientStateStorageKeys.newEpisodes, JSON.stringify(updatedMap));
+          localStorage.setItem(clientStateStorageKeys.lastCheck, now.toString());
         }
       } catch (e) {
         console.error('Error checking new episodes:', e);

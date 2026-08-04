@@ -130,7 +130,7 @@ function SetupWizardForm() {
       if (!response.ok) throw new Error(data.error || 'Falha na inicialização da aplicação');
 
       setCurrentStep(4);
-      window.setTimeout(() => router.push('/admin/extensions'), 2000);
+      window.setTimeout(() => router.push('/admin'), 2000);
     } catch (setupError) {
       setError(setupError instanceof Error ? setupError.message : 'Falha na inicialização da aplicação');
     } finally {
@@ -314,7 +314,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input id="setup-admin-password" type={showPassword ? 'text' : 'password'} placeholder="Digite sua senha de acesso" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-10 text-xs text-white placeholder-gray-500 focus:border-[#FF6B00] focus:outline-none" />
-                <button type="button" tabIndex={-1} onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar senha' : 'Exibir senha'} className="absolute right-3 top-3 text-gray-400 hover:text-white">
+                <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar senha' : 'Exibir senha'} className="absolute right-2 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-lg text-gray-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -330,7 +330,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input id="setup-admin-password-confirmation" type={showConfirmPassword ? 'text' : 'password'} placeholder="Digite a mesma senha novamente" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className={`w-full rounded-xl border bg-black/50 py-2.5 pl-10 pr-10 text-xs text-white placeholder-gray-500 focus:outline-none ${confirmPassword && confirmPassword !== adminPassword ? 'border-red-500/60' : confirmPassword ? 'border-emerald-500/60' : 'border-white/10'}`} />
-                <button type="button" tabIndex={-1} onClick={() => setShowConfirmPassword((visible) => !visible)} aria-label={showConfirmPassword ? 'Ocultar confirmação' : 'Exibir confirmação'} className="absolute right-3 top-3 text-gray-400 hover:text-white">
+                <button type="button" onClick={() => setShowConfirmPassword((visible) => !visible)} aria-label={showConfirmPassword ? 'Ocultar confirmação' : 'Exibir confirmação'} className="absolute right-2 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-lg text-gray-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]">
                   {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -393,7 +393,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
               </div>
               {seedSuccess && <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-center text-xs font-bold text-emerald-400">{seedSuccess}</div>}
             </div>
-            <button type="button" onClick={() => router.push('/admin/extensions')} className="inline-flex items-center gap-2 rounded-xl bg-[#FF6B00] px-8 py-3.5 text-xs font-black text-white shadow-lg shadow-[#FF6B00]/30 hover:bg-[#FF6B00]/80"><span>Ir para Extensões Kenjitsu</span><ArrowRight size={16} /></button>
+            <button type="button" onClick={() => router.push('/admin')} className="inline-flex items-center gap-2 rounded-xl bg-[#FF6B00] px-8 py-3.5 text-xs font-black text-white shadow-lg shadow-[#FF6B00]/30 hover:bg-[#FF6B00]/80"><span>Ir para o painel admin</span><ArrowRight size={16} /></button>
           </div>
         )}
       </div>

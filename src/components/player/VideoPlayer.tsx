@@ -92,6 +92,7 @@ export interface VideoPlayerProps {
   resolvedStream?: ResolvedStream | null;
   streamStatusMessage?: string | null;
   isResolving?: boolean;
+  onRetryResolve?: () => void;
   onNextEpisode?: () => void;
   onProviderChange?: (provider: string) => void;
 }
@@ -127,6 +128,17 @@ const AUDIO_LANGUAGES = [
   },
 ];
 
+function humanizeResolutionError(message?: string | null): string {
+  if (!message) return 'Nenhum servidor ativou este episódio no momento.';
+  if (/tls|certificate|fetch failed|econnrefused|timeout|timed out|network/i.test(message)) {
+    return 'O Kenjitsu não respondeu a tempo. Verifique a conexão e tente novamente.';
+  }
+  if (/not found|não encontrado|unavailable|indisponível/i.test(message)) {
+    return 'O episódio não possui uma fonte disponível agora.';
+  }
+  return message.length > 180 ? `${message.slice(0, 177).trimEnd()}…` : message;
+}
+
 export function VideoPlayer({
   animeId = 0,
   animeTitle = '',
@@ -138,6 +150,7 @@ export function VideoPlayer({
   resolvedStream,
   streamStatusMessage,
   isResolving = false,
+  onRetryResolve,
   onNextEpisode,
   onProviderChange,
 }: VideoPlayerProps) {
@@ -1180,7 +1193,7 @@ export function VideoPlayer({
           {streamStatusMessage && serverList.length > 0 && (
             <div className="absolute top-4 left-4 z-30 px-3.5 py-2 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold backdrop-blur-md flex items-center gap-2 shadow-2xl animate-fade-in">
               <AlertTriangle size={15} className="shrink-0 text-amber-400" />
-              <span>{streamStatusMessage}</span>
+              <span>{humanizeResolutionError(streamStatusMessage)}</span>
             </div>
           )}
 
@@ -1193,12 +1206,19 @@ export function VideoPlayer({
 
           {/* Elemento de Vídeo ou iFrame Embed ou Mensagem de Indisponibilidade */}
           {serverList.length === 0 ? (
-            <div className="flex h-full w-full flex-col items-center justify-center space-y-3 bg-[#09090D] p-6 text-center">
+            <div className="flex h-full w-full flex-col items-center justify-center space-y-4 bg-[#09090D] p-6 text-center" role="status" aria-live="polite">
               {isResolving ? (
                 <>
                   <Loader2 size={30} className="animate-spin text-[#FF6B00]" />
-                  <h4 className="text-sm font-semibold text-white">Encontrando a melhor fonte</h4>
-                  <p className="max-w-sm text-xs leading-5 text-zinc-400">Verificando qualidade e disponibilidade para este episódio.</p>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold text-white">Consultando fontes Kenjitsu</h4>
+                    <p className="max-w-sm text-xs leading-5 text-zinc-400">Verificando disponibilidade e qualidade para este episódio.</p>
+                  </div>
+                  <ol className="grid w-full max-w-sm gap-1.5 text-left text-[11px] text-zinc-400 sm:grid-cols-3" aria-label="Etapas da resolução">
+                    <li className="border border-[#FF6B00]/30 bg-[#FF6B00]/10 px-2.5 py-2 text-[#FFB27A]">1. Consultar Kenjitsu</li>
+                    <li className="border border-white/10 bg-white/[.03] px-2.5 py-2">2. Validar fonte</li>
+                    <li className="border border-white/10 bg-white/[.03] px-2.5 py-2">3. Preparar player</li>
+                  </ol>
                 </>
               ) : (
                 <>
@@ -1207,8 +1227,9 @@ export function VideoPlayer({
                   </div>
                   <h4 className="text-base font-bold text-white">Nenhuma fonte de transmissão disponível</h4>
                   <p className="text-xs text-gray-400 max-w-md">
-                    {streamStatusMessage || 'Nenhum servidor ativou este episódio no momento. Tente novamente mais tarde ou verifique os provedores no Painel Admin.'}
+                    {humanizeResolutionError(streamStatusMessage)} Tente novamente ou escolha outro episódio.
                   </p>
+                  {onRetryResolve && <button type="button" onClick={onRetryResolve} className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-3)]">Tentar novamente</button>}
                 </>
               )}
             </div>

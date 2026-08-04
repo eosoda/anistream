@@ -30,10 +30,10 @@ model Anime {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  aliases     AnimeAlias[]
-  identifiers AnimeIdentifier[]
-  episodes    Episode[]
-  releaseScheduleRule ReleaseScheduleRule?
+  aliases                   AnimeAlias[]
+  identifiers               AnimeIdentifier[]
+  episodes                  Episode[]
+  releaseScheduleRule       ReleaseScheduleRule?
   releaseScheduleExceptions ReleaseScheduleException[]
 
   @@index([normalizedTitle])
@@ -144,12 +144,12 @@ model ProviderHealthLog {
 }
 
 model AdminUser {
-  id           String         @id @default(cuid())
-  email        String         @unique
+  id           String          @id @default(cuid())
+  email        String          @unique
   name         String?
   passwordHash String
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
   sessions     AdminSession[]
   auditLogs    AdminAuditLog[]
 
@@ -169,14 +169,14 @@ model AdminSession {
 }
 
 model AdminAuditLog {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   actorId      String?
   action       String
   resourceType String
   resourceId   String?
   summary      String
   metadataJson String?
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime @default(now())
 
   actor AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
@@ -274,19 +274,36 @@ model ReleaseScheduleException {
 }
 
 model HomepageLayout {
-  id                String   @id @default(cuid())
-  key               String   @unique
-  draftJson         Json
-  publishedJson     Json
-  draftVersion      Int      @default(1)
-  publishedVersion  Int      @default(1)
-  draftUpdatedAt    DateTime @updatedAt
-  publishedAt       DateTime @default(now())
-  draftUpdatedBy    String?
-  publishedBy       String?
-  createdAt         DateTime @default(now())
+  id               String             @id @default(cuid())
+  key              String             @unique
+  draftJson        Json
+  publishedJson    Json
+  draftVersion     Int                @default(1)
+  publishedVersion Int                @default(1)
+  draftUpdatedAt   DateTime           @updatedAt
+  publishedAt      DateTime           @default(now())
+  draftUpdatedBy   String?
+  publishedBy      String?
+  createdAt        DateTime           @default(now())
+  snapshots        HomepageSnapshot[]
 
   @@index([publishedAt])
+}
+
+model HomepageSnapshot {
+  id           String   @id @default(cuid())
+  layoutKey    String
+  version      Int
+  kind         String   @default("PUBLISHED") // PUBLISHED ou DRAFT
+  label        String
+  documentJson Json
+  createdAt    DateTime @default(now())
+  createdBy    String?
+
+  layout HomepageLayout @relation(fields: [layoutKey], references: [key], onDelete: Cascade)
+
+  @@unique([layoutKey, version, kind])
+  @@index([layoutKey, createdAt])
 }
 
 model MediaProvider {

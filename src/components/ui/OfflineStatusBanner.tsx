@@ -41,7 +41,7 @@ export function OfflineStatusBanner() {
     <>
       {isOffline && (
         <div className="fixed top-16 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none animate-fade-in">
-          <div className="pointer-events-auto bg-amber-950/90 border border-amber-500/40 text-amber-200 px-4 py-2 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-semibold">
+          <div className="pointer-events-auto bg-amber-950/90 border border-amber-500/40 text-amber-200 px-4 py-2 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-semibold" role="alert" aria-live="assertive">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
@@ -58,7 +58,7 @@ export function OfflineStatusBanner() {
 
       {!isOffline && showReconnected && (
         <div className="fixed top-16 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none animate-fade-in">
-          <div className="pointer-events-auto bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 px-4 py-2 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2 text-xs font-semibold">
+          <div className="pointer-events-auto bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 px-4 py-2 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2 text-xs font-semibold" role="status" aria-live="polite">
             <Wifi size={14} className="text-emerald-400 flex-shrink-0" />
             <span>Conexão Restabelecida</span>
             <span className="text-emerald-400/80 font-normal hidden sm:inline">

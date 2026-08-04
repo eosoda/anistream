@@ -38,7 +38,7 @@ O shell compartilhado fica em `app/(main)/admin/layout.tsx` e fornece navegaçã
 | `/admin/animes/novo` | Cadastro e autofill pelo Kenjitsu. |
 | `/admin/animes/[id]/editar` | Identidade, metadata, playback e episódios. |
 | `/admin/extensions` | Matriz de fontes/extensões Kenjitsu. |
-| `/admin/homepage` | Construtor visual da Home: blocos, fontes Kenjitsu, preview, rascunho e publicação. |
+| `/admin/homepage` | Construtor visual da Home: blocos, fontes Kenjitsu, rascunho, snapshots e publicação. |
 | `/admin/navigation` | Navegação e disponibilidade de páginas; contém atalho para o construtor da Home. |
 | `/admin/calendar` | Release Schedule: regras semanais, exceções, prévia e sincronização Kenjitsu. |
 | `/admin/system` | Estado e manutenção. |
@@ -67,6 +67,10 @@ O painel `/admin/navigation` é o centro operacional de menu público, atalhos m
 | `PUT /api/admin/homepage` | Salva o rascunho com controle otimista de versão. |
 | `POST /api/admin/homepage/publish` | Publica o rascunho após confirmação e invalida o cache público. |
 | `POST /api/admin/homepage/discard` | Restaura o rascunho para a última publicação. |
+| `GET /api/admin/homepage/snapshots` | Lista snapshots publicados e snapshots manuais do rascunho. |
+| `POST /api/admin/homepage/snapshots` | Registra um snapshot do rascunho salvo. |
+| `GET /api/admin/homepage/snapshots/:id` | Consulta a composição completa de um snapshot. |
+| `POST /api/admin/homepage/snapshots/:id/restore` | Copia um snapshot para o rascunho sem publicar. |
 
 ## APIs de navegação pública
 

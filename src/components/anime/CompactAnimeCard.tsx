@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Play, Heart, Star, Tv, Mic, MessageSquare, Sparkles, CheckCircle2 } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
 import { RatingBadge } from '@/components/ui/RatingBadge';
@@ -19,6 +19,7 @@ interface CompactAnimeCardProps {
 }
 
 export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
+  const shouldReduceMotion = useReducedMotion();
   const { isFavorite, toggleFavoriteWithConfirm, newEpisodesMap, markAsSeen } = useFavorites();
   const { getAnimeOverallProgress } = useWatchProgress();
 
@@ -39,14 +40,14 @@ export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
   const typeStr = anime.type || 'TV';
   const isMovie = typeStr.toLowerCase() === 'movie';
   const episodesCount = anime.episodes ? `${anime.episodes} eps` : 'Em lançamento';
-  const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : 'N/A');
+  const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : '—');
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
       transition={{
-        duration: 0.25,
+        duration: shouldReduceMotion ? 0 : 0.25,
         delay: index !== undefined ? Math.min((index % 12) * 0.03, 0.3) : 0,
         ease: 'easeOut',
       }}

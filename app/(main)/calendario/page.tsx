@@ -60,7 +60,7 @@ export default function CalendarPage() {
   const todayWeek = timezone ? localWeekStart(timezone) : weekStart;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[1600px] space-y-6 px-4 py-8 text-white sm:px-8 lg:px-10">
+    <div className="mx-auto min-h-screen w-full max-w-[1600px] space-y-6 px-4 py-8 text-white sm:px-8 lg:px-10">
       <header className="flex flex-col gap-5 border-b border-white/10 pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex items-start gap-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#FF6B00]/15 text-[#FF6B00]">
@@ -138,6 +138,6 @@ export default function CalendarPage() {
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }

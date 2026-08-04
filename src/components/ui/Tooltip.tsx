@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, ReactNode } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 interface TooltipProps {
   content: ReactNode;
@@ -18,55 +18,61 @@ export function Tooltip({
   delay = 200,
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tooltipId = useId();
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const show = useCallback(() => {
+    clearTimer();
+    timerRef.current = setTimeout(() => setIsVisible(true), delay);
+  }, [clearTimer, delay]);
+
+  const hide = useCallback(() => {
+    clearTimer();
+    setIsVisible(false);
+  }, [clearTimer]);
+
+  useEffect(() => clearTimer, [clearTimer]);
 
   if (!content) return <>{children}</>;
 
-  const handleMouseEnter = () => {
-    const timeout = setTimeout(() => {
-      setIsVisible(true);
-    }, delay);
-    setTimer(timeout);
-  };
-
-  const handleMouseLeave = () => {
-    if (timer) clearTimeout(timer);
-    setIsVisible(false);
-  };
+  const describedChild = React.isValidElement(children)
+    ? React.cloneElement(children as React.ReactElement<{ 'aria-describedby'?: string }>, {
+        'aria-describedby': isVisible ? tooltipId : undefined,
+      })
+    : children;
 
   const positionClasses = {
-    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-    right: 'left-full top-1/2 -translate-y-1/2 ml-2',
-  };
-
-  const arrowClasses = {
-    top: 'top-full left-1/2 -translate-x-1/2 border-t-neutral-800 border-x-transparent border-b-transparent border-t-4 border-x-4',
-    bottom: 'bottom-full left-1/2 -translate-x-1/2 border-b-neutral-800 border-x-transparent border-a-transparent border-b-4 border-x-4',
-    left: 'hidden',
-    right: 'hidden',
+    top: 'bottom-full left-1/2 mb-2 -translate-x-1/2',
+    bottom: 'left-1/2 top-full mt-2 -translate-x-1/2',
+    left: 'right-full top-1/2 mr-2 -translate-y-1/2',
+    right: 'left-full top-1/2 ml-2 -translate-y-1/2',
   };
 
   return (
-    <div
+    <span
       className={`relative inline-flex ${className}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onFocus={handleMouseEnter}
-      onBlur={handleMouseLeave}
+      onPointerEnter={show}
+      onPointerLeave={hide}
+      onFocus={show}
+      onBlur={hide}
     >
-      {children}
-
+      {describedChild}
       {isVisible && (
-        <div
+        <span
+          id={tooltipId}
           role="tooltip"
-          className={`absolute z-50 pointer-events-none whitespace-nowrap rounded-lg bg-neutral-900 border border-white/15 px-2.5 py-1 text-[11px] font-bold text-gray-100 shadow-xl shadow-black/60 transition-all duration-200 animate-fade-in ${positionClasses[position]}`}
+          className={`pointer-events-none absolute z-50 whitespace-nowrap rounded-lg border border-white/15 bg-neutral-900 px-2.5 py-1 text-[11px] font-bold text-gray-100 shadow-xl shadow-black/60 ${positionClasses[position]}`}
         >
           {content}
-          <div className={`absolute w-0 h-0 ${arrowClasses[position]}`} />
-        </div>
+        </span>
       )}
-    </div>
+    </span>
   );
 }

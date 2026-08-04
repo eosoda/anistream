@@ -12,7 +12,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const isSetupOrAdmin = pathname?.startsWith('/setup') || pathname?.startsWith('/admin');
 
   if (isSetupOrAdmin) {
-    return <main className="flex-grow w-full">{children}</main>;
+    return <>{children}</>;
   }
 
   return (

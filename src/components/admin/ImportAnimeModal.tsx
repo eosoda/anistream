@@ -160,9 +160,10 @@ export function ImportAnimeModal({
 
         {/* Campo de Busca */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <Search aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
+            aria-label="Pesquisar anime para importar"
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             placeholder="Digite o nome do anime (ex: Frieren, Naruto, One Piece)..."

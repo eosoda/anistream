@@ -35,6 +35,7 @@ export default function AdminExtensionsPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkTestProgress, setBulkTestProgress] = useState<{ current: number; total: number; id: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ tone: 'info' | 'success' | 'danger'; text: string } | null>(null);
   const [query, setQuery] = useState('');
@@ -121,6 +122,48 @@ export default function AdminExtensionsPage() {
     }
   };
 
+  const bulkTest = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length || bulkBusy) return;
+
+    setBulkBusy(true);
+    setMessage({ tone: 'info', text: `Preparando teste sequencial de ${ids.length} extensão(ões).` });
+    let healthy = 0;
+    let degraded = 0;
+    let down = 0;
+    let failed = 0;
+
+    try {
+      for (let index = 0; index < ids.length; index += 1) {
+        const id = ids[index];
+        setBulkTestProgress({ current: index + 1, total: ids.length, id });
+        setMessage({ tone: 'info', text: `Testando ${id} (${index + 1}/${ids.length}) em sequência.` });
+
+        try {
+          const response = await fetch('/api/admin/extensions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || 'Falha no teste da extensão.');
+          if (payload.status === 'healthy') healthy += 1;
+          else if (payload.status === 'degraded') degraded += 1;
+          else down += 1;
+        } catch {
+          failed += 1;
+        }
+
+        await load();
+      }
+
+      setSelectedIds(new Set());
+      setMessage({
+        tone: failed || down ? 'danger' : degraded ? 'info' : 'success',
+        text: `Testes concluídos: ${healthy} operacionais, ${degraded} degradadas, ${down} indisponíveis${failed ? ` e ${failed} falha(s) de requisição` : ''}.`,
+      });
+    } finally {
+      setBulkTestProgress(null);
+      setBulkBusy(false);
+    }
+  };
+
   const bulkAction = async (action: 'enable' | 'disable') => {
     if (!selectedIds.size) return;
     setBulkBusy(true);
@@ -139,12 +182,12 @@ export default function AdminExtensionsPage() {
   };
 
   const columns: Array<AdminTableColumn<ExtensionItem>> = [
-    { key: 'extension', label: 'Extensão', render: (extension) => <div className="min-w-48"><strong className="block text-sm text-[var(--admin-text)]">{extension.manifest?.name || extension.id}</strong><span className="font-mono-data text-[.7rem] text-[var(--admin-dim)]">{extension.id} · v{extension.manifest?.version || '—'}</span></div> },
+    { key: 'extension', label: 'Extensão', render: (extension) => <div className="min-w-0"><strong className="block truncate text-sm text-[var(--admin-text)]">{extension.manifest?.name || extension.id}</strong><span className="block truncate font-mono-data text-[.7rem] text-[var(--admin-dim)]">{extension.id} · v{extension.manifest?.version || '—'}</span></div> },
     { key: 'state', label: 'Estado', render: (extension) => <AdminStatusBadge status={extension.status} /> },
     { key: 'policy', label: 'Política', render: (extension) => <div className="flex flex-wrap gap-1.5 text-[.7rem]"><span className={extension.enabled ? 'text-[var(--success)]' : 'text-[var(--admin-dim)]'}>{extension.enabled ? 'Ativa' : 'Desativada'}</span><span className="text-[var(--admin-dim)]">·</span><span className={extension.nsfw ? 'text-[var(--warning)]' : 'text-[var(--admin-muted)]'}>{extension.nsfw ? 'NSFW bloqueado' : 'NSFW permitido'}</span></div> },
     { key: 'capabilities', label: 'Capacidades', render: (extension) => <span className="text-xs text-[var(--admin-muted)]">{extension.manifest?.capabilities?.slice(0, 3).join(' · ') || 'Catálogo · mídia'}</span> },
     { key: 'lastTest', label: 'Último teste', render: (extension) => <div><span className="block text-xs text-[var(--admin-muted)]">{formatDate(extension.lastTestedAt)}</span>{extension.lastLatencyMs != null && <span className="font-mono-data text-[.7rem] text-[var(--admin-dim)]">{extension.lastLatencyMs}ms</span>}{extension.lastError && <span className="mt-1 block max-w-44 truncate text-[.68rem] text-[var(--danger)]" title={extension.lastError}>{extension.lastError}</span>}</div> },
-    { key: 'actions', label: 'Ações', className: 'text-right', render: (extension) => { const busy = busyId === extension.id; return <div className="flex min-w-52 justify-end gap-1.5"><button type="button" className="admin-button is-ghost min-h-10 px-2.5" aria-pressed={extension.enabled} onClick={() => void patchExtension(extension.id, { enabled: !extension.enabled })} disabled={busy || bulkBusy} title={extension.enabled ? 'Desativar extensão' : 'Ativar extensão'}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Power size={15} />}<span className="sr-only">{extension.enabled ? 'Desativar' : 'Ativar'}</span></button><button type="button" className="admin-button is-ghost min-h-10 px-2.5" onClick={() => void patchExtension(extension.id, { nsfw: !extension.nsfw })} disabled={busy || bulkBusy} title={extension.nsfw ? 'Permitir extensão NSFW' : 'Bloquear extensão NSFW'}>{extension.nsfw ? <ShieldAlert size={15} /> : <Check size={15} />}<span className="sr-only">{extension.nsfw ? 'Permitir NSFW' : 'Bloquear NSFW'}</span></button><button type="button" className="admin-button is-secondary min-h-10 px-2.5" onClick={() => void testExtension(extension.id)} disabled={busy || bulkBusy}>{busy ? <Loader2 size={15} className="animate-spin" /> : <FlaskConical size={15} />}Testar</button></div>; } },
+    { key: 'actions', label: 'Ações', className: 'text-right', render: (extension) => { const busy = busyId === extension.id; return <div className="flex min-w-0 flex-wrap justify-end gap-1.5"><button type="button" className="admin-button is-ghost min-h-10 px-2.5" aria-pressed={extension.enabled} onClick={() => void patchExtension(extension.id, { enabled: !extension.enabled })} disabled={busy || bulkBusy} title={extension.enabled ? 'Desativar extensão' : 'Ativar extensão'}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Power size={15} />}<span className="sr-only">{extension.enabled ? 'Desativar' : 'Ativar'}</span></button><button type="button" className="admin-button is-ghost min-h-10 px-2.5" onClick={() => void patchExtension(extension.id, { nsfw: !extension.nsfw })} disabled={busy || bulkBusy} title={extension.nsfw ? 'Permitir extensão NSFW' : 'Bloquear NSFW' }>{extension.nsfw ? <ShieldAlert size={15} /> : <Check size={15} />}<span className="sr-only">{extension.nsfw ? 'Permitir NSFW' : 'Bloquear NSFW'}</span></button><button type="button" className="admin-button is-secondary min-h-10 px-2.5" onClick={() => void testExtension(extension.id)} disabled={busy || bulkBusy}>{busy ? <Loader2 size={15} className="animate-spin" /> : <FlaskConical size={15} />}Testar</button></div>; } },
   ];
 
   return (
@@ -154,15 +197,15 @@ export default function AdminExtensionsPage() {
       {message && <AdminFeedback tone={message.tone} onDismiss={() => setMessage(null)}>{message.text}</AdminFeedback>}
 
       <AdminFilterBar label="Filtrar extensões">
-        <label className="min-w-56 flex-1"><span>Pesquisar</span><span className="relative"><Search size={15} className="absolute left-2.5 top-2.5 text-[var(--admin-dim)]" /><input value={query} onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Nome ou identificador" className="w-full pl-8" /></span></label>
+        <label className="min-w-0 flex-1"><span>Pesquisar</span><span className="relative"><Search size={15} aria-hidden="true" className="absolute left-2.5 top-2.5 text-[var(--admin-dim)]" /><input value={query} onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Nome ou identificador" className="admin-search-input w-full" /></span></label>
         <label><span>Ativação</span><select value={enabledFilter} onChange={(event) => setEnabledFilter(event.currentTarget.value)}><option value="all">Todas</option><option value="yes">Ativas</option><option value="no">Desativadas</option></select></label>
         <label><span>NSFW</span><select value={nsfwFilter} onChange={(event) => setNsfwFilter(event.currentTarget.value)}><option value="all">Todas</option><option value="yes">Bloqueadas</option><option value="no">Permitidas</option></select></label>
         <label><span>Saúde</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.currentTarget.value)}><option value="all">Todos</option><option value="healthy">Operacionais</option><option value="degraded">Degradadas</option><option value="down">Indisponíveis</option><option value="unknown">Sem teste</option></select></label>
       </AdminFilterBar>
 
       <AdminPanel>
-        <div className="admin-panel-header flex-wrap items-center"><div><h2 className="text-base font-bold text-[var(--admin-text)]">Inventário de extensões</h2><p className="mt-1 text-xs text-[var(--admin-muted)]">Selecione linhas para aplicar uma política de ativação em lote. Testes continuam individuais para proteger o Kenjitsu.</p></div><div className="flex flex-wrap items-center gap-2"><span className="text-xs text-[var(--admin-muted)]">{selectedIds.size} selecionada(s)</span><button type="button" className="admin-button is-secondary min-h-10" onClick={() => void bulkAction('enable')} disabled={!selectedIds.size || bulkBusy}>{bulkBusy ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}Ativar</button><button type="button" className="admin-button is-ghost min-h-10" onClick={() => void bulkAction('disable')} disabled={!selectedIds.size || bulkBusy}><X size={15} />Desativar</button></div></div>
-        {loading ? <div className="grid gap-2 p-4" role="status" aria-live="polite">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-[9px] bg-[var(--admin-panel-raised)]" />)}</div> : visibleExtensions.length ? <AdminDataTable columns={columns} rows={visibleExtensions} selectedIds={selectedIds} onToggle={toggleSelected} onToggleAll={toggleAll} /> : <AdminEmptyState title="Nenhuma extensão encontrada" description="Ajuste os filtros ou atualize o inventário do Kenjitsu." />}
+        <div className="admin-panel-header flex-wrap items-center"><div><h2 className="text-base font-bold text-[var(--admin-text)]">Inventário de extensões</h2><p className="mt-1 text-xs text-[var(--admin-muted)]">Selecione linhas para aplicar uma política em lote. Os testes são executados em sequência para proteger o Kenjitsu.</p></div><div className="flex flex-wrap items-center gap-2"><span className="text-xs text-[var(--admin-muted)]">{selectedIds.size} selecionada(s)</span><button type="button" className="admin-button is-secondary min-h-10" onClick={() => void bulkAction('enable')} disabled={!selectedIds.size || bulkBusy}>{bulkBusy && !bulkTestProgress ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}Ativar</button><button type="button" className="admin-button is-ghost min-h-10" onClick={() => void bulkAction('disable')} disabled={!selectedIds.size || bulkBusy}><X size={15} />Desativar</button><button type="button" className="admin-button is-secondary min-h-10" onClick={() => void bulkTest()} disabled={!selectedIds.size || bulkBusy} aria-label="Testar extensões selecionadas em sequência">{bulkTestProgress ? <Loader2 size={15} className="animate-spin" /> : <FlaskConical size={15} />}Testar selecionadas</button></div>{bulkTestProgress && <p className="basis-full text-xs text-[var(--admin-muted)]" role="status" aria-live="polite">Testando {bulkTestProgress.current}/{bulkTestProgress.total}: <strong className="text-[var(--admin-text)]">{bulkTestProgress.id}</strong></p>}</div>
+        {loading ? <div className="grid gap-2 p-4" role="status" aria-live="polite">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-[9px] bg-[var(--admin-panel-raised)]" />)}</div> : visibleExtensions.length ? <AdminDataTable columns={columns} rows={visibleExtensions} selectedIds={selectedIds} onToggle={toggleSelected} onToggleAll={toggleAll} caption="Inventário de extensões Kenjitsu" getRowLabel={(extension) => extension.manifest?.name || extension.id} /> : <AdminEmptyState title="Nenhuma extensão encontrada" description="Ajuste os filtros ou atualize o inventário do Kenjitsu." />}
       </AdminPanel>
     </div>
   );

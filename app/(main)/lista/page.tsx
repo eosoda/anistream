@@ -12,11 +12,11 @@ import {
   Type,
   Filter,
 } from 'lucide-react';
-import { jikanService } from '@/services/jikan';
+import { kenjitsuService } from '@/services/kenjitsu';
 import { AnimeCard } from '@/components/anime/AnimeCard';
 import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
 import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
-import { QuickMultiFilter, QuickFilterState, GENRE_MAL_ID_MAP } from '@/components/catalog/QuickMultiFilter';
+import { QuickMultiFilter, QuickFilterState, KENJITSU_GENRE_IDS } from '@/components/catalog/QuickMultiFilter';
 import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
@@ -65,6 +65,7 @@ export default function AnimeListPage() {
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<'all' | 'tv' | 'movie' | 'ova' | 'ona'>('all');
   const [quickFilters, setQuickFilters] = useState<QuickFilterState>(DEFAULT_QUICK_FILTERS);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Persistent view mode state (grid vs compact list)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -91,7 +92,7 @@ export default function AnimeListPage() {
       quickFilters,
     ],
     queryFn: () =>
-      jikanService.searchAnime(searchQuery, page, 24, {
+      kenjitsuService.searchAnime(searchQuery, page, 24, {
         orderBy: quickFilters.orderBy || 'title',
         sort: quickFilters.orderBy === 'title' ? 'asc' : 'desc',
         letter:
@@ -102,7 +103,7 @@ export default function AnimeListPage() {
             : undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
         status: quickFilters.status !== 'all' ? quickFilters.status : undefined,
-        genres: quickFilters.genre && quickFilters.genre !== 'all' ? GENRE_MAL_ID_MAP[quickFilters.genre] : undefined,
+        genres: quickFilters.genre && quickFilters.genre !== 'all' ? KENJITSU_GENRE_IDS[quickFilters.genre] : undefined,
       }),
   });
 
@@ -154,19 +155,12 @@ export default function AnimeListPage() {
         </div>
       </div>
 
-      {/* Quick Multi-Filter Chips */}
-      <QuickMultiFilter
-        filters={quickFilters}
-        onChange={handleQuickFilterChange}
-        onReset={handleResetQuickFilters}
-      />
-
       {/* Dynamic Search Box & Type Filter & View Toggle Bar */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {/* Dynamic Search Bar */}
           <div className="relative flex-grow">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
               value={searchQuery}
@@ -177,7 +171,7 @@ export default function AnimeListPage() {
             {searchQuery && (
               <button
                 onClick={handleClearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                className="absolute right-1 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-[var(--radius-control)] text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
                 title="Limpar busca"
               >
                 <X size={16} />
@@ -207,8 +201,27 @@ export default function AnimeListPage() {
           <ViewToggle mode={viewMode} onChange={handleViewModeChange} />
         </div>
 
-        {/* Alphabet Selector Bar */}
-        <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setShowAdvancedFilters((current) => !current)}
+          aria-expanded={showAdvancedFilters}
+          aria-controls="catalog-advanced-filters"
+          className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] border border-white/10 bg-white/5 px-3 text-xs font-bold text-gray-200 transition-colors hover:bg-white/10"
+        >
+          <Filter size={15} aria-hidden="true" />
+          {showAdvancedFilters ? 'Ocultar filtros' : 'Mais filtros'}
+          {(quickFilters.genre !== 'all' || quickFilters.status !== 'all' || quickFilters.orderBy !== 'popularity' || typeFilter !== 'all' || selectedLetter !== 'Todos') && <span className="grid min-w-5 place-items-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] text-black">Ativos</span>}
+        </button>
+
+        {showAdvancedFilters && <div id="catalog-advanced-filters" className="space-y-4" aria-label="Filtros avançados">
+          <QuickMultiFilter
+            filters={quickFilters}
+            onChange={handleQuickFilterChange}
+            onReset={handleResetQuickFilters}
+          />
+
+          {/* Alphabet Selector Bar */}
+          <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
               <Type size={14} className="text-[#FF6B00]" />
@@ -217,7 +230,7 @@ export default function AnimeListPage() {
             {selectedLetter !== 'Todos' && (
               <button
                 onClick={() => handleLetterSelect('Todos')}
-                className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-1"
+                className="inline-flex min-h-11 items-center gap-1 text-xs font-bold text-[#FF6B00] hover:underline"
               >
                 Resetar Filtro
               </button>
@@ -236,7 +249,7 @@ export default function AnimeListPage() {
                 <button
                   key={letter}
                   onClick={() => handleLetterSelect(letter)}
-                  className={`flex-shrink-0 min-w-[36px] h-9 px-2.5 rounded-xl font-extrabold text-xs transition-all ${
+                    className={`flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-xl px-2.5 font-extrabold text-xs transition-all ${
                     isSelected
                       ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/30 scale-105'
                       : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/5'
@@ -249,6 +262,7 @@ export default function AnimeListPage() {
             })}
           </div>
         </div>
+        </div>}
       </div>
 
       {/* Status Bar */}

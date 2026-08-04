@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SlidersHorizontal, RotateCcw, Star, Tv, Clock, Check, Sparkles, Languages, Mic, MessageSquare } from 'lucide-react';
-import { SearchAnimeFilters } from '@/services/jikan';
+import { SearchAnimeFilters } from '@/services/kenjitsu';
 
 interface SearchFiltersProps {
   filters: SearchAnimeFilters;

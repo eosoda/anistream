@@ -128,6 +128,23 @@ export interface HomepagePublishedSummary {
   blockTypes: HomepageBlockType[];
 }
 
+export type HomepageSnapshotKind = 'PUBLISHED' | 'DRAFT';
+
+export interface HomepageSnapshotSummary {
+  id: string;
+  version: number;
+  kind: HomepageSnapshotKind;
+  label: string;
+  createdAt: string;
+  createdBy?: string | null;
+  visibleBlockCount: number;
+  blockTypes: HomepageBlockType[];
+}
+
+export interface HomepageSnapshotDetail extends HomepageSnapshotSummary {
+  document: HomepageLayoutDocument;
+}
+
 export interface HomepageAdminState {
   key: 'main';
   draft: HomepageLayoutDocument;
@@ -139,6 +156,7 @@ export interface HomepageAdminState {
   draftUpdatedBy?: string | null;
   publishedBy?: string | null;
   summary: HomepagePublishedSummary;
+  snapshots: HomepageSnapshotSummary[];
 }
 
 export type HomepageBlockStatus = 'ready' | 'empty' | 'error' | 'client';

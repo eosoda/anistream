@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ChevronLeft, ChevronRight, List, CheckCircle2, Clock } from 'lucide-react';
-import { jikanService } from '@/services/jikan';
+import { kenjitsuService } from '@/services/kenjitsu';
 import { DetailSkeleton } from '@/components/ui/LoadingSkeleton';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { SafeImage } from '@/components/ui/SafeImage';
@@ -45,14 +45,14 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
   // Fetch Anime Main Info
   const { data: anime, isLoading: isLoadingAnime } = useQuery({
     queryKey: ['animeDetail', animeId],
-    queryFn: () => jikanService.getAnimeById(animeId),
+    queryFn: () => kenjitsuService.getAnimeById(animeId),
     enabled: !isNaN(animeId),
   });
 
   // Fetch Anime Episodes list for pagination
   const { data: episodes } = useQuery({
     queryKey: ['animeEpisodes', animeId],
-    queryFn: () => jikanService.getAnimeEpisodes(animeId),
+    queryFn: () => kenjitsuService.getAnimeEpisodes(animeId),
     enabled: !isNaN(animeId),
   });
 
@@ -105,7 +105,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
   });
 
   // O primeiro pedido usa apenas o identificador e o banco local. Se ele nÃ£o
-  // encontrar uma fonte e o Jikan terminar depois, repetimos uma Ãºnica vez
+  // Se os metadados terminarem depois da primeira resolução, repetimos uma única vez.
   // com os tÃ­tulos enriquecidos, sem criar um waterfall para toda navegaÃ§Ã£o.
   useEffect(() => {
     if (
@@ -262,6 +262,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
         resolvedStream={resolvedStream}
         streamStatusMessage={streamResult?.error}
         isResolving={isResolvingStream || isRefreshingStream || alternativesQuery.isFetching}
+        onRetryResolve={() => { void refetchStream(); }}
         onNextEpisode={() => {
           if (nextEp) {
             router.push(`/anime/${animeId}/episode/${nextEp}`);

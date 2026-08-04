@@ -141,7 +141,7 @@ export interface KenjitsuCatalogFilters {
   audioLanguage?: 'all' | 'subbed_pt' | 'dubbed_pt' | 'pt_br';
 }
 
-const MAL_GENRE_NAMES: Record<string, string> = {
+const KENJITSU_GENRE_NAMES: Record<string, string> = {
   '1': 'Action',
   '2': 'Adventure',
   '4': 'Comedy',
@@ -177,7 +177,7 @@ function matchesFilters(meta: KenjitsuMetaAnime, filters?: KenjitsuCatalogFilter
   if (filters.genres) {
     const requested = filters.genres
       .split(',')
-      .map((value) => MAL_GENRE_NAMES[value.trim()] || value.trim().toLowerCase());
+      .map((value) => KENJITSU_GENRE_NAMES[value.trim()] || value.trim().toLowerCase());
     const available = (meta.genres || []).map((genre) => genre.toLowerCase());
     if (!requested.some((genre) => available.includes(genre.toLowerCase()))) return false;
   }
@@ -319,7 +319,7 @@ async function resolveAnilistId(input: AnimeInputId): Promise<number> {
       const direct = await kenjitsuClient.getMetadata(Number(value));
       if (direct.data?.anilistId) return Number(direct.data.anilistId);
     } catch {
-      // The numeric input can also be a legacy MAL id; keep the search/local lookup below.
+      // A numeric input may still be a legacy catalog identifier; resolve it through Kenjitsu.
     }
 
     const candidates = await kenjitsuClient.searchMetadata(value, 1, 50);

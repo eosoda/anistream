@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { jikanService } from '@/services/jikan';
+import { kenjitsuService } from '@/services/kenjitsu';
 import { SeasonSelector } from '@/components/anime/SeasonSelector';
 import { AnimeCard } from '@/components/anime/AnimeCard';
 import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -28,7 +28,7 @@ export default function SeasonsPage() {
   // Fetch season anime automatically
   const { data: seasonData, isLoading, isError, refetch } = useQuery({
     queryKey: ['seasonAnime', selectedYear, selectedSeason, page],
-    queryFn: () => jikanService.getSeasonByYearAndSeason(selectedYear, selectedSeason, page, 24),
+    queryFn: () => kenjitsuService.getSeasonByYearAndSeason(selectedYear, selectedSeason, page, 24),
   });
 
   const handleYearChange = (year: number) => {

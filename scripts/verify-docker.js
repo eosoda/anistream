@@ -80,7 +80,7 @@ const nextConfig = readFile('next.config.ts');
 requireText(nextConfig, "output: 'standalone'", 'Next.js standalone habilitado');
 
 const schema = readFile('prisma/schema.prisma');
-for (const model of ['Anime', 'Episode', 'EpisodeSource', 'MediaProvider', 'AutoIndexerQueue', 'AdminUser', 'AdminAuditLog', 'ProviderHealthLog', 'HomepageLayout', 'ReleaseScheduleRule', 'ReleaseScheduleException']) {
+for (const model of ['Anime', 'Episode', 'EpisodeSource', 'MediaProvider', 'AutoIndexerQueue', 'AdminUser', 'AdminAuditLog', 'ProviderHealthLog', 'HomepageLayout', 'HomepageSnapshot', 'ReleaseScheduleRule', 'ReleaseScheduleException']) {
   requireText(schema, `model ${model}`, `Modelo Prisma ${model} presente`);
 }
 

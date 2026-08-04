@@ -26,7 +26,7 @@ import {
   ListVideo,
   Info,
 } from 'lucide-react';
-import { jikanService } from '@/services/jikan';
+import { kenjitsuService } from '@/services/kenjitsu';
 import { RatingBadge } from '@/components/ui/RatingBadge';
 import { GenreBadge } from '@/components/ui/GenreBadge';
 import { EpisodeList } from '@/components/player/EpisodeList';
@@ -60,28 +60,28 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
   // 1. Fetch Anime Main Info
   const { data: anime, isLoading: isLoadingAnime, error } = useReactQuery({
     queryKey: ['animeDetail', animeId],
-    queryFn: () => jikanService.getAnimeById(animeId),
+    queryFn: () => kenjitsuService.getAnimeById(animeId),
     enabled: !isNaN(animeId),
   });
 
   // 3. Fetch Episodes
   const { data: episodes, isLoading: isLoadingEpisodes } = useReactQuery({
     queryKey: ['animeEpisodes', animeId],
-    queryFn: () => jikanService.getAnimeEpisodes(animeId),
+    queryFn: () => kenjitsuService.getAnimeEpisodes(animeId),
     enabled: !isNaN(animeId),
   });
 
   // 4. Fetch Characters
   const { data: characters } = useReactQuery({
     queryKey: ['animeCharacters', animeId],
-    queryFn: () => jikanService.getAnimeCharacters(animeId),
+    queryFn: () => kenjitsuService.getAnimeCharacters(animeId),
     enabled: !isNaN(animeId),
   });
 
   // 5. Fetch Relations
   const { data: relations } = useReactQuery({
     queryKey: ['animeRelations', animeId],
-    queryFn: () => jikanService.getAnimeRelations(animeId),
+    queryFn: () => kenjitsuService.getAnimeRelations(animeId),
     enabled: !isNaN(animeId),
   });
 
@@ -123,10 +123,10 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
     anime.images?.jpg?.image_url ||
     anime.images?.webp?.image_url ||
     anime.images?.jpg?.large_image_url ||
-    'https://picsum.photos/seed/anime/300/450';
+    '';
 
   const mainTitle = anime.title || anime.title_english || 'Anime';
-  const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : 'N/A');
+  const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : '—');
 
   const scrollToEpisodes = () => {
     setActiveTab('episodes');
@@ -275,7 +275,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Nota</span>
-                  <p className="text-sm font-black text-white">{anime.score ? anime.score.toFixed(2) : 'N/A'}</p>
+                  <p className="text-sm font-black text-white">{anime.score ? anime.score.toFixed(2) : '—'}</p>
                 </div>
               </div>
 
@@ -295,7 +295,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Ranking</span>
-                  <p className="text-sm font-black text-white">#{anime.rank || 'N/A'}</p>
+                  <p className="text-sm font-black text-white">{anime.rank ? `#${anime.rank}` : '—'}</p>
                 </div>
               </div>
 
@@ -306,7 +306,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                 <div>
                   <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Estúdio</span>
                   <p className="text-sm font-black text-white truncate max-w-[100px]">
-                    {anime.studios?.[0]?.name || 'N/A'}
+                    {anime.studios?.[0]?.name || '—'}
                   </p>
                 </div>
               </div>
@@ -456,20 +456,20 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Estúdio</span>
                     <span className="text-white font-bold">
-                      {anime.studios?.map((s) => s.name).join(', ') || 'N/A'}
+                      {anime.studios?.map((s) => s.name).join(', ') || '—'}
                     </span>
                   </div>
 
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Produtores</span>
                     <span className="text-white font-bold">
-                      {anime.producers?.slice(0, 3).map((p) => p.name).join(', ') || 'N/A'}
+                      {anime.producers?.slice(0, 3).map((p) => p.name).join(', ') || '—'}
                     </span>
                   </div>
 
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Duração p/ Ep</span>
-                    <span className="text-white font-bold">{anime.duration || 'N/A'}</span>
+                    <span className="text-white font-bold">{anime.duration || '—'}</span>
                   </div>
 
                   <div>
@@ -577,7 +577,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 font-medium">Duração por Ep</span>
-                  <span className="font-bold text-white">{anime.duration || 'N/A'}</span>
+                  <span className="font-bold text-white">{anime.duration || '—'}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -590,13 +590,13 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 font-medium">Estúdio</span>
                   <span className="font-bold text-white">
-                    {anime.studios?.map((s) => s.name).join(', ') || 'N/A'}
+                    {anime.studios?.map((s) => s.name).join(', ') || '—'}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 font-medium">Popularidade</span>
-                  <span className="font-bold text-white">#{anime.popularity || 'N/A'}</span>
+                  <span className="font-bold text-white">{anime.popularity ? `#${anime.popularity}` : '—'}</span>
                 </div>
               </div>
             </div>

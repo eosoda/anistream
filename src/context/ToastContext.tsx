@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Sparkles, RefreshCw } from 'lucide-react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AlertCircle, AlertTriangle, CheckCircle2, RefreshCw, Sparkles, X } from 'lucide-react';
 import { SafeImage } from '@/components/ui/SafeImage';
 
 export type ToastType = 'success' | 'info' | 'warning' | 'error';
@@ -13,7 +13,7 @@ export interface ToastItem {
   message?: string;
   animeImage?: string;
   animeId?: number;
-  duration?: number; // ms
+  duration?: number;
   onClick?: () => void;
   actionText?: string;
 }
@@ -25,168 +25,101 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+function toastIcon(type: ToastType) {
+  if (type === 'success') return <CheckCircle2 size={18} aria-hidden="true" />;
+  if (type === 'error') return <AlertCircle size={18} aria-hidden="true" />;
+  if (type === 'warning') return <AlertTriangle size={18} aria-hidden="true" />;
+  return <Sparkles size={18} aria-hidden="true" />;
+}
+
+function toastTone(type: ToastType) {
+  if (type === 'success') return 'border-emerald-500/40 bg-emerald-950/70 text-emerald-300';
+  if (type === 'error') return 'border-rose-500/45 bg-rose-950/70 text-rose-300';
+  if (type === 'warning') return 'border-amber-500/45 bg-amber-950/70 text-amber-300';
+  return 'border-[var(--accent)]/45 bg-[var(--surface-2)] text-[var(--accent)]';
+}
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastNumber = useRef(0);
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    const timer = timers.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timers.current.delete(id);
+    }
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
-  const showToast = useCallback(
-    (toast: Omit<ToastItem, 'id'>) => {
-      const id = Math.random().toString(36).substring(2, 9);
-      const newToast: ToastItem = { ...toast, id };
+  const showToast = useCallback((toast: Omit<ToastItem, 'id'>) => {
+    const id = `toast-${Date.now()}-${toastNumber.current++}`;
+    const newToast: ToastItem = { ...toast, id };
+    const duration = toast.duration ?? 4500;
+    setToasts((prev) => [...prev.slice(-4), newToast]);
+    timers.current.set(id, setTimeout(() => {
+      timers.current.delete(id);
+      setToasts((prev) => prev.filter((item) => item.id !== id));
+    }, duration));
+  }, []);
 
-      setToasts((prev) => [...prev.slice(-4), newToast]); // keep max 5 toasts
+  useEffect(() => () => {
+    timers.current.forEach((timer) => clearTimeout(timer));
+    timers.current.clear();
+  }, []);
 
-      const duration = toast.duration || 4500;
-      setTimeout(() => {
-        removeToast(id);
-      }, duration);
-    },
-    [removeToast]
-  );
-
-  const copyToClipboard = useCallback(
-    async (text: string, customMessage?: string) => {
-      try {
-        await navigator.clipboard.writeText(text);
-        showToast({
-          type: 'success',
-          title: 'Link Copiado!',
-          message: customMessage || 'Copiado para a área de transferência.',
-          duration: 3000,
-        });
-        return true;
-      } catch (err) {
-        console.error('Failed to copy text:', err);
-        showToast({
-          type: 'error',
-          title: 'Erro ao copiar',
-          message: 'Não foi possível copiar o link.',
-          duration: 3000,
-        });
-        return false;
-      }
-    },
-    [showToast]
-  );
+  const copyToClipboard = useCallback(async (text: string, customMessage?: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast({ type: 'success', title: 'Link copiado', message: customMessage || 'Copiado para a área de transferência.', duration: 3000 });
+      return true;
+    } catch (error) {
+      console.error('Failed to copy text:', error);
+      showToast({ type: 'error', title: 'Erro ao copiar', message: 'Não foi possível copiar o link.', duration: 3000 });
+      return false;
+    }
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast, copyToClipboard }}>
       {children}
-
-      {/* Floating Toasts Container */}
-      <div
-        className="fixed bottom-20 lg:bottom-6 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-2"
-        aria-live="polite"
-      >
+      <div className="pointer-events-none fixed bottom-20 right-4 z-50 flex w-[min(calc(100vw-2rem),24rem)] flex-col gap-2.5 lg:bottom-6" role="region" aria-label="Notificações" aria-live="polite">
         {toasts.map((toast) => {
           const isInteractive = Boolean(toast.onClick);
+          const body = (
+            <>
+              {toast.animeImage ? (
+                <span className="relative h-14 w-10 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-neutral-800">
+                  <SafeImage src={toast.animeImage} animeId={toast.animeId} alt="" fill sizes="40px" className="object-cover" />
+                </span>
+              ) : (
+                <span className={`shrink-0 rounded-lg border p-2 ${toastTone(toast.type)}`}>{toastIcon(toast.type)}</span>
+              )}
+              <span className="min-w-0 flex-1 pr-5 text-left">
+                <strong className="block truncate text-xs font-bold leading-snug text-white">{toast.title}</strong>
+                {toast.message && <span className="mt-1 block line-clamp-2 text-[11px] font-medium leading-tight text-gray-300">{toast.message}</span>}
+                {toast.actionText && <span className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-extrabold text-[var(--accent)]"><RefreshCw size={11} aria-hidden="true" />{toast.actionText}</span>}
+              </span>
+            </>
+          );
 
           return (
-            <div
-              key={toast.id}
-              onClick={() => {
-                if (toast.onClick) {
-                  toast.onClick();
-                  removeToast(toast.id);
-                }
-              }}
-              className={`pointer-events-auto relative overflow-hidden rounded-2xl glass-panel p-3.5 shadow-2xl border transition-all duration-300 transform translate-y-0 animate-slide-up flex items-start gap-3 text-white ${
-                isInteractive ? 'cursor-pointer hover:scale-[1.02] hover:brightness-110 active:scale-[0.98]' : ''
-              } ${
-                toast.type === 'success'
-                  ? 'bg-neutral-900/95 border-emerald-500/40 shadow-emerald-500/10'
-                  : toast.type === 'error'
-                  ? 'bg-rose-500/20 border-rose-500/40 shadow-rose-500/10'
-                  : toast.type === 'warning'
-                  ? 'bg-amber-500/20 border-amber-500/40 shadow-amber-500/10'
-                  : 'bg-neutral-900/95 border-[#FF6B00]/40 shadow-[#FF6B00]/10'
-              }`}
-            >
-              {/* Optional Thumbnail */}
-              {toast.animeImage ? (
-                <div className="relative w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-800 border border-white/10">
-                  <SafeImage
-                    src={toast.animeImage}
-                    animeId={toast.animeId}
-                    alt={toast.title}
-                    fill
-                    sizes="40px"
-                    className="object-cover"
-                  />
-                </div>
+            <article key={toast.id} className={`pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl border p-3.5 shadow-2xl ${toastTone(toast.type)}`}>
+              {isInteractive ? (
+                <button type="button" className="flex min-w-0 flex-1 items-start gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]" onClick={() => { toast.onClick?.(); removeToast(toast.id); }}>
+                  {body}
+                </button>
               ) : (
-                <div
-                  className={`p-2 rounded-xl flex-shrink-0 border ${
-                    toast.type === 'success'
-                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                      : toast.type === 'error'
-                      ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                      : toast.type === 'warning'
-                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                      : 'bg-[#FF6B00]/20 text-[#FF6B00] border-[#FF6B00]/30'
-                  }`}
-                >
-                  {toast.type === 'success' ? (
-                    <CheckCircle2 size={18} />
-                  ) : toast.type === 'error' ? (
-                    <AlertCircle size={18} />
-                  ) : toast.type === 'warning' ? (
-                    <AlertTriangle size={18} />
-                  ) : (
-                    <Sparkles size={18} />
-                  )}
-                </div>
+                <div className="flex min-w-0 flex-1 items-start gap-3" role="status">{body}</div>
               )}
-
-              {/* Toast Text Content */}
-              <div className="flex-1 min-w-0 pr-4 space-y-1">
-                <h4 className="text-xs font-black text-white leading-snug truncate">
-                  {toast.title}
-                </h4>
-                {toast.message && (
-                  <p className="text-[11px] text-gray-300 font-medium leading-tight line-clamp-2">
-                    {toast.message}
-                  </p>
-                )}
-                {toast.actionText && (
-                  <div className="inline-flex items-center gap-1.5 pt-1 text-[10px] font-extrabold text-[#FF6B00] hover:underline">
-                    <RefreshCw size={11} className="animate-spin" />
-                    <span>{toast.actionText}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Dismiss button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeToast(toast.id);
-                }}
-                className="absolute top-2.5 right-2.5 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-                title="Fechar"
-              >
-                <X size={14} />
+              <button type="button" onClick={() => removeToast(toast.id)} className="absolute right-2.5 top-2.5 grid min-h-8 min-w-8 place-items-center rounded-lg text-gray-400 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]" aria-label={`Fechar notificação: ${toast.title}`}>
+                <X size={14} aria-hidden="true" />
               </button>
-
-              {/* Bottom Progress Bar */}
-              <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white/10">
-                <div
-                  className={`h-full animate-toast-progress ${
-                    toast.type === 'success'
-                      ? 'bg-emerald-400'
-                      : toast.type === 'error'
-                      ? 'bg-rose-400'
-                      : toast.type === 'warning'
-                      ? 'bg-amber-400'
-                      : 'bg-[#FF6B00]'
-                  }`}
-                  style={{ animationDuration: `${toast.duration || 4500}ms` }}
-                />
+              <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white/10" aria-hidden="true">
+                <div className={`h-full ${toast.type === 'success' ? 'bg-emerald-400' : toast.type === 'error' ? 'bg-rose-400' : toast.type === 'warning' ? 'bg-amber-400' : 'bg-[var(--accent)]'}`} style={{ animation: `toast-progress ${toast.duration ?? 4500}ms linear forwards` }} />
               </div>
-            </div>
+            </article>
           );
         })}
       </div>
@@ -196,11 +129,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 export function useToast() {
   const context = useContext(ToastContext);
-  if (!context) {
-    return {
-      showToast: () => {},
-      copyToClipboard: async () => false,
-    };
-  }
+  if (!context) return { showToast: () => {}, copyToClipboard: async () => false };
   return context;
 }

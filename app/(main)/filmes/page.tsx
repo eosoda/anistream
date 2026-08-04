@@ -13,7 +13,7 @@ import {
   Clapperboard,
   SlidersHorizontal,
 } from 'lucide-react';
-import { jikanService } from '@/services/jikan';
+import { kenjitsuService } from '@/services/kenjitsu';
 import { AnimeCard } from '@/components/anime/AnimeCard';
 import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -29,7 +29,7 @@ export default function FilmesPage() {
   const { data: moviesData, isLoading, isError, refetch } = useQuery({
     queryKey: ['moviesList', searchQuery, page, statusFilter, orderBy, sortDir],
     queryFn: () =>
-      jikanService.searchAnime(searchQuery, page, 24, {
+      kenjitsuService.searchAnime(searchQuery, page, 24, {
         type: 'movie',
         status: statusFilter,
         orderBy,

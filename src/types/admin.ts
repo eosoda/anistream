@@ -9,6 +9,13 @@ export interface AdminServiceHealth {
   detail?: string | null;
 }
 
+export interface AdminCatalogHealth {
+  status: AdminHealthState;
+  source: 'postgresql';
+  checkedAt: string;
+  detail?: string | null;
+}
+
 export interface AdminExtensionHealth {
   id: string;
   name: string;
@@ -53,7 +60,10 @@ export interface AdminOverview {
     enabledExtensionsCount: number;
     pendingAlertsCount: number;
     overallHealthScore: number;
+    healthyExtensionsCount: number;
+    healthDenominator: number;
   };
+  catalog: AdminCatalogHealth;
   services: AdminServiceHealth[];
   extensions: AdminExtensionHealth[];
   alerts: AdminAlert[];

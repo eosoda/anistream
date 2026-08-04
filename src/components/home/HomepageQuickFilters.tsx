@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Filter, Search } from 'lucide-react';
-import { GENRE_MAL_ID_MAP, QuickMultiFilter, type QuickFilterState } from '@/components/catalog/QuickMultiFilter';
+import { KENJITSU_GENRE_IDS, QuickMultiFilter, type QuickFilterState } from '@/components/catalog/QuickMultiFilter';
 
 interface HomepageQuickFiltersProps {
   title?: string;
@@ -15,7 +15,7 @@ export function HomepageQuickFilters({ title = 'Explore por filtro' }: HomepageQ
 
   const goToSearch = () => {
     const params = new URLSearchParams();
-    const genre = filters.genre && filters.genre !== 'all' ? GENRE_MAL_ID_MAP[filters.genre] : undefined;
+    const genre = filters.genre && filters.genre !== 'all' ? KENJITSU_GENRE_IDS[filters.genre] : undefined;
     if (genre) params.set('genres', genre);
     if (filters.status && filters.status !== 'all') params.set('status', filters.status);
     if (filters.orderBy && filters.orderBy !== 'popularity') params.set('orderBy', filters.orderBy);

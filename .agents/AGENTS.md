@@ -43,7 +43,7 @@ O shell do admin fica em `app/(main)/admin/layout.tsx`. As rotas administrativas
 
 `/admin/navigation` é o centro operacional da experiência pública. Use `src/lib/navigation/repository.ts` e `src/schemas/navigation.ts` para alterar o contrato; não grave destinos arbitrários, URLs externas ou configuração de Home nessa superfície. A Busca é fixa no mobile, os demais três slots são configuráveis, e páginas desativadas devem sempre apontar para redirects internos habilitados.
 
-O construtor da Home em `/admin/homepage` usa apenas blocos tipados e fontes Kenjitsu. O fluxo é `rascunho → salvar → preview → publicar`; não adicionar HTML/CSS/JS livre, upload, Markdown, M3U, hosts de mídia ou URLs externas. A Home pública usa `HomepageLayout` server-first e tolera falha por bloco sem fallback de provedor.
+O construtor da Home em `/admin/homepage` usa apenas blocos tipados e fontes Kenjitsu. O fluxo é `rascunho → salvar → snapshot opcional → preview público → publicar`; não adicionar HTML/CSS/JS livre, upload, Markdown, M3U, hosts de mídia ou URLs externas. `HomepageSnapshot` preserva cada publicação e snapshots manuais do rascunho; restaurar só altera o rascunho e nunca publica automaticamente. A Home pública usa `HomepageLayout` server-first e tolera falha por bloco sem fallback de provedor.
 
 Aliases que devem ser preservados:
 
@@ -116,6 +116,9 @@ APIs administrativas principais:
 | `PUT /api/admin/homepage` | Salva documento tipado com controle otimista de versão. |
 | `POST /api/admin/homepage/publish` | Publica o rascunho e invalida o cache. |
 | `POST /api/admin/homepage/discard` | Restaura a última publicação. |
+| `GET/POST /api/admin/homepage/snapshots` | Lista ou cria snapshots da composição da Home. |
+| `GET /api/admin/homepage/snapshots/:id` | Consulta a composição completa de um snapshot. |
+| `POST /api/admin/homepage/snapshots/:id/restore` | Restaura snapshot no rascunho, com controle otimista. |
 | `GET /api/homepage` | Entrega a composição publicada resolvida pelo Kenjitsu. |
 | `GET /api/calendar` | Projeta o Release Schedule semanal no timezone solicitado. |
 | `GET /api/admin/calendar` | Configurações, regras, exceções e prévia do calendário. |

@@ -1,5 +1,5 @@
 export function formatSeasonName(season: string | null | undefined): string {
-  if (!season) return 'N/A';
+  if (!season) return '—';
   const s = season.toLowerCase();
   switch (s) {
     case 'spring':
@@ -50,7 +50,7 @@ export function formatSource(source: string | null | undefined): string {
 }
 
 export function formatNumber(num: number | null | undefined): string {
-  if (num === null || num === undefined) return 'N/A';
+  if (num === null || num === undefined) return '—';
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
   if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
   return num.toString();

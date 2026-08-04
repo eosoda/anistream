@@ -156,6 +156,8 @@ export function AdminDataTable<T extends { id: string }>({
   selectedIds,
   onToggle,
   onToggleAll,
+  caption = 'Tabela administrativa',
+  getRowLabel,
 }: {
   columns: Array<AdminTableColumn<T>>;
   rows: T[];
@@ -163,6 +165,8 @@ export function AdminDataTable<T extends { id: string }>({
   selectedIds?: Set<string>;
   onToggle?: (id: string) => void;
   onToggleAll?: (checked: boolean) => void;
+  caption?: string;
+  getRowLabel?: (row: T) => string;
 }) {
   const selectable = Boolean(selectedIds && onToggle && onToggleAll);
   const allSelected = selectable && rows.length > 0 && rows.every((row) => selectedIds?.has(row.id));
@@ -171,13 +175,16 @@ export function AdminDataTable<T extends { id: string }>({
 
   return (
     <div className="admin-table-wrap">
-      <table className="admin-table">
+      <div className="admin-table-desktop">
+        <table className="admin-table">
+        <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
             {selectable && (
               <th scope="col" className="w-12">
                 <input
                   type="checkbox"
+                  className="admin-table-checkbox"
                   checked={Boolean(allSelected)}
                   onChange={(event) => onToggleAll?.(event.currentTarget.checked)}
                   aria-label="Selecionar todos os registros visíveis"
@@ -198,9 +205,10 @@ export function AdminDataTable<T extends { id: string }>({
                 <td>
                   <input
                     type="checkbox"
+                    className="admin-table-checkbox"
                     checked={Boolean(selectedIds?.has(row.id))}
                     onChange={() => onToggle?.(row.id)}
-                    aria-label={`Selecionar ${row.id}`}
+                    aria-label={`Selecionar ${getRowLabel?.(row) || row.id}`}
                   />
                 </td>
               )}
@@ -212,16 +220,35 @@ export function AdminDataTable<T extends { id: string }>({
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
+      <div className="admin-table-mobile" aria-label={caption}>
+        {rows.map((row) => {
+          const actionColumn = columns.find((column) => column.key === 'actions');
+          return (
+            <article key={row.id} className="admin-table-mobile-card" data-selected={selectedIds?.has(row.id) ? 'true' : undefined}>
+              <div className="admin-table-mobile-heading">
+                <div className="min-w-0 flex-1">{columns[0]?.render(row)}</div>
+                {selectable && <label className="admin-table-mobile-select"><input type="checkbox" className="admin-table-checkbox" checked={Boolean(selectedIds?.has(row.id))} onChange={() => onToggle?.(row.id)} aria-label={`Selecionar ${getRowLabel?.(row) || row.id}`} /><span className="sr-only">Selecionar registro</span></label>}
+              </div>
+              <dl className="admin-table-mobile-details">
+                {columns.slice(1).filter((column) => column.key !== 'actions').map((column) => <div key={`${row.id}-${column.key}`}><dt>{column.label}</dt><dd>{column.render(row)}</dd></div>)}
+              </dl>
+              {actionColumn && <div className="admin-table-mobile-actions">{actionColumn.render(row)}</div>}
+            </article>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 export function AdminFilterBar({ children, label = 'Filtros' }: { children: ReactNode; label?: string }) {
   return (
-    <div className="admin-filter-bar" aria-label={label}>
+    <fieldset className="admin-filter-bar">
+      <legend className="sr-only">{label}</legend>
       {children}
-    </div>
+    </fieldset>
   );
 }
 
@@ -240,8 +267,8 @@ export function AdminSaveBar({
 }) {
   if (!dirty) return null;
   return (
-    <div className="admin-save-bar" role="region" aria-label="Alterações pendentes">
-      <span className="text-sm font-semibold text-[var(--text-primary)]">{label}</span>
+    <div className="admin-save-bar" role="region" aria-live="polite" aria-label="Alterações pendentes">
+      <span className="text-sm font-semibold text-[var(--admin-text)]">{label}</span>
       <div className="flex items-center gap-2">
         <button type="button" className="admin-button is-ghost" onClick={onDiscard} disabled={saving}>
           Descartar
@@ -321,6 +348,7 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
   const { panelRef, titleId } = useDialogAccessibility(open, onClose);
   const results = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('pt-BR');
@@ -331,9 +359,40 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
 
   useEffect(() => {
     if (!open) return;
-    const timer = window.setTimeout(() => setQuery(''), 0);
+    const timer = window.setTimeout(() => {
+      setQuery('');
+      setActiveIndex(0);
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [open]);
+
+  const currentActiveIndex = Math.min(activeIndex, Math.max(0, results.length - 1));
+
+  const navigateTo = (item: CommandItem) => {
+    onClose();
+    router.push(item.href);
+  };
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!results.length) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveIndex((current) => (current + 1) % results.length);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveIndex((current) => (current - 1 + results.length) % results.length);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setActiveIndex(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setActiveIndex(results.length - 1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const item = results[currentActiveIndex];
+      if (item) navigateTo(item);
+    }
+  };
 
   if (!open) return null;
   return (
@@ -345,22 +404,27 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
+            onKeyDown={handleSearchKeyDown}
+            aria-controls="admin-command-results"
+            aria-autocomplete="list"
+            aria-activedescendant={results[currentActiveIndex] ? `admin-command-option-${currentActiveIndex}` : undefined}
             placeholder="Ir para…"
             aria-label="Pesquisar área administrativa"
           />
           <kbd>Esc</kbd>
         </div>
         <h2 id={titleId} className="sr-only">Navegação administrativa</h2>
-        <div className="admin-command-list" role="listbox" aria-label="Destinos administrativos">
-          {results.length ? results.map((item) => (
+        <div id="admin-command-results" className="admin-command-list" role="listbox" aria-label="Destinos administrativos">
+          {results.length ? results.map((item, index) => (
             <button
               type="button"
               key={item.href}
-              className={cn('admin-command-item', pathname === item.href && 'is-current')}
-              onClick={() => {
-                onClose();
-                router.push(item.href);
-              }}
+              id={`admin-command-option-${index}`}
+              role="option"
+              aria-selected={index === currentActiveIndex}
+              className={cn('admin-command-item', (index === currentActiveIndex || pathname === item.href) && 'is-current')}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => navigateTo(item)}
             >
               <Command size={17} aria-hidden="true" />
               <span className="min-w-0 flex-1 text-left"><strong>{item.label}</strong><small>{item.description}</small></span>

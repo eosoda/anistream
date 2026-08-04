@@ -38,11 +38,6 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
     anime.images?.jpg?.large_image_url ||
     anime.images?.webp?.large_image_url;
 
-  const fallbackImageUrl =
-    anime.images?.webp?.image_url ||
-    anime.images?.jpg?.large_image_url ||
-    `https://picsum.photos/seed/anime_${anime.mal_id}/300/450`;
-
   const title = anime.title || anime.title_english || anime.title_japanese || 'Sem título';
   const typeStr = anime.type || 'TV';
   const isMovie = typeStr.toLowerCase() === 'movie';
@@ -62,7 +57,6 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
       <Link href={`/anime/${anime.mal_id}`} className="block relative overflow-hidden aspect-[2/3] w-full bg-neutral-900">
         <SafeImage
           src={imageUrl}
-          fallbackSrc={fallbackImageUrl}
           animeId={anime.mal_id}
           alt={title}
           fill

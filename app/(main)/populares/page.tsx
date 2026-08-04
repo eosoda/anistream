@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Flame, ChevronLeft, ChevronRight } from 'lucide-react';
-import { jikanService } from '@/services/jikan';
+import { kenjitsuService } from '@/services/kenjitsu';
 import { AnimeCard } from '@/components/anime/AnimeCard';
 import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
 import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
@@ -27,7 +27,7 @@ export default function PopularPage() {
 
   const { data: topData, isLoading, isError, refetch } = useQuery({
     queryKey: ['topAnimeList', page],
-    queryFn: () => jikanService.getTopAnime('all', undefined, page, 24),
+    queryFn: () => kenjitsuService.getTopAnime('all', undefined, page, 24),
   });
 
   return (

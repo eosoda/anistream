@@ -21,6 +21,7 @@ export function ImageCropModal({ imageUrl, aspectRatio, isOpen, onClose, onSave 
   if (!isOpen) return null;
 
   const isPoster = aspectRatio === 'poster';
+  const previewSrc = imageUrl || `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="100%" height="100%" fill="#181a24"/><text x="50%" y="50%" fill="#a6adbb" font-family="system-ui" font-size="20" text-anchor="middle">Sem imagem</text></svg>')}`;
 
   const handleSave = () => {
     // Retorna a URL ajustada (ou simulada ajustada)
@@ -49,7 +50,7 @@ export function ImageCropModal({ imageUrl, aspectRatio, isOpen, onClose, onSave 
             }`}
           >
             <Image
-              src={imageUrl || 'https://picsum.photos/600/400'}
+              src={previewSrc}
               alt="Preview"
               width={600}
               height={400}

@@ -48,7 +48,7 @@ O construtor usa uma composição única e responsiva de blocos tipados. Não ac
 - `editorial_notice`: aviso de texto simples e CTA interno;
 - `divider`: separador visual sem dados externos.
 
-O canvas permite reordenar por mouse/teclado, duplicar, ocultar e remover até 12 blocos. O inspector edita somente campos validados pelo schema Zod. O fluxo é sempre `rascunho → salvar → preview → publicar`; a publicação exige confirmação, preserva a versão publicada e invalida o cache Redis da Home.
+O canvas permite reordenar por mouse/teclado, duplicar, ocultar e remover até 12 blocos. O inspector edita somente campos validados pelo schema Zod. O fluxo é `rascunho → salvar → snapshot opcional → preview público → publicar`; a publicação exige confirmação, gera um `HomepageSnapshot`, preserva as versões anteriores e invalida o cache Redis da Home. O construtor não mantém preview local duplicado.
 
 ## Domínio público
 
@@ -67,4 +67,4 @@ O canvas permite reordenar por mouse/teclado, duplicar, ocultar e remover até 1
 - testar 320, 360, 390, 768, 1024, 1280 e 1440px;
 - respeitar reduced motion e zoom de 200% sem esconder conteúdo por overflow global.
 
-O contrato visual completo está em [`../DESIGN.md`](../DESIGN.md) e o brief específico do admin em [`../.impeccable/surfaces/app-main-admin-page-tsx.md`](../.impeccable/surfaces/app-main-admin-page-tsx.md).
+O contrato visual completo está em [`../DESIGN.md`](../DESIGN.md), o brief da visão geral em [`../.impeccable/surfaces/app-main-admin-page-tsx.md`](../.impeccable/surfaces/app-main-admin-page-tsx.md), o brief de navegação em [`../.impeccable/surfaces/app-main-admin-navigation-page-tsx.md`](../.impeccable/surfaces/app-main-admin-navigation-page-tsx.md) e o contrato compartilhado em [`../.impeccable/surfaces/admin-operational-system.md`](../.impeccable/surfaces/admin-operational-system.md).

@@ -291,7 +291,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
                 const imageUrl =
                   anime.posterUrl || undefined;
                 const title = anime.title;
-                const year = anime.year || 'N/A';
+                const year = anime.year || '—';
                 const isSelected = selectedIndex === idx;
 
                 return (

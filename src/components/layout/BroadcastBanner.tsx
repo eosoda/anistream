@@ -66,6 +66,8 @@ export function BroadcastBanner() {
       className={`w-full py-2.5 px-4 border-b text-xs flex items-center justify-between gap-3 transition-all ${getTypeStyle(
         current.type
       )}`}
+      role="status"
+      aria-live="polite"
     >
       <div className="flex items-center gap-2 max-w-5xl mx-auto text-center sm:text-left">
         {getTypeIcon(current.type)}
@@ -77,6 +79,7 @@ export function BroadcastBanner() {
         onClick={() => setDismissedIds([...dismissedIds, current.id])}
         className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
         title="Dispensar aviso"
+        aria-label={`Dispensar aviso: ${current.title}`}
       >
         <X size={14} />
       </button>

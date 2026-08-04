@@ -92,16 +92,18 @@ export default function AdminDashboardPage() {
         <>
           <section className="admin-overview-strip" aria-label="Saúde dos serviços">
             <div className="flex min-w-0 items-center gap-3"><Activity size={18} className="text-[var(--accent)]" /><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[var(--admin-dim)]">Estado agora</p><p className="mt-1 text-sm font-semibold text-[var(--admin-text)]">Atualizado em {formatDate(overview.generatedAt)}</p></div></div>
-            <div className="flex flex-wrap items-center gap-2">{overview.services.map((service) => <span key={service.id} className="inline-flex items-center gap-2 text-xs text-[var(--admin-muted)]"><span className="text-[var(--admin-dim)]">{service.label}</span><AdminStatusBadge status={service.status} label={service.status === 'healthy' ? 'OK' : undefined} /></span>)}<span className="font-mono-data text-xs text-[var(--admin-muted)]">Saúde {overview.kpis.overallHealthScore}%</span></div>
+            <div className="flex flex-wrap items-center gap-2">{overview.services.map((service) => <span key={service.id} className="inline-flex items-center gap-2 text-xs text-[var(--admin-muted)]"><span className="text-[var(--admin-dim)]">{service.label}</span><AdminStatusBadge status={service.status} label={service.status === 'healthy' ? 'OK' : undefined} /></span>)}<span className="font-mono-data text-xs text-[var(--admin-muted)]">Fontes ativas {overview.kpis.healthyExtensionsCount}/{overview.kpis.healthDenominator || 0} saudáveis</span></div>
           </section>
+
+          {overview.catalog.status !== 'healthy' && <AdminFeedback tone="danger">O catálogo local não pôde ser consultado. Os zeros abaixo não representam uma sincronização concluída; tente atualizar depois que o PostgreSQL voltar.</AdminFeedback>}
 
           <section aria-label="Indicadores principais" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              { label: 'Animes no catálogo', value: kpis?.animeCount || 0, icon: Film },
-              { label: 'Episódios', value: kpis?.episodeCount || 0, icon: Tv },
-              { label: 'Extensões ativas', value: kpis?.enabledExtensionsCount || 0, icon: Puzzle },
-              { label: 'Alertas pendentes', value: kpis?.pendingAlertsCount || 0, icon: AlertTriangle },
-            ].map((item) => { const Icon = item.icon; return <AdminPanel key={item.label} className="flex items-center justify-between gap-3 p-4"><div><p className="text-xs font-semibold text-[var(--admin-muted)]">{item.label}</p><p className="mt-2 font-mono-data text-2xl font-bold text-[var(--admin-text)]">{item.value.toLocaleString('pt-BR')}</p></div><span className="grid size-10 place-items-center rounded-[10px] bg-[var(--admin-panel-raised)] text-[var(--accent)]"><Icon size={18} /></span></AdminPanel>; })}
+              { label: 'Animes no catálogo', value: kpis?.animeCount || 0, meta: 'Fonte: PostgreSQL', icon: Film },
+              { label: 'Episódios', value: kpis?.episodeCount || 0, meta: 'Catálogo local', icon: Tv },
+              { label: 'Extensões ativas', value: kpis?.enabledExtensionsCount || 0, meta: `${kpis?.totalExtensionsCount || 0} cadastradas`, icon: Puzzle },
+              { label: 'Alertas pendentes', value: kpis?.pendingAlertsCount || 0, meta: 'Fila de atenção', icon: AlertTriangle },
+            ].map((item) => { const Icon = item.icon; return <AdminPanel key={item.label} className="flex items-center justify-between gap-3 p-4"><div><p className="text-xs font-semibold text-[var(--admin-muted)]">{item.label}</p><p className="mt-2 font-mono-data text-2xl font-bold text-[var(--admin-text)]">{item.value.toLocaleString('pt-BR')}</p><p className="mt-1 text-[.68rem] text-[var(--admin-dim)]">{item.meta}</p></div><span className="grid size-10 place-items-center rounded-[10px] bg-[var(--admin-panel-raised)] text-[var(--accent)]"><Icon size={18} /></span></AdminPanel>; })}
           </section>
 
           <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">

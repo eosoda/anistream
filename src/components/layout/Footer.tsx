@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ExternalLink, Heart, Play, ShieldCheck } from 'lucide-react';
+import { Heart, Play, ShieldCheck } from 'lucide-react';
 import { useVisiblePublicNavigation } from '@/components/navigation';
 
 export function Footer() {
@@ -29,10 +29,9 @@ export function Footer() {
           </div>
 
           <div>
-            <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">Fontes & Administração</h2>
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-white md:text-sm">Operação</h2>
             <ul className="space-y-2 text-xs font-semibold">
-              <li><a href="https://kenjitsu-docs.vercel.app/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 transition-colors hover:text-[#FF6B00]">Kenjitsu self-hosted API <ExternalLink size={12} /></a></li>
-              <li><a href="https://github.com/eosoda/kenjitsu" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 transition-colors hover:text-[#FF6B00]">Fork do Kenjitsu <ExternalLink size={12} /></a></li>
+              <li><Link href="/changelog" className="transition-colors hover:text-[#FF6B00]">Changelog</Link></li>
               <li className="pt-1"><Link href="/admin/login" className="inline-flex min-h-9 items-center gap-1.5 rounded-[10px] border border-white/10 bg-white/5 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-white/10"><ShieldCheck size={14} className="text-[#FF6B00]" /><span>Painel Administrativo</span></Link></li>
             </ul>
           </div>

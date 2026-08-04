@@ -15,6 +15,7 @@ import { AnimeCard } from '@/components/anime/AnimeCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { EpisodeRemindersPanel } from '@/components/home/EpisodeRemindersPanel';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { clientStateStorageKeys, migrateClientState } from '@/lib/storage/client-state-migration';
 
 export default function FavoritesPage() {
   const {
@@ -28,8 +29,9 @@ export default function FavoritesPage() {
 
   const handleExportBackup = () => {
     try {
-      const favsRaw = localStorage.getItem('anistream_favorites') || '[]';
-      const progressRaw = localStorage.getItem('anistream_watch_progress') || '{}';
+      migrateClientState();
+      const favsRaw = localStorage.getItem(clientStateStorageKeys.favorites) || '[]';
+      const progressRaw = localStorage.getItem(clientStateStorageKeys.watchProgress) || '{}';
 
       const backupData = {
         app: 'AniStream',
@@ -78,11 +80,11 @@ export default function FavoritesPage() {
         }
 
         if (Array.isArray(parsed.favorites)) {
-          localStorage.setItem('anistream_favorites', JSON.stringify(parsed.favorites));
+          localStorage.setItem(clientStateStorageKeys.favorites, JSON.stringify(parsed.favorites));
         }
 
         if (parsed.watchProgress && typeof parsed.watchProgress === 'object') {
-          localStorage.setItem('anistream_watch_progress', JSON.stringify(parsed.watchProgress));
+          localStorage.setItem(clientStateStorageKeys.watchProgress, JSON.stringify(parsed.watchProgress));
         }
 
         showToast({

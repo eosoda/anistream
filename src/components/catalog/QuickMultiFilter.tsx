@@ -16,7 +16,8 @@ interface QuickMultiFilterProps {
   onReset?: () => void;
 }
 
-export const GENRE_MAL_ID_MAP: Record<string, string> = {
+/** IDs from the Kenjitsu catalog taxonomy, kept in the compatibility query shape. */
+export const KENJITSU_GENRE_IDS: Record<string, string> = {
   acao: '1',
   aventura: '2',
   comedia: '4',
@@ -82,7 +83,7 @@ export function QuickMultiFilter({ filters, onChange, onReset }: QuickMultiFilte
         {activeCount > 0 && onReset && (
           <button
             onClick={onReset}
-            className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-white hover:underline transition-colors"
+            className="inline-flex min-h-10 items-center gap-1 text-xs font-bold text-gray-400 transition-colors hover:text-white hover:underline"
           >
             <RotateCcw size={12} />
             <span>Resetar</span>
@@ -105,7 +106,7 @@ export function QuickMultiFilter({ filters, onChange, onReset }: QuickMultiFilte
               <button
                 key={g.id}
                 onClick={() => onChange({ ...filters, genre: g.id })}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-xl font-bold text-xs transition-all border whitespace-nowrap ${
+                className={`flex min-h-10 flex-shrink-0 items-center whitespace-nowrap rounded-xl border px-3 py-1.5 font-bold text-xs transition-all ${
                   isSelected
                     ? 'bg-[#FF6B00] text-[#170a02] border-[#FF6B00] shadow-md shadow-[#FF6B00]/30 scale-102'
                     : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/5 hover:border-white/20'
@@ -133,7 +134,7 @@ export function QuickMultiFilter({ filters, onChange, onReset }: QuickMultiFilte
                 <button
                   key={st.id}
                   onClick={() => onChange({ ...filters, status: st.id as any })}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all border ${
+                  className={`min-h-10 rounded-xl border px-3 py-1.5 font-bold text-xs transition-all ${
                     isSelected
                       ? 'bg-[#FF6B00] text-[#170a02] border-[#FF6B00] shadow-md shadow-[#FF6B00]/30'
                       : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/5'
@@ -159,7 +160,7 @@ export function QuickMultiFilter({ filters, onChange, onReset }: QuickMultiFilte
                 <button
                   key={so.id}
                   onClick={() => onChange({ ...filters, orderBy: so.id as any })}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all border ${
+                  className={`min-h-10 rounded-xl border px-3 py-1.5 font-bold text-xs transition-all ${
                     isSelected
                       ? 'bg-[#FF6B00] text-[#170a02] border-[#FF6B00] shadow-md shadow-[#FF6B00]/30'
                       : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/5'

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { clientStateStorageKeys, migrateClientState } from '@/lib/storage/client-state-migration';
 
 export interface PlaybackProgressItem {
   episodeId: string;
@@ -11,11 +12,12 @@ export interface PlaybackProgressItem {
   updatedAt: number;
 }
 
-const STORAGE_KEY = 'anistream_playback_progress';
+const STORAGE_KEY = clientStateStorageKeys.playbackProgress;
 
 export function getStoredProgress(episodeId: string): PlaybackProgressItem | null {
   if (typeof window === 'undefined') return null;
   try {
+    migrateClientState();
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const store = JSON.parse(raw);
@@ -33,6 +35,7 @@ export function saveStoredProgress(
 ): void {
   if (typeof window === 'undefined' || !episodeId || duration <= 0) return;
   try {
+    migrateClientState();
     const raw = localStorage.getItem(STORAGE_KEY);
     const store = raw ? JSON.parse(raw) : {};
 

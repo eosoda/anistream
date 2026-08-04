@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Upload, Download, CheckCircle2, Loader2, ChevronLeft, FileCode, Sparkles } from 'lucide-react';
+import { clientStateStorageKeys, migrateClientState } from '@/lib/storage/client-state-migration';
+import { localSearchItemToAnime } from '@/types/local-search';
+import type { JikanAnime } from '@/types/anime';
 
 type ImportedTitle = { title: string; status?: string };
 
@@ -44,21 +47,17 @@ export default function ImportWatchlistPage() {
     setError(null);
     setSummary(null);
     try {
+      migrateClientState();
       const entries = parseExport(xmlContent);
       const resolved = await Promise.all(entries.map(async (entry) => {
         const response = await fetch(`/api/anime/search?q=${encodeURIComponent(entry.title)}&limit=1`, { cache: 'no-store' });
         const payload = await response.json();
         const item = payload.data?.[0];
         if (!response.ok || !item) return null;
-        return {
-          id: String(item.malId),
-          title: item.title,
-          posterUrl: item.posterUrl || '',
-          status: entry.status === '1' ? 'watching' : entry.status === '2' ? 'completed' : 'plan_to_watch',
-        };
+        return localSearchItemToAnime(item);
       }));
-      const favorites = resolved.filter(Boolean);
-      localStorage.setItem('anistream_favorites', JSON.stringify(favorites));
+      const favorites = resolved.filter((item): item is JikanAnime => Boolean(item));
+      localStorage.setItem(clientStateStorageKeys.favorites, JSON.stringify(favorites));
       setSummary({ total: entries.length, imported: favorites.length });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Nao foi possivel importar o arquivo.');

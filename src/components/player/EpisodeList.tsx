@@ -88,6 +88,7 @@ export function EpisodeList({
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <input
               type="text"
+              aria-label="Pesquisar episódios por número ou título"
               placeholder="Buscar por nº ou título..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
@@ -98,7 +99,7 @@ export function EpisodeList({
               <Tooltip content="Visão em Lista" position="bottom">
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
+                  className={`min-h-10 rounded px-2.5 py-1 text-xs font-bold transition-colors ${
                     viewMode === 'list' ? 'bg-[#FF6B00] text-black' : 'text-gray-400 hover:text-white'
                   }`}
                 >
@@ -109,7 +110,7 @@ export function EpisodeList({
               <Tooltip content="Visão em Grade Compacta" position="bottom">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
+                  className={`min-h-10 rounded px-2.5 py-1 text-xs font-bold transition-colors ${
                     viewMode === 'grid' ? 'bg-[#FF6B00] text-black' : 'text-gray-400 hover:text-white'
                   }`}
                 >
@@ -137,7 +138,7 @@ export function EpisodeList({
                 <button
                   key={idx}
                   onClick={() => setActiveRange(idx)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    className={`min-h-10 whitespace-nowrap rounded-lg px-3 py-1 text-xs font-bold transition-all ${
                     isActive
                       ? 'bg-[#FF6B00] text-black shadow-md shadow-[#FF6B00]/20'
                       : 'bg-white/5 hover:bg-white/10 text-gray-400 border border-white/5'

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { clientStateStorageKeys, migrateClientState } from '@/lib/storage/client-state-migration';
 
 export interface EpisodeProgress {
   animeId: number;
@@ -15,11 +16,12 @@ export interface EpisodeProgress {
   completed: boolean;
 }
 
-const STORAGE_KEY = 'anistream_watch_progress_v1';
+const STORAGE_KEY = clientStateStorageKeys.watchProgress;
 
 export function getSavedWatchProgress(animeId: number, episodeNum: number): EpisodeProgress | null {
   if (typeof window === 'undefined') return null;
   try {
+    migrateClientState();
     const stored = localStorage.getItem(STORAGE_KEY);
     const progress = stored ? JSON.parse(stored) : {};
     return progress[`${animeId}_ep_${episodeNum}`] || null;
@@ -34,6 +36,7 @@ export function useWatchProgress() {
   // Save to localStorage when state updates
   const saveToStorage = (newMap: Record<string, EpisodeProgress>) => {
     try {
+      migrateClientState();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newMap));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('anistream_progress_updated'));
@@ -47,6 +50,7 @@ export function useWatchProgress() {
   useEffect(() => {
     const handleStorage = () => {
       try {
+        migrateClientState();
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) setProgressMap(JSON.parse(stored));
       } catch (e) {
@@ -126,6 +130,7 @@ export function useWatchProgress() {
   const clearAllProgress = useCallback(() => {
     setProgressMap({});
     try {
+      migrateClientState();
       localStorage.removeItem(STORAGE_KEY);
     } catch (e) {
       console.error(e);

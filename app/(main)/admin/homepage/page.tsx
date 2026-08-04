@@ -9,6 +9,7 @@ import {
   AlignJustify,
   ArrowDown,
   ArrowUp,
+  Camera,
   Check,
   Copy,
   Eye,
@@ -19,9 +20,10 @@ import {
   Loader2,
   MonitorPlay,
   Plus,
+  History,
+  RotateCcw,
   Save,
   Trash2,
-  WandSparkles,
 } from 'lucide-react';
 import type {
   HomepageBlock,
@@ -30,9 +32,10 @@ import type {
   HomepageLayoutDocument,
   HomepageQuerySource,
   HomepageAdminState,
+  HomepageSnapshotDetail,
+  HomepageSnapshotSummary,
 } from '@/types/homepage';
-import { HomepageDraftPreview } from '@/components/home/HomepageDraftPreview';
-import { AdminFeedback, AdminPageHeader, AdminPanel, AdminSaveBar, AdminStatusBadge } from '@/components/admin';
+import { AdminDrawer, AdminFeedback, AdminPageHeader, AdminPanel, AdminSaveBar, AdminStatusBadge } from '@/components/admin';
 import { useConfirmation } from '@/context/ConfirmationContext';
 
 const BLOCK_OPTIONS: Array<{ type: HomepageBlock['type']; label: string; description: string }> = [
@@ -69,6 +72,16 @@ function blockLabel(block: HomepageBlock) {
   if (block.type === 'quick_filters') return block.title || 'Filtros rápidos';
   if (block.type === 'editorial_notice') return block.title;
   return block.label || 'Separador';
+}
+
+const snapshotDateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+function formatSnapshotDate(value: string) {
+  return snapshotDateFormatter.format(new Date(value));
+}
+
+function snapshotKindLabel(kind: HomepageSnapshotSummary['kind']) {
+  return kind === 'PUBLISHED' ? 'Publicada' : 'Rascunho';
 }
 
 function blockDescription(block: HomepageBlock) {
@@ -194,6 +207,9 @@ export default function AdminHomepagePage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'warning' | 'danger'; message: string } | null>(null);
   const [showAddBlock, setShowAddBlock] = useState(false);
+  const [selectedSnapshot, setSelectedSnapshot] = useState<HomepageSnapshotDetail | null>(null);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshotSaving, setSnapshotSaving] = useState(false);
   const { confirm } = useConfirmation();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -341,6 +357,81 @@ export default function AdminHomepagePage() {
     setFeedback({ tone: 'success', message: 'Alterações locais descartadas.' });
   };
 
+  const openSnapshot = async (snapshot: HomepageSnapshotSummary) => {
+    setSnapshotLoading(true);
+    try {
+      const response = await fetch(`/api/admin/homepage/snapshots/${snapshot.id}`, { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error?.message || 'Não foi possível carregar o snapshot.');
+      setSelectedSnapshot(payload.data);
+    } catch (error) {
+      setFeedback({ tone: 'danger', message: error instanceof Error ? error.message : 'Não foi possível carregar o snapshot.' });
+    } finally {
+      setSnapshotLoading(false);
+    }
+  };
+
+  const createSnapshot = async () => {
+    if (!state || saving || snapshotSaving) return;
+    if (dirty) {
+      setFeedback({ tone: 'warning', message: 'Salve o rascunho antes de criar um snapshot.' });
+      return;
+    }
+    setSnapshotSaving(true);
+    setFeedback(null);
+    try {
+      const response = await fetch('/api/admin/homepage/snapshots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedDraftVersion: state.draftVersion }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw Object.assign(new Error(payload.error?.message || 'Não foi possível criar o snapshot.'), { status: response.status });
+      const nextState = payload.data.state as HomepageAdminState;
+      setState(nextState);
+      setSavedDraft(JSON.stringify(nextState.draft));
+      setFeedback({ tone: 'success', message: `${payload.data.snapshot?.label || 'Snapshot'} disponível no histórico.` });
+    } catch (error) {
+      const status = error && typeof error === 'object' && 'status' in error ? error.status : 0;
+      setFeedback({ tone: status === 409 ? 'warning' : 'danger', message: error instanceof Error ? error.message : 'Não foi possível criar o snapshot.' });
+    } finally {
+      setSnapshotSaving(false);
+    }
+  };
+
+  const restoreSnapshot = async (snapshot: HomepageSnapshotSummary) => {
+    if (!state || saving || snapshotSaving) return;
+    const confirmed = await confirm({
+      title: `Restaurar ${snapshot.label}?`,
+      description: 'O snapshot substituirá o rascunho atual. A Home pública continuará na versão publicada até você salvar e publicar.',
+      confirmText: 'Restaurar no rascunho',
+      cancelText: 'Cancelar',
+      variant: 'warning',
+    });
+    if (!confirmed) return;
+    setSnapshotSaving(true);
+    setFeedback(null);
+    try {
+      const response = await fetch(`/api/admin/homepage/snapshots/${snapshot.id}/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedDraftVersion: state.draftVersion }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw Object.assign(new Error(payload.error?.message || 'Não foi possível restaurar o snapshot.'), { status: response.status });
+      setState(payload.data);
+      setSavedDraft(JSON.stringify(payload.data.draft));
+      setSelectedId(payload.data.draft.blocks[0]?.id || null);
+      setSelectedSnapshot(null);
+      setFeedback({ tone: 'success', message: `${snapshot.label} restaurado no rascunho. Salve para continuar.` });
+    } catch (error) {
+      const status = error && typeof error === 'object' && 'status' in error ? error.status : 0;
+      setFeedback({ tone: status === 409 ? 'warning' : 'danger', message: error instanceof Error ? error.message : 'Não foi possível restaurar o snapshot.' });
+    } finally {
+      setSnapshotSaving(false);
+    }
+  };
+
   if (loading) return <div className="admin-empty-state min-h-[420px]" aria-live="polite"><Loader2 size={24} className="animate-spin text-[#FF6B00]" aria-hidden="true" /><h2>Carregando construtor da Home</h2><p>Consultando o layout publicado e o rascunho administrativo.</p></div>;
   if (!state) return <div className="admin-empty-state min-h-[420px]"><h2>Builder indisponível</h2><p>Não foi possível carregar a configuração da Home.</p><button type="button" className="admin-button is-primary" onClick={() => void load()}>Tentar novamente</button></div>;
 
@@ -353,22 +444,98 @@ export default function AdminHomepagePage() {
         <div className="space-y-5">
           <AdminPanel>
             <div className="admin-panel-header"><div><p className="admin-eyebrow">Canvas operacional</p><h2 className="admin-section-title">Blocos da Home</h2><p className="admin-section-description">Arraste para reordenar ou use o teclado. A composição aceita até 12 blocos.</p></div><div className="flex items-center gap-2"><span className="font-mono text-[11px] text-[var(--admin-dim)]">{orderedBlocks.length}/12</span><button type="button" className="admin-button is-primary" onClick={() => setShowAddBlock((value) => !value)} disabled={orderedBlocks.length >= 12}><Plus size={15} /> Adicionar</button></div></div>
-            {showAddBlock && <div className="mb-4 grid gap-2 border border-[#FF6B00]/30 bg-[#FF6B00]/[0.05] p-3 sm:grid-cols-2"><p className="sm:col-span-2 text-xs font-bold uppercase tracking-wider text-[#FFB27A]">Escolha um bloco tipado</p>{BLOCK_OPTIONS.map((option) => <button key={option.type} type="button" onClick={() => addBlock(option.type)} className="flex items-start gap-3 border border-[var(--admin-line)] bg-[var(--admin-surface)] p-3 text-left transition-colors hover:border-[#FF6B00]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"><LayoutTemplate size={16} className="mt-0.5 shrink-0 text-[#FF6B00]" /><span><strong className="block text-xs text-[var(--admin-text)]">{option.label}</strong><small className="mt-1 block text-[11px] text-[var(--admin-dim)]">{option.description}</small></span></button>)}</div>}
+            {showAddBlock && <div className="mx-4 mb-4 grid gap-2 border border-[#FF6B00]/30 bg-[#FF6B00]/[0.05] p-3 sm:mx-5 sm:grid-cols-2"><p className="sm:col-span-2 text-xs font-bold uppercase tracking-wider text-[#FFB27A]">Escolha um bloco tipado</p>{BLOCK_OPTIONS.map((option) => <button key={option.type} type="button" onClick={() => addBlock(option.type)} className="flex items-start gap-3 border border-[var(--admin-line)] bg-[var(--admin-surface)] p-3 text-left transition-colors hover:border-[#FF6B00]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"><LayoutTemplate size={16} className="mt-0.5 shrink-0 text-[#FF6B00]" /><span><strong className="block text-xs text-[var(--admin-text)]">{option.label}</strong><small className="mt-1 block text-[11px] text-[var(--admin-dim)]">{option.description}</small></span></button>)}</div>}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={orderedBlocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2" aria-label="Blocos ordenáveis da Home">{orderedBlocks.map((block) => <SortableHomepageBlock key={block.id} block={block} selected={selectedId === block.id} onSelect={() => setSelectedId(block.id)} onToggle={() => updateBlock(block.id, (current) => ({ ...current, enabled: !current.enabled }))} onDuplicate={() => duplicateBlock(block)} onRemove={() => void removeBlock(block)} />)}</div>
               </SortableContext>
             </DndContext>
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--admin-line)] pt-4 text-xs text-[var(--admin-dim)]"><AlignJustify size={14} /><span>Bloco selecionado: {selectedBlock ? blockLabel(selectedBlock) : 'nenhum'}</span>{selectedBlock && <><button type="button" className="admin-icon-button" onClick={() => moveBlock(selectedBlock.id, -1)} aria-label="Mover bloco para cima"><ArrowUp size={14} /></button><button type="button" className="admin-icon-button" onClick={() => moveBlock(selectedBlock.id, 1)} aria-label="Mover bloco para baixo"><ArrowDown size={14} /></button></>}</div>
+            <div className="mx-4 mb-4 mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--admin-line)] pt-4 text-xs text-[var(--admin-dim)] sm:mx-5 sm:mb-5"><AlignJustify size={14} /><span>Bloco selecionado: {selectedBlock ? blockLabel(selectedBlock) : 'nenhum'}</span>{selectedBlock && <><button type="button" className="admin-icon-button" onClick={() => moveBlock(selectedBlock.id, -1)} aria-label="Mover bloco para cima"><ArrowUp size={14} /></button><button type="button" className="admin-icon-button" onClick={() => moveBlock(selectedBlock.id, 1)} aria-label="Mover bloco para baixo"><ArrowDown size={14} /></button></>}</div>
           </AdminPanel>
-          <AdminPanel><div className="admin-panel-header"><div><p className="admin-eyebrow">Prévia local</p><h2 className="admin-section-title">Composição responsiva</h2><p className="admin-section-description">Os cards exibidos aqui são fixtures visuais; a prévia em nova aba consulta o Kenjitsu real.</p></div><WandSparkles size={20} className="text-[#FF6B00]" aria-hidden="true" /></div><div className="max-h-[780px] overflow-y-auto border border-[var(--admin-line)] bg-[#0B0B0F] p-2"><HomepageDraftPreview document={state.draft} /></div></AdminPanel>
         </div>
 
-        <AdminPanel className="h-fit xl:sticky xl:top-5"><div className="admin-panel-header"><div><p className="admin-eyebrow">Inspector</p><h2 className="admin-section-title">{selectedBlock ? blockLabel(selectedBlock) : 'Selecione um bloco'}</h2><p className="admin-section-description">Configurações tipadas e seguras para o bloco selecionado.</p></div></div>{selectedBlock ? <BlockInspector block={selectedBlock} onChange={(updater) => updateBlock(selectedBlock.id, updater)} /> : <div className="admin-empty-state"><h2>Nenhum bloco selecionado</h2><p>Escolha um bloco no canvas para editar suas propriedades.</p></div>}<div className="mt-5 border-t border-[var(--admin-line)] pt-4"><div className="flex flex-wrap gap-2"><button type="button" className="admin-button is-ghost" onClick={() => moveBlock(selectedBlock?.id || '', -1)} disabled={!selectedBlock}><ArrowUp size={14} /> Subir</button><button type="button" className="admin-button is-ghost" onClick={() => moveBlock(selectedBlock?.id || '', 1)} disabled={!selectedBlock}><ArrowDown size={14} /> Descer</button><button type="button" className="admin-button is-ghost text-rose-300" onClick={() => selectedBlock && void removeBlock(selectedBlock)} disabled={!selectedBlock}><Trash2 size={14} /> Remover</button></div></div></AdminPanel>
+        <AdminPanel className="h-fit xl:sticky xl:top-5"><div className="admin-panel-header"><div><p className="admin-eyebrow">Inspector</p><h2 className="admin-section-title">{selectedBlock ? blockLabel(selectedBlock) : 'Selecione um bloco'}</h2><p className="admin-section-description">Configurações tipadas e seguras para o bloco selecionado.</p></div></div>{selectedBlock ? <div className="p-4 sm:p-5"><BlockInspector block={selectedBlock} onChange={(updater) => updateBlock(selectedBlock.id, updater)} /></div> : <div className="admin-empty-state"><h2>Nenhum bloco selecionado</h2><p>Escolha um bloco no canvas para editar suas propriedades.</p></div>}<div className="mx-4 mb-4 mt-5 border-t border-[var(--admin-line)] pt-4 sm:mx-5 sm:mb-5"><div className="flex flex-wrap gap-2"><button type="button" className="admin-button is-ghost" onClick={() => moveBlock(selectedBlock?.id || '', -1)} disabled={!selectedBlock}><ArrowUp size={14} /> Subir</button><button type="button" className="admin-button is-ghost" onClick={() => moveBlock(selectedBlock?.id || '', 1)} disabled={!selectedBlock}><ArrowDown size={14} /> Descer</button><button type="button" className="admin-button is-ghost text-rose-300" onClick={() => selectedBlock && void removeBlock(selectedBlock)} disabled={!selectedBlock}><Trash2 size={14} /> Remover</button></div></div></AdminPanel>
       </div>
+
+      <AdminPanel>
+        <div className="admin-panel-header flex-wrap">
+          <div>
+            <p className="admin-eyebrow">Histórico de versões</p>
+            <h2 className="admin-section-title">Snapshots da Home</h2>
+            <p className="admin-section-description">Publicações ficam preservadas para consulta e restauração segura no rascunho.</p>
+          </div>
+          <button type="button" className="admin-button is-secondary" onClick={() => void createSnapshot()} disabled={saving || snapshotSaving}>
+            {snapshotSaving ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} />}
+            Criar snapshot do rascunho
+          </button>
+        </div>
+        <div className="border-b border-[var(--admin-line)] px-4 py-3 text-xs text-[var(--admin-dim)] sm:px-5">
+          <History size={14} className="mr-1 inline text-[var(--accent)]" aria-hidden="true" />
+          Restaurar altera somente o rascunho. A publicação atual continua protegida até uma nova publicação confirmada.
+        </div>
+        {state.snapshots.length ? (
+          <div className="divide-y divide-[var(--admin-line)]" data-testid="homepage-snapshots">
+            {state.snapshots.map((snapshot) => {
+              const isCurrentPublished = snapshot.kind === 'PUBLISHED' && snapshot.version === state.publishedVersion;
+              return (
+                <article key={snapshot.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-[var(--admin-text)]">{snapshot.label}</h3>
+                      <span className={`admin-status-badge ${snapshot.kind === 'PUBLISHED' ? 'is-healthy' : 'is-unknown'}`}>
+                        <span className="admin-status-dot" aria-hidden="true" />
+                        {snapshotKindLabel(snapshot.kind)}
+                      </span>
+                      {isCurrentPublished && <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)]">Atual</span>}
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--admin-muted)]">
+                      {snapshot.visibleBlockCount} bloco(s) visível(is) · {formatSnapshotDate(snapshot.createdAt)} · {snapshot.createdBy || 'Administrador'}
+                    </p>
+                    <p className="mt-1 truncate font-mono text-[11px] text-[var(--admin-dim)]">{snapshot.blockTypes.join(' · ')}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:shrink-0">
+                    <button type="button" className="admin-button is-ghost" onClick={() => void openSnapshot(snapshot)} disabled={snapshotLoading || snapshotSaving} aria-label={`Ver ${snapshot.label}`}>
+                      {snapshotLoading ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+                      Ver
+                    </button>
+                    <button type="button" className="admin-button is-ghost" onClick={() => void restoreSnapshot(snapshot)} disabled={saving || snapshotSaving} aria-label={`Restaurar ${snapshot.label} no rascunho`}>
+                      <RotateCcw size={14} />
+                      Restaurar
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="admin-empty-state min-h-40">
+            <h2>Nenhum snapshot registrado</h2>
+            <p>A primeira publicação ou snapshot manual aparecerá aqui.</p>
+          </div>
+        )}
+      </AdminPanel>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border border-[var(--admin-line)] bg-[var(--admin-surface)] px-4 py-3 text-xs text-[var(--admin-dim)]"><span><Check size={14} className="mr-1 inline text-emerald-400" aria-hidden="true" />Última publicação: {new Date(state.publishedAt).toLocaleString('pt-BR')}</span><button type="button" className="admin-button is-ghost" onClick={() => void handleDiscardServerDraft()} disabled={saving || dirty}>Restaurar última publicação</button></div>
       <AdminSaveBar dirty={dirty} saving={saving} onSave={() => void handleSave()} onDiscard={discardLocalChanges} label="Há alterações locais no rascunho da Home" />
+
+      <AdminDrawer open={Boolean(selectedSnapshot)} title={selectedSnapshot?.label || 'Snapshot da Home'} description={selectedSnapshot ? `${snapshotKindLabel(selectedSnapshot.kind)} · versão ${selectedSnapshot.version}` : undefined} onClose={() => setSelectedSnapshot(null)} width="wide">
+        {selectedSnapshot && (
+          <div className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="border border-[var(--admin-line)] bg-[var(--admin-panel-raised)] p-3"><p className="admin-eyebrow">Registrado em</p><p className="mt-1 text-sm font-semibold text-[var(--admin-text)]">{formatSnapshotDate(selectedSnapshot.createdAt)}</p></div>
+              <div className="border border-[var(--admin-line)] bg-[var(--admin-panel-raised)] p-3"><p className="admin-eyebrow">Blocos visíveis</p><p className="mt-1 font-mono-data text-lg font-bold text-[var(--admin-text)]">{selectedSnapshot.visibleBlockCount}</p></div>
+              <div className="border border-[var(--admin-line)] bg-[var(--admin-panel-raised)] p-3"><p className="admin-eyebrow">Responsável</p><p className="mt-1 truncate text-sm font-semibold text-[var(--admin-text)]">{selectedSnapshot.createdBy || 'Administrador'}</p></div>
+            </div>
+            <section className="border border-[var(--admin-line)]">
+              <div className="border-b border-[var(--admin-line)] px-4 py-3"><p className="admin-eyebrow">Composição preservada</p><p className="mt-1 text-xs text-[var(--admin-muted)]">A ordem e as configurações abaixo serão copiadas para o rascunho ao restaurar.</p></div>
+              <ol className="divide-y divide-[var(--admin-line)]" aria-label="Blocos do snapshot">
+                {[...selectedSnapshot.document.blocks].sort((a, b) => a.order - b.order).map((block) => <li key={block.id} className="flex items-center gap-3 px-4 py-3"><span className="w-7 font-mono text-xs text-[var(--admin-dim)]">{String(block.order).padStart(2, '0')}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[var(--admin-text)]">{blockLabel(block)}</strong><small className="block truncate text-xs text-[var(--admin-muted)]">{block.type} · {block.enabled ? 'Visível' : 'Oculto'}</small></span></li>)}
+              </ol>
+            </section>
+            <div className="flex justify-end border-t border-[var(--admin-line)] pt-4"><button type="button" className="admin-button is-primary" onClick={() => void restoreSnapshot(selectedSnapshot)} disabled={snapshotSaving}><RotateCcw size={15} /> Restaurar no rascunho</button></div>
+          </div>
+        )}
+      </AdminDrawer>
     </div>
   );
 }
