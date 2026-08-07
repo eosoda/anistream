@@ -87,9 +87,9 @@ O rascunho pode ser descartado para restaurar a última publicação. Conflitos 
 
 ### Snapshots
 
-Cada publicação gera um `HomepageSnapshot` imutável com a composição completa e sua versão publicada. A primeira leitura do construtor materializa automaticamente um snapshot da publicação existente — atualmente `Publicada v3` — caso ele ainda não exista. Também é possível criar um snapshot manual do rascunho salvo.
+Cada publicação gera um `HomepageSnapshot` com a composição completa e sua versão publicada. A primeira leitura do construtor materializa automaticamente um snapshot da publicação existente — atualmente `Publicada v3` — caso ele ainda não exista. Também é possível criar um snapshot manual do rascunho salvo; snapshots antigos ou manuais podem ser excluídos, mas a publicação atualmente ativa permanece protegida.
 
-O histórico no construtor permite consultar a composição, a quantidade de blocos e o responsável. Restaurar copia o snapshot apenas para o rascunho; a Home pública só muda depois de salvar e confirmar uma nova publicação. As ações de criação e restauração entram no `AdminAuditLog`.
+O histórico no construtor permite consultar a composição, a quantidade de blocos e o responsável. Restaurar copia o snapshot apenas para o rascunho; a Home pública só muda depois de salvar e confirmar uma nova publicação. As ações de criação, restauração e exclusão entram no `AdminAuditLog`; a exclusão exige confirmação destrutiva.
 
 Endpoints dedicados:
 
@@ -99,6 +99,7 @@ Endpoints dedicados:
 - `POST /api/admin/homepage/discard` restaura o rascunho;
 - `GET/POST /api/admin/homepage/snapshots` lista e cria snapshots;
 - `GET /api/admin/homepage/snapshots/:id` consulta a composição preservada;
+- `DELETE /api/admin/homepage/snapshots/:id` exclui um snapshot não protegido;
 - `POST /api/admin/homepage/snapshots/:id/restore` restaura no rascunho sem publicar;
 - `GET /api/homepage` entrega a Home publicada resolvida pelo Kenjitsu.
 
@@ -172,6 +173,7 @@ As páginas `/admin/navigation`, `/admin/system`, `/admin/backups`, `/admin/inte
 | `POST /api/admin/homepage/discard` | Descarta o rascunho e restaura a última publicação. |
 | `GET/POST /api/admin/homepage/snapshots` | Lista ou cria snapshots versionados da Home. |
 | `GET /api/admin/homepage/snapshots/:id` | Detalhe de um snapshot. |
+| `DELETE /api/admin/homepage/snapshots/:id` | Exclui um snapshot antigo ou manual; a publicação atual retorna conflito. |
 | `POST /api/admin/homepage/snapshots/:id/restore` | Restaura um snapshot no rascunho com controle otimista. |
 | `GET /api/homepage` | Composição pública resolvida pelo Kenjitsu. |
 | `POST /api/admin/animes/[id]/sync` | Sincronização Kenjitsu de um anime. |

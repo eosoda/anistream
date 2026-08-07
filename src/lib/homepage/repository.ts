@@ -30,6 +30,13 @@ export class HomepageSnapshotNotFoundError extends Error {
   }
 }
 
+export class HomepageSnapshotProtectedError extends Error {
+  constructor(message = 'A publicação atual da Home não pode ser excluída.') {
+    super(message);
+    this.name = 'HomepageSnapshotProtectedError';
+  }
+}
+
 interface CachedPublishedHomepage {
   document: HomepageLayoutDocument;
   publishedVersion: number;
@@ -235,6 +242,27 @@ export async function getHomepageSnapshot(id: string): Promise<HomepageSnapshotD
   if (!snapshot) throw new HomepageSnapshotNotFoundError();
   const document = parseJsonDocument(snapshot.documentJson);
   return { ...toSnapshotSummary(snapshot), document };
+}
+
+export async function deleteHomepageSnapshot(id: string): Promise<HomepageSnapshotSummary> {
+  await ensureHomepageLayout();
+
+  return prisma.$transaction(async (transaction) => {
+    const layout = await transaction.homepageLayout.findUnique({ where: { key: HOMEPAGE_LAYOUT_KEY } });
+    if (!layout) throw new Error('Layout principal da Home não encontrado.');
+
+    const snapshot = await transaction.homepageSnapshot.findFirst({
+      where: { id, layoutKey: HOMEPAGE_LAYOUT_KEY },
+    });
+    if (!snapshot) throw new HomepageSnapshotNotFoundError();
+    if (snapshot.kind === 'PUBLISHED' && snapshot.version === layout.publishedVersion) {
+      throw new HomepageSnapshotProtectedError();
+    }
+
+    const summary = toSnapshotSummary(snapshot);
+    await transaction.homepageSnapshot.delete({ where: { id: snapshot.id } });
+    return summary;
+  });
 }
 
 export async function createHomepageDraftSnapshot(input: {

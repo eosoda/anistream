@@ -143,6 +143,28 @@ test.describe('Painel administrativo operacional', () => {
     await expect(drawer).toBeHidden();
   });
 
+  test('permite excluir snapshots antigos e protege a publicação atual', async ({ page }) => {
+    await page.goto('/admin/homepage');
+    await page.waitForLoadState('networkidle');
+    const snapshots = page.getByTestId('homepage-snapshots');
+    await expect(snapshots.getByText('Protegida', { exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Criar snapshot do rascunho' }).click();
+    await expect(page.getByText(/disponível no histórico/)).toBeVisible();
+
+    const deleteButton = snapshots.locator('button[aria-label^="Excluir Rascunho v"]');
+    await expect(deleteButton).toHaveCount(1);
+    await deleteButton.click();
+
+    const dialog = page.getByRole('alertdialog', { name: /Excluir Rascunho v/ });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Excluir snapshot', exact: true }).click();
+
+    await expect(page.getByText(/foi excluído do histórico/)).toBeVisible();
+    await expect(deleteButton).toHaveCount(0);
+    await expect(snapshots.getByText('Protegida', { exact: true })).toBeVisible();
+  });
+
   test('mantém espaçamento interno no inspector da Home', async ({ page }) => {
     await page.goto('/admin/homepage');
     await page.waitForLoadState('networkidle');

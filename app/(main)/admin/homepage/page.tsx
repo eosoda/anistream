@@ -21,6 +21,7 @@ import {
   MonitorPlay,
   Plus,
   History,
+  LockKeyhole,
   RotateCcw,
   Save,
   Trash2,
@@ -210,6 +211,7 @@ export default function AdminHomepagePage() {
   const [selectedSnapshot, setSelectedSnapshot] = useState<HomepageSnapshotDetail | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [snapshotSaving, setSnapshotSaving] = useState(false);
+  const [snapshotDeletingId, setSnapshotDeletingId] = useState<string | null>(null);
   const { confirm } = useConfirmation();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -432,6 +434,43 @@ export default function AdminHomepagePage() {
     }
   };
 
+  const deleteSnapshot = async (snapshot: HomepageSnapshotSummary) => {
+    if (!state || saving || snapshotSaving) return;
+    const isCurrentPublished = snapshot.kind === 'PUBLISHED' && snapshot.version === state.publishedVersion;
+    if (isCurrentPublished) {
+      setFeedback({ tone: 'warning', message: 'A publicação atual da Home é protegida e não pode ser excluída.' });
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: `Excluir ${snapshot.label}?`,
+      description: 'O snapshot será removido permanentemente do histórico. O rascunho e a Home publicada não serão alterados.',
+      confirmText: 'Excluir snapshot',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    setSnapshotSaving(true);
+    setSnapshotDeletingId(snapshot.id);
+    setFeedback(null);
+    try {
+      const response = await fetch(`/api/admin/homepage/snapshots/${snapshot.id}`, { method: 'DELETE' });
+      const payload = await response.json();
+      if (!response.ok) throw Object.assign(new Error(payload.error?.message || 'Não foi possível excluir o snapshot.'), { status: response.status });
+      const deleted = payload.data.snapshot as HomepageSnapshotSummary;
+      setState((current) => current ? { ...current, snapshots: current.snapshots.filter((item) => item.id !== deleted.id) } : current);
+      if (selectedSnapshot?.id === deleted.id) setSelectedSnapshot(null);
+      setFeedback({ tone: 'success', message: `${deleted.label} foi excluído do histórico.` });
+    } catch (error) {
+      const status = error && typeof error === 'object' && 'status' in error ? error.status : 0;
+      setFeedback({ tone: status === 409 ? 'warning' : 'danger', message: error instanceof Error ? error.message : 'Não foi possível excluir o snapshot.' });
+    } finally {
+      setSnapshotDeletingId(null);
+      setSnapshotSaving(false);
+    }
+  };
+
   if (loading) return <div className="admin-empty-state min-h-[420px]" aria-live="polite"><Loader2 size={24} className="animate-spin text-[#FF6B00]" aria-hidden="true" /><h2>Carregando construtor da Home</h2><p>Consultando o layout publicado e o rascunho administrativo.</p></div>;
   if (!state) return <div className="admin-empty-state min-h-[420px]"><h2>Builder indisponível</h2><p>Não foi possível carregar a configuração da Home.</p><button type="button" className="admin-button is-primary" onClick={() => void load()}>Tentar novamente</button></div>;
 
@@ -502,6 +541,17 @@ export default function AdminHomepagePage() {
                       <RotateCcw size={14} />
                       Restaurar
                     </button>
+                    {isCurrentPublished ? (
+                      <span className="admin-status-badge is-unknown" title="A publicação atual não pode ser excluída.">
+                        <LockKeyhole size={13} aria-hidden="true" />
+                        Protegida
+                      </span>
+                    ) : (
+                      <button type="button" className="admin-button is-ghost text-rose-300" onClick={() => void deleteSnapshot(snapshot)} disabled={saving || snapshotSaving} aria-label={`Excluir ${snapshot.label}`}>
+                        {snapshotDeletingId === snapshot.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        Excluir
+                      </button>
+                    )}
                   </div>
                 </article>
               );
@@ -532,7 +582,17 @@ export default function AdminHomepagePage() {
                 {[...selectedSnapshot.document.blocks].sort((a, b) => a.order - b.order).map((block) => <li key={block.id} className="flex items-center gap-3 px-4 py-3"><span className="w-7 font-mono text-xs text-[var(--admin-dim)]">{String(block.order).padStart(2, '0')}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[var(--admin-text)]">{blockLabel(block)}</strong><small className="block truncate text-xs text-[var(--admin-muted)]">{block.type} · {block.enabled ? 'Visível' : 'Oculto'}</small></span></li>)}
               </ol>
             </section>
-            <div className="flex justify-end border-t border-[var(--admin-line)] pt-4"><button type="button" className="admin-button is-primary" onClick={() => void restoreSnapshot(selectedSnapshot)} disabled={snapshotSaving}><RotateCcw size={15} /> Restaurar no rascunho</button></div>
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--admin-line)] pt-4">
+              {selectedSnapshot.kind === 'PUBLISHED' && selectedSnapshot.version === state.publishedVersion ? (
+                <span className="admin-status-badge is-unknown"><LockKeyhole size={13} aria-hidden="true" /> Publicação atual protegida</span>
+              ) : (
+                <button type="button" className="admin-button is-danger" onClick={() => void deleteSnapshot(selectedSnapshot)} disabled={snapshotSaving}>
+                  {snapshotDeletingId === selectedSnapshot.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  Excluir snapshot
+                </button>
+              )}
+              <button type="button" className="admin-button is-primary" onClick={() => void restoreSnapshot(selectedSnapshot)} disabled={snapshotSaving}><RotateCcw size={15} /> Restaurar no rascunho</button>
+            </div>
           </div>
         )}
       </AdminDrawer>

@@ -48,7 +48,7 @@ O construtor usa uma composição única e responsiva de blocos tipados. Não ac
 - `editorial_notice`: aviso de texto simples e CTA interno;
 - `divider`: separador visual sem dados externos.
 
-O canvas permite reordenar por mouse/teclado, duplicar, ocultar e remover até 12 blocos. O inspector edita somente campos validados pelo schema Zod. O fluxo é `rascunho → salvar → snapshot opcional → preview público → publicar`; a publicação exige confirmação, gera um `HomepageSnapshot`, preserva as versões anteriores e invalida o cache Redis da Home. O construtor não mantém preview local duplicado.
+O canvas permite reordenar por mouse/teclado, duplicar, ocultar e remover até 12 blocos. O inspector edita somente campos validados pelo schema Zod. O fluxo é `rascunho → salvar → snapshot opcional → preview público → publicar`; a publicação exige confirmação, gera um `HomepageSnapshot`, preserva as versões anteriores e invalida o cache Redis da Home. Snapshots antigos e manuais podem ser removidos com confirmação, enquanto a publicação ativa permanece protegida. O construtor não mantém preview local duplicado.
 
 ## Domínio público
 
