@@ -51,9 +51,10 @@ export async function GET(request: NextRequest) {
       },
       totalDurationMs: Date.now() - startTime,
     });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Setup Status Error]', error);
     return NextResponse.json(
-      { dbConnected: false, isInitialized: false, error: err.message },
+      { dbConnected: false, isInitialized: false, error: 'Não foi possível consultar o status da instalação.' },
       { status: 500 }
     );
   }

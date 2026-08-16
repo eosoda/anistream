@@ -2,15 +2,14 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Lock, Mail, User, Loader2, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { ShieldCheck, Lock, Mail, Loader2 } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
 
-  const [isSetupMode, setIsSetupMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -61,34 +60,6 @@ export default function AdminLoginPage() {
     }
   };
 
-  // Criar Primeiro Administrador (Setup Inicial)
-  const handleSetup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const res = await fetch('/api/admin/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || data.message || 'Falha no cadastro inicial');
-      }
-
-      setSuccess('Administrador criado com sucesso! Faça login agora.');
-      setIsSetupMode(false);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#0B0B0F] text-white flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-md p-8 rounded-3xl bg-white/5 border border-white/10 glass-panel shadow-2xl space-y-6 relative overflow-hidden">
@@ -101,12 +72,10 @@ export default function AdminLoginPage() {
             <ShieldCheck size={32} />
           </div>
           <h1 className="text-2xl font-black text-white">
-            {isSetupMode ? 'Criar Admin Inicial' : 'Painel Administrativo'}
+            Painel Administrativo
           </h1>
           <p className="text-xs text-gray-400">
-            {isSetupMode
-              ? 'Cadastre a conta mestre inicial para gerenciar o AniStream'
-              : 'Entre com suas credenciais de administrador'}
+            Entre com suas credenciais de administrador
           </p>
         </div>
 
@@ -123,27 +92,7 @@ export default function AdminLoginPage() {
         )}
 
         {/* Formulário */}
-        <form onSubmit={isSetupMode ? handleSetup : handleLogin} className="space-y-4">
-          {isSetupMode && (
-            <div>
-              <label htmlFor="admin-name" className="block text-sm font-bold text-gray-300 mb-1">
-                Nome Completo
-              </label>
-              <div className="relative">
-                <User size={16} className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  id="admin-name"
-                  type="text"
-                  required
-                  placeholder="Administrador Principal"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="min-h-11 w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6B00]"
-                />
-              </div>
-            </div>
-          )}
-
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label htmlFor="admin-email" className="block text-sm font-bold text-gray-300 mb-1">
               E-mail Administrativo
@@ -170,8 +119,9 @@ export default function AdminLoginPage() {
               <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
               <input
                 id="admin-password"
-                type="password"
-                required
+              type="password"
+              required
+              minLength={12}
                 placeholder="••••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -187,11 +137,6 @@ export default function AdminLoginPage() {
           >
             {loading ? (
               <Loader2 size={16} className="animate-spin" />
-            ) : isSetupMode ? (
-              <>
-                <Sparkles size={16} />
-                <span>Criar Administrador</span>
-              </>
             ) : (
               <>
                 <ShieldCheck size={16} />
@@ -201,20 +146,10 @@ export default function AdminLoginPage() {
           </button>
         </form>
 
-        {/* Toggle Modo Setup / Login */}
         <div className="text-center pt-2 border-t border-white/10">
-          <button
-            onClick={() => {
-              setIsSetupMode(!isSetupMode);
-              setError(null);
-              setSuccess(null);
-            }}
-            className="text-xs font-bold text-gray-400 hover:text-[#FF6B00] transition-colors"
-          >
-            {isSetupMode
-              ? 'Já possui administrador? Fazer Login'
-              : 'Primeira instalação? Clique para Criar o Admin Inicial'}
-          </button>
+          <Link href="/setup" className="text-xs font-bold text-gray-400 hover:text-[#FF6B00] transition-colors">
+            Primeira instalação? Abrir o assistente seguro
+          </Link>
         </div>
       </div>
     </div>

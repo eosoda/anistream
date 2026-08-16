@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { env } from '@/env';
 
 const SETUP_KEY_FILE = path.join(process.cwd(), '.setup-key');
 
@@ -16,7 +17,14 @@ export function getOrCreateSetupKey(): string {
     return cachedSetupKey;
   }
 
-  // 1. Se foi definida no ambiente (INITIAL_SETUP_KEY ou SETUP_KEY)
+  // Em produção a chave é obrigatoriamente injetada pelo orquestrador. Ela
+  // nunca é gerada, persistida em arquivo ou impressa nos logs.
+  if (process.env.NODE_ENV === 'production') {
+    cachedSetupKey = env.INITIAL_SETUP_KEY;
+    return cachedSetupKey;
+  }
+
+  // 1. Durante desenvolvimento, uma chave explícita ainda pode ser usada.
   const envKey = process.env.INITIAL_SETUP_KEY || process.env.SETUP_KEY;
   if (envKey && envKey.trim().length > 0) {
     cachedSetupKey = envKey.trim();

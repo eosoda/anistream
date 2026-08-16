@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         'NO_SOURCES_AVAILABLE',
         'Nenhuma fonte autorizada disponível para este episódio no momento.',
         444,
-        { attempts: result?.attempts || [] },
+        undefined,
         undefined,
         reqPath
       );
@@ -69,11 +69,12 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err: any) {
+    console.error('[Stream Resolve Error]', err);
     return apiError(
       'INTERNAL_RESOLVE_ERROR',
       'Erro ao resolver fontes de streaming.',
       500,
-      { message: err?.message || 'Erro desconhecido' },
+      undefined,
       undefined,
       reqPath
     );

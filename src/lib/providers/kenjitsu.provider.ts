@@ -171,13 +171,14 @@ export class KenjitsuProvider implements AnimeProvider {
         errorMessage: active === 0 ? 'Nenhuma extensão retornada pelo Kenjitsu.' : undefined,
       };
     } catch (error) {
+      console.error('[Kenjitsu Provider Health Error]', error);
       return {
         providerId: this.id,
         name: this.name,
         status: 'down',
         latencyMs: Date.now() - startedAt,
         lastChecked: new Date().toISOString(),
-        errorMessage: error instanceof Error ? error.message : 'Falha ao consultar o Kenjitsu.',
+        errorMessage: 'Falha ao consultar o Kenjitsu.',
       };
     }
   }

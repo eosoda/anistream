@@ -1,18 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { verifyPassword } from '@/lib/security/password';
+import { checkDistributedRateLimit, getClientIp } from '@/lib/security/rate-limit';
+
+const LoginSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  password: z.string().min(1).max(256),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const email = (body.email || '').toLowerCase().trim();
-    const password = body.password || '';
-
-    if (!email || !password) {
+    const ipLimit = await checkDistributedRateLimit(`admin-login:ip:${getClientIp(request)}`, {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!ipLimit.allowed) {
       return NextResponse.json(
-        { error: 'Email e senha são obrigatórios.' },
-        { status: 400 }
+        { error: 'Muitas tentativas de login. Tente novamente mais tarde.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(ipLimit.resetMs / 1000)) } },
+      );
+    }
+
+    const body = await request.json().catch(() => null);
+    const parsed = LoginSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'E-mail ou senha inválidos.' }, { status: 400 });
+    }
+
+    const { email, password } = parsed.data;
+    const accountLimit = await checkDistributedRateLimit(`admin-login:account:${email}`, {
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!accountLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas de login. Tente novamente mais tarde.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(accountLimit.resetMs / 1000)) } },
       );
     }
 
@@ -66,9 +91,10 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Admin Login Error]', error);
     return NextResponse.json(
-      { error: 'Erro ao realizar login', message: err.message },
+      { error: 'Erro interno ao realizar login.' },
       { status: 500 }
     );
   }

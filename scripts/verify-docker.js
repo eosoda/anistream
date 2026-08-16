@@ -55,7 +55,7 @@ requireText(dockerfile, 'RUN npm ci', 'Dependencias instaladas de forma reproduz
 requireText(dockerfile, 'RUN npx prisma generate', 'Prisma Client gerado no builder');
 requireText(dockerfile, 'USER nextjs', 'Runner sem privilegios');
 requireText(dockerfile, 'HEALTHCHECK', 'Healthcheck da imagem configurado');
-requireText(dockerfile, 'npx prisma db push --skip-generate && exec node server.js', 'Boot falha explicitamente quando o schema nao pode ser sincronizado');
+requireText(dockerfile, 'npx prisma migrate deploy && exec node server.js', 'Boot aplica somente migrations versionadas antes do servidor');
 
 logHeader('2. Compose unico');
 const compose = readFile('docker-compose.yml');
@@ -83,6 +83,9 @@ const schema = readFile('prisma/schema.prisma');
 for (const model of ['Anime', 'Episode', 'EpisodeSource', 'MediaProvider', 'AutoIndexerQueue', 'AdminUser', 'AdminAuditLog', 'ProviderHealthLog', 'HomepageLayout', 'HomepageSnapshot', 'ReleaseScheduleRule', 'ReleaseScheduleException']) {
   requireText(schema, `model ${model}`, `Modelo Prisma ${model} presente`);
 }
+
+const migration = readFile('prisma/migrations/20260816000000_initial/migration.sql');
+requireText(migration, 'CREATE TABLE "Anime"', 'Migration inicial do schema presente');
 
 const packageJson = readFile('package.json');
 for (const dependency of ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', 'zod']) {

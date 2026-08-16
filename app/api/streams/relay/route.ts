@@ -163,10 +163,10 @@ export async function GET(request: NextRequest) {
       headers: responseHeaders,
     });
   } catch (error) {
+    console.error('[Stream Relay Error]', error);
     return NextResponse.json(
       {
         error: 'Falha ao retransmitir mídia.',
-        message: error instanceof Error ? error.message : 'Erro desconhecido',
       },
       { status: 502 }
     );

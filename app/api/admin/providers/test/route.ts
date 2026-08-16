@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
     } catch (caught) {
       const failure = caught as KenjitsuRequestError;
       status = failure instanceof KenjitsuRequestError ? failure.status : 502;
-      error = failure instanceof Error ? failure.message : 'Falha ao testar a extensao.';
+      console.warn('[Admin Provider Test Failed]', { provider: id, error: failure });
+      error = 'Falha ao testar a extensão.';
     }
 
     const latencyMs = Date.now() - startedAt;
@@ -47,7 +48,8 @@ export async function POST(request: NextRequest) {
     void recordAdminAudit({ actorId: auth.userId, action: 'extension.tested', resourceType: 'extension', resourceId: id, summary: `Teste da extensão “${id}”: ${healthStatus}.`, metadata: { status: healthStatus, latencyMs, error } });
 
     return NextResponse.json({ success: true, ok, status, latencyMs, error, testedAt: new Date().toISOString() });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Admin Provider Test Error]', error);
+    return NextResponse.json({ error: 'Não foi possível testar a extensão.' }, { status: 502 });
   }
 }

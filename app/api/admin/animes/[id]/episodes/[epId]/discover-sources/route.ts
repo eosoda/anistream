@@ -82,9 +82,10 @@ export async function POST(
       candidates,
       attempts: result.attempts,
     });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Admin Discover Sources Error]', error);
     return NextResponse.json(
-      { error: 'Erro ao consultar mídias nas extensões Kenjitsu', details: err.message },
+      { error: 'Não foi possível consultar mídias nas extensões Kenjitsu.' },
       { status: 500 }
     );
   }

@@ -21,11 +21,14 @@ export async function GET(request: NextRequest) {
   const [database, settings, reports, healthResult, auditResult, countsResult] = await Promise.all([
     prisma.$queryRaw`SELECT 1`
       .then(() => ({ status: 'healthy' as const, latencyMs: Date.now() - dbStartedAt, detail: null }))
-      .catch((error: unknown) => ({
-        status: 'down' as const,
-        latencyMs: Date.now() - dbStartedAt,
-        detail: error instanceof Error ? error.message : 'Banco indisponível.',
-      })),
+      .catch((error: unknown) => {
+        console.error('[Admin Overview Database Error]', error);
+        return {
+          status: 'down' as const,
+          latencyMs: Date.now() - dbStartedAt,
+          detail: 'Banco indisponível.',
+        };
+      }),
     getKenjitsuExtensionSettings(),
     prisma.episodeReport.findMany({
       where: { status: { in: ['PENDING', 'IN_PROGRESS'] } },
@@ -43,11 +46,14 @@ export async function GET(request: NextRequest) {
     }).catch(() => []),
     Promise.all([prisma.anime.count(), prisma.episode.count()])
       .then((values) => ({ status: 'healthy' as const, values, detail: null }))
-      .catch((error: unknown) => ({
-        status: 'down' as const,
-        values: [0, 0] as [number, number],
-        detail: error instanceof Error ? error.message : 'Não foi possível consultar o catálogo local.',
-      })),
+      .catch((error: unknown) => {
+        console.error('[Admin Overview Catalog Error]', error);
+        return {
+          status: 'down' as const,
+          values: [0, 0] as [number, number],
+          detail: 'Não foi possível consultar o catálogo local.',
+        };
+      }),
   ]);
 
   const health = healthResult.response?.data || [];
@@ -103,7 +109,7 @@ export async function GET(request: NextRequest) {
         status: healthResult.error ? 'down' : 'healthy',
         checkedAt: generatedAt,
         latencyMs: Date.now() - kenjitsuStartedAt,
-        detail: healthResult.error instanceof Error ? healthResult.error.message : null,
+        detail: healthResult.error ? 'Kenjitsu indisponível.' : null,
       },
     ],
     extensions,

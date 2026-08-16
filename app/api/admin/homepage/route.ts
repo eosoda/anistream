@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
       headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, private' },
     });
   } catch (error) {
-    return apiError('ADMIN_HOMEPAGE_FETCH_ERROR', error instanceof Error ? error.message : 'Não foi possível carregar o builder.', 500);
+    console.error('[Admin Homepage Fetch Error]', error);
+    return apiError('ADMIN_HOMEPAGE_FETCH_ERROR', 'Não foi possível carregar o builder.', 500);
   }
 }
 
@@ -51,7 +52,8 @@ export async function PUT(request: NextRequest) {
       return apiError('HOMEPAGE_VERSION_CONFLICT', error.message, 409);
     }
     if (error instanceof HomepageValidationError) return apiError('HOMEPAGE_INVALID_DOCUMENT', error.message, 422);
-    return apiError('ADMIN_HOMEPAGE_SAVE_ERROR', error instanceof Error ? error.message : 'Não foi possível salvar o rascunho.', 500);
+    console.error('[Admin Homepage Save Error]', error);
+    return apiError('ADMIN_HOMEPAGE_SAVE_ERROR', 'Não foi possível salvar o rascunho.', 500);
   }
 }
 

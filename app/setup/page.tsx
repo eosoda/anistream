@@ -207,7 +207,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
           <p className="text-xs text-gray-400">
             Configure o banco de dados, a chave de segurança e a conta mestre em poucas etapas.
           </p>
-          <div className="grid grid-cols-4 gap-2 pt-2" aria-label="Progresso da instalação">
+          <div className="grid grid-cols-4 gap-2 pt-2" role="group" aria-label="Progresso da instalação">
             {[1, 2, 3, 4].map((step) => (
               <div
                 key={step}
@@ -310,7 +310,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
               </div>
             </div>
             <div>
-              <label htmlFor="setup-admin-password" className="mb-1 block text-xs font-bold text-gray-300">Senha (mínimo 6 caracteres)</label>
+              <label htmlFor="setup-admin-password" className="mb-1 block text-xs font-bold text-gray-300">Senha (mínimo 12 caracteres)</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input id="setup-admin-password" type={showPassword ? 'text' : 'password'} placeholder="Digite sua senha de acesso" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-10 text-xs text-white placeholder-gray-500 focus:border-[#FF6B00] focus:outline-none" />
@@ -339,7 +339,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
 
             <div className="flex items-center justify-between pt-4">
               <button type="button" onClick={() => setCurrentStep(1)} className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/20"><ArrowLeft size={16} />Voltar</button>
-              <button type="button" disabled={!adminName.trim() || !adminEmail.trim() || adminPassword.length < 6 || confirmPassword !== adminPassword} onClick={() => setCurrentStep(3)} className="flex items-center gap-2 rounded-xl bg-[#FF6B00] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#FF6B00]/80 disabled:opacity-50"><span>Avançar para Integração Kenjitsu</span><ArrowRight size={16} /></button>
+              <button type="button" disabled={!adminName.trim() || !adminEmail.trim() || adminPassword.length < 12 || confirmPassword !== adminPassword} onClick={() => setCurrentStep(3)} className="flex items-center gap-2 rounded-xl bg-[#FF6B00] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#FF6B00]/80 disabled:opacity-50"><span>Avançar para Integração Kenjitsu</span><ArrowRight size={16} /></button>
             </div>
           </div>
         )}

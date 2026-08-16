@@ -141,6 +141,25 @@ export async function redisDelete(key: string): Promise<boolean> {
   }
 }
 
+/**
+ * Incrementa uma chave e aplica TTL somente na primeira gravação. A operação
+ * é usada por rate limits porque INCR/EXPIRE permanecem atômicos por comando
+ * no Redis e não dependem de estado em memória do processo web.
+ */
+export async function redisIncrement(key: string, windowSeconds: number): Promise<number | null> {
+  if (!Number.isFinite(windowSeconds) || windowSeconds <= 0) return null;
+  try {
+    const value = await execute(['INCR', key]);
+    if (typeof value !== 'number') return null;
+    if (value === 1) {
+      await execute(['EXPIRE', key, String(Math.max(1, Math.ceil(windowSeconds)))]);
+    }
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 export async function redisPing(): Promise<boolean> {
   if (!env.REDIS_URL) return false;
   try {

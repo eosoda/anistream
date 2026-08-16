@@ -66,9 +66,10 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / pageSize),
       },
     });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Admin Anime List Error]', error);
     return NextResponse.json(
-      { error: 'Erro ao listar animes', message: err.message },
+      { error: 'Não foi possível listar os animes.' },
       { status: 500 }
     );
   }
@@ -132,9 +133,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ anime: newAnime }, { status: 201 });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Admin Anime Create Error]', error);
     return NextResponse.json(
-      { error: 'Erro ao cadastrar anime', message: err.message },
+      { error: 'Não foi possível cadastrar o anime.' },
       { status: 500 }
     );
   }

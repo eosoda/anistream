@@ -26,7 +26,8 @@ export async function POST(req: NextRequest) {
     void recordAdminAudit({ actorId: auth.userId, action: enabled ? 'maintenance.enabled' : 'maintenance.disabled', resourceType: 'maintenance', summary: enabled ? 'Modo manutenção ativado.' : 'Modo manutenção desativado.', metadata: { enabled: Boolean(enabled), estimatedEnd: estimatedEnd || null } });
 
     return NextResponse.json({ success: true, setting: JSON.parse(setting.value) });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Maintenance Error]', error);
+    return NextResponse.json({ error: 'Não foi possível atualizar o modo de manutenção.' }, { status: 500 });
   }
 }

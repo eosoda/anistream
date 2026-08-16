@@ -41,9 +41,10 @@ export async function POST(
     void recordAdminAudit({ actorId: auth.userId, action: 'episode.created', resourceType: 'episode', resourceId: newEpisode.id, summary: `Episódio ${newEpisode.season}x${newEpisode.number} criado.`, metadata: { animeId, title: newEpisode.title } });
 
     return NextResponse.json({ episode: newEpisode }, { status: 201 });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Admin Episode Create Error]', error);
     return NextResponse.json(
-      { error: 'Erro ao cadastrar episódio', message: err.message },
+      { error: 'Não foi possível cadastrar o episódio.' },
       { status: 500 }
     );
   }

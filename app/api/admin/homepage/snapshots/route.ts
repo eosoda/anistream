@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
       headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, private' },
     });
   } catch (error) {
-    return apiError('ADMIN_HOMEPAGE_SNAPSHOTS_FETCH_ERROR', error instanceof Error ? error.message : 'Não foi possível carregar os snapshots da Home.', 500);
+    console.error('[Admin Homepage Snapshots Fetch Error]', error);
+    return apiError('ADMIN_HOMEPAGE_SNAPSHOTS_FETCH_ERROR', 'Não foi possível carregar os snapshots da Home.', 500);
   }
 }
 
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof HomepageConflictError) return apiError('HOMEPAGE_VERSION_CONFLICT', error.message, 409);
     if (error instanceof HomepageValidationError) return apiError('HOMEPAGE_INVALID_DOCUMENT', error.message, 422);
-    return apiError('ADMIN_HOMEPAGE_SNAPSHOT_CREATE_ERROR', error instanceof Error ? error.message : 'Não foi possível criar o snapshot.', 500);
+    console.error('[Admin Homepage Snapshot Create Error]', error);
+    return apiError('ADMIN_HOMEPAGE_SNAPSHOT_CREATE_ERROR', 'Não foi possível criar o snapshot.', 500);
   }
 }

@@ -139,7 +139,8 @@ export async function POST(request: NextRequest) {
       episodesCount: importedEpisodesCount,
       sourceResolution: 'live-kenjitsu',
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Erro ao importar anime', details: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Admin Anime Import Error]', error);
+    return NextResponse.json({ error: 'Não foi possível importar o anime.' }, { status: 502 });
   }
 }

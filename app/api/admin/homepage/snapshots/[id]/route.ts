@@ -16,7 +16,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   } catch (error) {
     if (error instanceof HomepageSnapshotNotFoundError) return apiError('HOMEPAGE_SNAPSHOT_NOT_FOUND', error.message, 404);
     if (error instanceof HomepageValidationError) return apiError('HOMEPAGE_INVALID_DOCUMENT', error.message, 422);
-    return apiError('ADMIN_HOMEPAGE_SNAPSHOT_FETCH_ERROR', error instanceof Error ? error.message : 'Não foi possível carregar o snapshot.', 500);
+    console.error('[Admin Homepage Snapshot Fetch Error]', error);
+    return apiError('ADMIN_HOMEPAGE_SNAPSHOT_FETCH_ERROR', 'Não foi possível carregar o snapshot.', 500);
   }
 }
 
@@ -40,6 +41,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (error instanceof HomepageSnapshotNotFoundError) return apiError('HOMEPAGE_SNAPSHOT_NOT_FOUND', error.message, 404);
     if (error instanceof HomepageSnapshotProtectedError) return apiError('HOMEPAGE_SNAPSHOT_PROTECTED', error.message, 409);
     if (error instanceof HomepageValidationError) return apiError('HOMEPAGE_INVALID_DOCUMENT', error.message, 422);
-    return apiError('ADMIN_HOMEPAGE_SNAPSHOT_DELETE_ERROR', error instanceof Error ? error.message : 'Não foi possível excluir o snapshot.', 500);
+    console.error('[Admin Homepage Snapshot Delete Error]', error);
+    return apiError('ADMIN_HOMEPAGE_SNAPSHOT_DELETE_ERROR', 'Não foi possível excluir o snapshot.', 500);
   }
 }

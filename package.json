@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
     "generate-tokens": "node scripts/generate-tokens.js",
     "test": "npx vitest run",
     "test:kenjitsu": "node scripts/smoke-kenjitsu.mjs",
@@ -16,9 +18,11 @@
     "test:e2e": "playwright test",
     "audit:performance": "node scripts/lighthouse-performance.mjs",
     "audit:performance:observed": "node scripts/lighthouse-performance.mjs --observed",
-    "pre-deploy": "npm run test && npm run test:docker && npm run build",
+    "pre-deploy": "npm run lint && npm run typecheck && npm run test && npm run test:docker && npm run build",
     "deploy:local": "node scripts/deploy-local.js",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "audit:dependencies": "npm audit --omit=dev",
     "clean": "next clean"
   },
   "allowScripts": {
@@ -35,6 +39,7 @@
   "overrides": {
     "brace-expansion": "^5.0.8",
     "minimatch": "^10.0.3",
+    "nanoid": "^3.3.18",
     "postcss": "^8.5.3",
     "sharp": "^0.35.3"
   },

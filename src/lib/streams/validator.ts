@@ -203,12 +203,13 @@ export async function validateStreamSource(
       };
     }
 
+    console.warn('[Stream Validation Error]', err);
     return {
       valid: false,
       type: source.type,
       status: 500,
       latencyMs,
-      error: `Erro ao validar stream: ${err.message}`,
+      error: 'Erro ao validar stream.',
     };
   }
 }

@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
+
   try {
     const sources = await prisma.episodeSource.findMany({
       select: {
@@ -45,12 +49,16 @@ export async function GET() {
     }));
 
     return NextResponse.json({ report });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Bandwidth Error]', error);
+    return NextResponse.json({ error: 'Não foi possível carregar o relatório de banda.' }, { status: 500 });
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authenticated) return auth.errorResponse!;
+
   try {
     const body = await req.json();
     const { provider, action } = body;
@@ -70,7 +78,8 @@ export async function POST(req: Request) {
       success: true,
       message: `Status do provedor ${provider} alterado para ${enabled ? 'Ativo' : 'Pausado/Bloqueado'}.`,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Bandwidth Mutation Error]', error);
+    return NextResponse.json({ error: 'Não foi possível atualizar o provedor.' }, { status: 500 });
   }
 }

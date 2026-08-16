@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
       attempts: resolution.attempts,
       persisted: false,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Erro ao resolver fonte pelo Kenjitsu', details: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Admin Scraper Error]', error);
+    return NextResponse.json({ error: 'Não foi possível resolver a fonte pelo Kenjitsu.' }, { status: 502 });
   }
 }

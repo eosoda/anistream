@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
       return apiError('HOMEPAGE_VERSION_CONFLICT', error.message, 409);
     }
     if (error instanceof HomepageValidationError) return apiError('HOMEPAGE_INVALID_DOCUMENT', error.message, 422);
-    return apiError('ADMIN_HOMEPAGE_PUBLISH_ERROR', error instanceof Error ? error.message : 'Não foi possível publicar a Home.', 500);
+    console.error('[Admin Homepage Publish Error]', error);
+    return apiError('ADMIN_HOMEPAGE_PUBLISH_ERROR', 'Não foi possível publicar a Home.', 500);
   }
 }
 

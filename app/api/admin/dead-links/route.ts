@@ -1,8 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { decryptData } from '@/lib/security/crypto';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { validateUrlSsrf } from '@/lib/security/ssrf';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
+
   try {
     // Listar todas as fontes inativas ou com contador de falhas > 0
     const deadSources = await prisma.episodeSource.findMany({
@@ -28,12 +33,16 @@ export async function GET() {
     }));
 
     return NextResponse.json({ deadSources: safeDeadSources });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Dead Links Read Error]', error);
+    return NextResponse.json({ error: 'Não foi possível carregar os links inativos.' }, { status: 500 });
   }
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
+
   try {
     // Executar varredura de diagnostico em lote de ate 20 fontes ativas
     const sourcesToTest = await prisma.episodeSource.findMany({
@@ -55,22 +64,31 @@ export async function POST() {
       let status = 0;
       let isOk = false;
 
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const ssrfResult = await validateUrlSsrf(decryptedUrl);
+        if (!ssrfResult.valid) {
+          console.warn('[Dead Links SSRF validation blocked]', { sourceId: source.id, reason: ssrfResult.reason });
+          status = 400;
+        } else {
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 4000);
 
-        const res = await fetch(decryptedUrl, {
-          method: 'HEAD',
-          signal: controller.signal,
-          headers: { 'User-Agent': 'AniStream-DeadLinkFinder/1.0' },
-        });
+          const res = await fetch(decryptedUrl, {
+            method: 'HEAD',
+            signal: controller.signal,
+            headers: { 'User-Agent': 'AniStream-DeadLinkFinder/1.0' },
+          });
 
-        clearTimeout(timeoutId);
-        status = res.status;
-        isOk = res.ok || res.status === 200 || res.status === 206 || res.status === 302;
-      } catch (err) {
+          status = res.status;
+          isOk = res.ok || res.status === 200 || res.status === 206 || res.status === 302;
+        }
+      } catch (error) {
+        console.warn('[Dead Links Check Error]', { sourceId: source.id, error });
         isOk = false;
         status = 504;
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
       }
 
       const latencyMs = Date.now() - startTime;
@@ -99,7 +117,8 @@ export async function POST() {
       checkedCount,
       failedCount,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Dead Links Scan Error]', error);
+    return NextResponse.json({ error: 'Não foi possível executar a varredura de links.' }, { status: 500 });
   }
 }

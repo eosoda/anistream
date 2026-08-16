@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
         void recordAdminAudit({ actorId: auth.userId, action: 'anime.deleted', resourceType: 'anime', resourceId: id, summary: `Anime “${anime.title}” excluído em lote.`, metadata: { bulk: true } });
       }
     } catch (error) {
-      results.push({ id, status: 'failed', message: error instanceof Error ? error.message : 'Falha ao concluir a ação.' });
+      console.error('[Admin Anime Bulk Item Error]', { id, error });
+      results.push({ id, status: 'failed', message: 'Falha ao concluir a ação.' });
     }
   }
 

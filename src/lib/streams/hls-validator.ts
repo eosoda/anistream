@@ -55,11 +55,12 @@ export async function validateHlsPlaylist(
       contentType,
       error: 'Manifesto HLS (#EXTM3U) não encontrado no cabeçalho da resposta',
     };
-  } catch (err: any) {
+  } catch (error) {
+    console.warn('[HLS Validation Error]', error);
     clearTimeout(timeout);
     return {
       isValid: false,
-      error: err.name === 'AbortError' ? 'Timeout na validação HLS' : err.message,
+      error: error instanceof Error && error.name === 'AbortError' ? 'Timeout na validação HLS' : 'Falha na validação HLS',
     };
   }
 }

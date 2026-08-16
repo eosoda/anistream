@@ -1,12 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-
-function adminToken() {
-  if (process.env.ADMIN_SESSION_SECRET) return process.env.ADMIN_SESSION_SECRET;
-  const match = readFileSync('.env', 'utf8').match(/^ADMIN_SESSION_SECRET=["']?([^"'\r\n]+)["']?/m);
-  if (!match) throw new Error('ADMIN_SESSION_SECRET é necessário para os testes administrativos.');
-  return match[1];
-}
+import { signInAdmin } from './admin-session';
 
 const routeCases = [
   { path: '/admin', expected: '/admin' },
@@ -29,9 +22,7 @@ const routeCases = [
 
 test.describe('Painel administrativo operacional', () => {
   test.beforeEach(async ({ page }) => {
-    await page.context().addCookies([
-      { name: 'admin_token', value: adminToken(), url: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000' },
-    ]);
+    await signInAdmin(page);
   });
 
   for (const routeCase of routeCases) {
@@ -59,7 +50,7 @@ test.describe('Painel administrativo operacional', () => {
     });
     await page.goto('/admin/login');
     await page.locator('#admin-email').fill('admin@example.com');
-    await page.locator('#admin-password').fill('password');
+    await page.locator('#admin-password').fill('password-123456');
     await page.getByRole('button', { name: 'Entrar no Painel' }).click();
     await expect(page).toHaveURL(/\/admin$/);
   });

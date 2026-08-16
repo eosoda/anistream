@@ -1,12 +1,28 @@
 import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getAnimeEpisodes, getTopAnime } from '@/lib/kenjitsu/catalog';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { validateSetupKey } from '@/lib/security/setup-key';
+import { assertSameOrigin } from '@/lib/security/request-origin';
 
 function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) {
+    const setupKey = request.headers.get('x-setup-key') || new URL(request.url).searchParams.get('key');
+    if (!setupKey) return auth.errorResponse!;
+    const originError = assertSameOrigin(request);
+    if (originError) return originError;
+
+    const hasSetupKey = validateSetupKey(setupKey);
+    const hasAdmin = await prisma.adminUser.count();
+    if (!hasSetupKey || hasAdmin > 0) return auth.errorResponse!;
+  }
+
   try {
     const catalog = await getTopAnime('popular', 1, 25);
     let seededCount = 0;
@@ -73,7 +89,8 @@ export async function POST() {
     }
 
     return NextResponse.json({ success: true, message: `Catalogo Kenjitsu populado com ${seededCount} animes.`, seededCount, episodeCount });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Erro ao popular catalogo pelo Kenjitsu', message: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Setup Seed Popular Error]', error);
+    return NextResponse.json({ error: 'Não foi possível popular o catálogo pelo Kenjitsu.' }, { status: 502 });
   }
 }

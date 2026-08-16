@@ -19,8 +19,9 @@ export async function GET(request: NextRequest) {
       take: 50,
     });
     return NextResponse.json({ autoIndexerEnabled: isEnabled, pendingCount: queue.length, queue, mode: 'kenjitsu' });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Autopilot Read Error]', error);
+    return NextResponse.json({ error: 'Não foi possível carregar o autopilot.' }, { status: 500 });
   }
 }
 
@@ -58,8 +59,9 @@ export async function POST(request: NextRequest) {
       addedToQueue: 0,
       extensions: health.data || [],
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Falha na operacao do autopilot Kenjitsu', details: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Admin Autopilot Run Error]', error);
+    return NextResponse.json({ error: 'Falha na operação do autopilot Kenjitsu.' }, { status: 502 });
   }
 }
 
@@ -129,7 +131,8 @@ export async function PATCH(request: NextRequest) {
     await prisma.autoIndexerQueue.update({ where: { id }, data: { status: 'APPROVED' } });
     void recordAdminAudit({ actorId: auth.userId, action: 'autopilot.candidate_approved', resourceType: 'autopilot', resourceId: id, summary: `Candidato “${meta.title}” aprovado pelo Kenjitsu.`, metadata: { animeId: anime.id, episodesCount: episodes.length } });
     return NextResponse.json({ success: true, message: `Anime "${meta.title}" aprovado via Kenjitsu.`, anime, episodesCount: episodes.length });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Falha ao aprovar item pelo Kenjitsu', details: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Admin Autopilot Approval Error]', error);
+    return NextResponse.json({ error: 'Falha ao aprovar o item pelo Kenjitsu.' }, { status: 502 });
   }
 }

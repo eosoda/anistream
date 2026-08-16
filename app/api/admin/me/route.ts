@@ -10,17 +10,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 
-    if (authResult.userId === 'admin-master') {
-      return NextResponse.json({
-        authenticated: true,
-        user: {
-          id: 'admin-master',
-          email: 'admin@anistream.com',
-          name: 'Administrador Mestre',
-        },
-      });
-    }
-
     const user = await prisma.adminUser.findUnique({
       where: { id: authResult.userId },
       select: {
@@ -39,7 +28,8 @@ export async function GET(request: NextRequest) {
       authenticated: true,
       user,
     });
-  } catch (err: any) {
-    return NextResponse.json({ authenticated: false, error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Me Error]', error);
+    return NextResponse.json({ authenticated: false, error: 'Não foi possível validar a sessão.' }, { status: 500 });
   }
 }

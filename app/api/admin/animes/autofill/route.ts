@@ -27,9 +27,10 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ results });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Admin Anime Autofill Error]', error);
     return NextResponse.json(
-      { error: 'Erro ao buscar metadados automáticos', message: err.message },
+      { error: 'Não foi possível buscar metadados automáticos.' },
       { status: 500 }
     );
   }

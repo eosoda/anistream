@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
     const config = await getNavigationConfiguration();
     return apiSuccess({ ...config, preview: buildNavigationPreview(config) });
   } catch (error) {
-    return apiError('ADMIN_NAVIGATION_FETCH_ERROR', error instanceof Error ? error.message : 'Não foi possível carregar a navegação.', 500);
+    console.error('[Admin Navigation Fetch Error]', error);
+    return apiError('ADMIN_NAVIGATION_FETCH_ERROR', 'Não foi possível carregar a navegação.', 500);
   }
 }
 
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof NavigationConflictError) return apiError('NAVIGATION_VERSION_CONFLICT', error.message, 409);
     if (error instanceof ZodError) return apiError('NAVIGATION_INVALID', 'Revise os campos destacados antes de publicar.', 422, validationDetails(error));
-    return apiError('ADMIN_NAVIGATION_SAVE_ERROR', error instanceof Error ? error.message : 'Não foi possível salvar a navegação.', 500);
+    console.error('[Admin Navigation Save Error]', error);
+    return apiError('ADMIN_NAVIGATION_SAVE_ERROR', 'Não foi possível salvar a navegação.', 500);
   }
 }

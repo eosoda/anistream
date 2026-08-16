@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { redisIncrement } from '@/lib/cache/redis';
 
 interface RateLimitStore {
   count: number;
@@ -12,19 +13,19 @@ export interface RateLimitOptions {
   windowMs: number;
 }
 
-export function checkRateLimit(
-  request: NextRequest,
-  keyPrefix = 'global',
-  options: RateLimitOptions = { limit: 60, windowMs: 60000 }
-): { allowed: boolean; remaining: number; resetMs: number } {
-  const ip =
+export function getClientIp(request: NextRequest): string {
+  return (
     request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
     request.headers.get('x-real-ip') ||
-    '127.0.0.1';
+    '127.0.0.1'
+  );
+}
 
-  const key = `${keyPrefix}:${ip}`;
+function checkMemoryRateLimit(
+  key: string,
+  options: RateLimitOptions,
+): { allowed: boolean; remaining: number; resetMs: number } {
   const now = Date.now();
-
   const record = memoryStore.get(key);
 
   if (!record || record.resetAt <= now) {
@@ -34,7 +35,7 @@ export function checkRateLimit(
     });
     return {
       allowed: true,
-      remaining: options.limit - 1,
+      remaining: Math.max(0, options.limit - 1),
       resetMs: options.windowMs,
     };
   }
@@ -43,14 +44,44 @@ export function checkRateLimit(
     return {
       allowed: false,
       remaining: 0,
-      resetMs: record.resetAt - now,
+      resetMs: Math.max(0, record.resetAt - now),
     };
   }
 
   record.count += 1;
   return {
     allowed: true,
-    remaining: options.limit - record.count,
-    resetMs: record.resetAt - now,
+    remaining: Math.max(0, options.limit - record.count),
+    resetMs: Math.max(0, record.resetAt - now),
+  };
+}
+
+export function checkRateLimit(
+  request: NextRequest,
+  keyPrefix = 'global',
+  options: RateLimitOptions = { limit: 60, windowMs: 60000 }
+): { allowed: boolean; remaining: number; resetMs: number } {
+  const ip = getClientIp(request);
+
+  const key = `${keyPrefix}:${ip}`;
+  return checkMemoryRateLimit(key, options);
+}
+
+export async function checkDistributedRateLimit(
+  key: string,
+  options: RateLimitOptions,
+): Promise<{ allowed: boolean; remaining: number; resetMs: number }> {
+  const windowSeconds = Math.max(1, Math.ceil(options.windowMs / 1000));
+  const count = await redisIncrement(`ratelimit:${key}`, windowSeconds);
+
+  if (count === null) {
+    return checkMemoryRateLimit(`distributed:${key}`, options);
+  }
+
+  const resetMs = windowSeconds * 1000;
+  return {
+    allowed: count <= options.limit,
+    remaining: Math.max(0, options.limit - count),
+    resetMs,
   };
 }

@@ -3,6 +3,23 @@ import { KENJITSU_EXTENSION_IDS, KENJITSU_NSFW_EXTENSION_IDS, type KenjitsuExten
 
 export const KENJITSU_EXTENSION_SETTING_KEY = 'kenjitsu_extensions';
 
+// Allowlist inicial do beta. Ela é derivada do último smoke funcional e deixa
+// extensões instáveis desativadas até uma aprovação explícita no painel.
+export const KENJITSU_BETA_ALLOWLIST = [
+  'anikoto',
+  'anidb',
+  'anibd',
+  'animeheaven',
+  'animefire',
+  'animeplay',
+  'animesdrive',
+  'animesonlinecc',
+  'animesonlinecloud',
+  'anitube',
+  'dattebayobr',
+  'goyabu',
+] as const satisfies readonly KenjitsuExtensionId[];
+
 export interface KenjitsuExtensionSetting {
   id: KenjitsuExtensionId;
   enabled: boolean;
@@ -15,7 +32,7 @@ export interface KenjitsuExtensionSetting {
 
 const defaults: KenjitsuExtensionSetting[] = KENJITSU_EXTENSION_IDS.map((id) => ({
   id,
-  enabled: true,
+  enabled: KENJITSU_BETA_ALLOWLIST.includes(id as (typeof KENJITSU_BETA_ALLOWLIST)[number]),
   nsfw: KENJITSU_NSFW_EXTENSION_IDS.includes(id as (typeof KENJITSU_NSFW_EXTENSION_IDS)[number]),
 }));
 

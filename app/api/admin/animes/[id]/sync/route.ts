@@ -29,7 +29,8 @@ export async function POST(
       syncedEpisodesCount: result.syncedEpisodesCount,
       sourceResolution: 'live-kenjitsu',
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Erro ao sincronizar pelo Kenjitsu', details: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Admin Anime Sync Error]', error);
+    return NextResponse.json({ error: 'Não foi possível sincronizar pelo Kenjitsu.' }, { status: 502 });
   }
 }

@@ -72,11 +72,12 @@ export async function POST(request: NextRequest) {
       }
     );
   } catch (err: any) {
+    console.error('[Stream Alternatives Resolve Error]', err);
     return apiError(
       'INTERNAL_RESOLVE_ERROR',
       'Erro ao buscar fontes alternativas.',
       500,
-      { message: err?.message || 'Erro desconhecido' },
+      undefined,
       undefined,
       reqPath
     );

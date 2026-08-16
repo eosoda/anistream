@@ -59,7 +59,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     kenjitsuError = true;
     const extensions = filterExtensions(settings.map((setting) => ({ ...setting, status: extensionStatus(setting, undefined, kenjitsuError), manifest: null })), params);
-    return NextResponse.json({ extensions, total: extensions.length, kenjitsuError: error instanceof Error ? error.message : 'Kenjitsu indisponível.' }, { status: 200 });
+    console.error('[Admin Extensions Health Error]', error);
+    return NextResponse.json({ extensions, total: extensions.length, kenjitsuError: 'Kenjitsu indisponível.' }, { status: 200 });
   }
 }
 
@@ -118,7 +119,8 @@ export async function POST(request: NextRequest) {
       }
     }
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : 'Falha no teste.';
+    console.error('[Admin Extension Test Error]', { extensionId: body.id, error });
+    errorMessage = 'Falha ao consultar a extensão.';
     if (error instanceof KenjitsuRequestError && error.status < 500) status = 'degraded';
   }
 

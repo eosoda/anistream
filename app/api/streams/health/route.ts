@@ -18,7 +18,8 @@ export async function POST(request: NextRequest) {
       },
     });
     return NextResponse.json({ reports: [report], source: 'kenjitsu' });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Erro ao executar health check', message: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Streams Health Error]', error);
+    return NextResponse.json({ error: 'Não foi possível executar o health check.' }, { status: 502 });
   }
 }

@@ -24,3 +24,14 @@ export const MaintenanceSettingSchema = z.object({
   enabled: z.boolean(),
   message: z.string().max(300).optional(),
 });
+
+export const CreateEpisodeReportSchema = z.object({
+  episodeId: z.string().trim().min(1).max(64),
+  type: z.enum(['NO_AUDIO', 'BROKEN_LINK', 'DESYNC_SUBTITLE', 'OTHER']).default('OTHER'),
+  description: z.string().trim().max(1000).optional(),
+});
+
+export const UpdateEpisodeReportSchema = z.object({
+  id: z.string().trim().min(1).max(64),
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'RESOLVED']),
+});

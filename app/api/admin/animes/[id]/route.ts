@@ -33,8 +33,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     return NextResponse.json({ anime });
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Erro ao buscar anime', message: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Anime Read Error]', error);
+    return NextResponse.json({ error: 'Não foi possível carregar o anime.' }, { status: 500 });
   }
 }
 
@@ -74,8 +75,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     void recordAdminAudit({ actorId: auth.userId, action: 'anime.updated', resourceType: 'anime', resourceId: id, summary: `Anime “${updatedAnime.title}” atualizado.`, metadata: { fields: Object.keys(data) } });
 
     return NextResponse.json({ anime: updatedAnime });
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Erro ao atualizar anime', message: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Anime Update Error]', error);
+    return NextResponse.json({ error: 'Não foi possível atualizar o anime.' }, { status: 500 });
   }
 }
 
@@ -93,7 +95,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     void recordAdminAudit({ actorId: auth.userId, action: 'anime.deleted', resourceType: 'anime', resourceId: id, summary: `Anime “${anime.title}” excluído.`, metadata: { cascadeEpisodes: true } });
 
     return NextResponse.json({ success: true, message: 'Anime excluído com sucesso' });
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Erro ao excluir anime', message: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Anime Delete Error]', error);
+    return NextResponse.json({ error: 'Não foi possível excluir o anime.' }, { status: 500 });
   }
 }

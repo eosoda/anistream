@@ -12,8 +12,9 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json({ webhooks });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Webhooks Read Error]', error);
+    return NextResponse.json({ error: 'Não foi possível carregar as integrações.' }, { status: 500 });
   }
 }
 
@@ -77,8 +78,9 @@ export async function POST(req: NextRequest) {
     void recordAdminAudit({ actorId: auth.userId, action: 'webhook.created', resourceType: 'webhook', resourceId: webhook.id, summary: `Webhook “${webhook.name}” criado.`, metadata: { platform: webhook.platform } });
 
     return NextResponse.json({ success: true, webhook });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Webhooks Write Error]', error);
+    return NextResponse.json({ error: 'Não foi possível atualizar as integrações.' }, { status: 500 });
   }
 }
 
@@ -94,7 +96,8 @@ export async function DELETE(req: NextRequest) {
     const webhook = await prisma.webhookConfig.delete({ where: { id } });
     void recordAdminAudit({ actorId: auth.userId, action: 'webhook.deleted', resourceType: 'webhook', resourceId: id, summary: `Webhook “${webhook.name}” excluído.`, metadata: { platform: webhook.platform } });
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Webhook Delete Error]', error);
+    return NextResponse.json({ error: 'Não foi possível excluir a integração.' }, { status: 500 });
   }
 }

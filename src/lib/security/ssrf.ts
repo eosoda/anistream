@@ -1,20 +1,5 @@
 import dns from 'node:dns/promises';
 
-const PRIVATE_IP_RANGES = [
-  /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-  /^0\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-  /^localhost$/i,
-  /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-  /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/,
-  /^192\.168\.\d{1,3}\.\d{1,3}$/,
-  /^169\.254\.\d{1,3}\.\d{1,3}$/,
-  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}$/,
-  /^(22[4-9]|23\d)\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-  /^::1$/i,
-  /^fc00:/i,
-  /^fe80:/i,
-];
-
 export interface SSRFValidationResult {
   valid: boolean;
   reason?: string;
@@ -22,7 +7,49 @@ export interface SSRFValidationResult {
 }
 
 export function isPrivateIp(ip: string): boolean {
-  return PRIVATE_IP_RANGES.some((pattern) => pattern.test(ip));
+  const value = ip.trim().toLowerCase().replace(/\.$/, '');
+  if (value === 'localhost') return true;
+
+  const ipv4 = value.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const octets = ipv4.slice(1).map(Number);
+    if (octets.some((octet) => octet > 255)) return true;
+    const [first, second] = octets;
+    return (
+      first === 0 ||
+      first === 10 ||
+      first === 127 ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168) ||
+      (first === 169 && second === 254) ||
+      (first === 100 && second >= 64 && second <= 127) ||
+      (first === 192 && second === 0) ||
+      (first === 198 && second >= 18 && second <= 19) ||
+      (first === 198 && second === 51) ||
+      (first === 203 && second === 0) ||
+      first >= 224
+    );
+  }
+
+  if (value.includes(':')) {
+    if (value.startsWith('::ffff:')) {
+      return isPrivateIp(value.slice('::ffff:'.length));
+    }
+    return (
+      value === '::' ||
+      value === '::1' ||
+      value.startsWith('fc') ||
+      value.startsWith('fd') ||
+      value.startsWith('fe8') ||
+      value.startsWith('fe9') ||
+      value.startsWith('fea') ||
+      value.startsWith('feb') ||
+      value.startsWith('ff') ||
+      value.startsWith('2001:db8:')
+    );
+  }
+
+  return false;
 }
 
 /**

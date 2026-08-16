@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
       void recordAdminAudit({ actorId: auth.userId, action: 'homepage.conflict', resourceType: 'homepage', resourceId: 'main', summary: 'Conflito de versão ao descartar o rascunho da Home.' });
       return apiError('HOMEPAGE_VERSION_CONFLICT', error.message, 409);
     }
-    return apiError('ADMIN_HOMEPAGE_DISCARD_ERROR', error instanceof Error ? error.message : 'Não foi possível descartar o rascunho.', 500);
+    console.error('[Admin Homepage Discard Error]', error);
+    return apiError('ADMIN_HOMEPAGE_DISCARD_ERROR', 'Não foi possível descartar o rascunho.', 500);
   }
 }
 

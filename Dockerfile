@@ -20,7 +20,7 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-RUN npm run build
+RUN ANISTREAM_BUILD=true npm run build
 
 # 3. Execucao como usuario sem privilegios
 FROM node:22-alpine AS runner
@@ -48,5 +48,5 @@ USER nextjs
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
 
-# Falha explicitamente quando o banco nao esta pronto; o Compose tenta novamente.
-CMD ["sh", "-c", "npx prisma db push --skip-generate && exec node server.js"]
+# Migrações versionadas e não destrutivas são aplicadas antes do servidor.
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node server.js"]

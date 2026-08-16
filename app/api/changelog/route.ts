@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
     void recordAdminAudit({ actorId: auth.userId, action: 'release.created', resourceType: 'release', resourceId: release.id, summary: `Release ${release.version} publicada.`, metadata: { title: release.title, type: release.type } });
 
     return NextResponse.json({ success: true, release });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Changelog Write Error]', error);
+    return NextResponse.json({ error: 'Não foi possível publicar a atualização.' }, { status: 500 });
   }
 }

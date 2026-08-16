@@ -170,10 +170,11 @@ export async function GET(
       status: mediaResponse.status,
       headers: responseHeaders,
     });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Stream Proxy Error]', error);
     return NextResponse.json(
-      { error: 'Erro de proxy de streaming', message: err.message },
-      { status: 500 }
+      { error: 'Não foi possível retransmitir a mídia.' },
+      { status: 502 }
     );
   }
 }
