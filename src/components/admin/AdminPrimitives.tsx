@@ -2,16 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronRight,
-  Command,
-  Info,
-  Loader2,
-  Search,
-  X,
-} from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronRight, Command, Info, Loader2, Search, X } from 'lucide-react';
 import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
 import { cn } from '@/lib/utils';
 import type { AdminHealthState } from '@/types/admin';
@@ -81,15 +72,7 @@ const statusLabels: Record<AdminHealthState, string> = {
   unknown: 'Sem diagnóstico',
 };
 
-export function AdminStatusBadge({
-  status,
-  label,
-  showDot = true,
-}: {
-  status: AdminHealthState;
-  label?: string;
-  showDot?: boolean;
-}) {
+export function AdminStatusBadge({ status, label, showDot = true }: { status: AdminHealthState; label?: string; showDot?: boolean }) {
   return (
     <span className={cn('admin-status-badge', `is-${status}`)}>
       {showDot && <span className="admin-status-dot" aria-hidden="true" />}
@@ -121,15 +104,7 @@ export function AdminFeedback({
   );
 }
 
-export function AdminEmptyState({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
+export function AdminEmptyState({ title, description, action }: { title: string; description: string; action?: ReactNode }) {
   return (
     <div className="admin-empty-state">
       <div className="admin-empty-mark" aria-hidden="true">
@@ -177,49 +152,49 @@ export function AdminDataTable<T extends { id: string }>({
     <div className="admin-table-wrap">
       <div className="admin-table-desktop">
         <table className="admin-table">
-        <caption className="sr-only">{caption}</caption>
-        <thead>
-          <tr>
-            {selectable && (
-              <th scope="col" className="w-12">
-                <input
-                  type="checkbox"
-                  className="admin-table-checkbox"
-                  checked={Boolean(allSelected)}
-                  onChange={(event) => onToggleAll?.(event.currentTarget.checked)}
-                  aria-label="Selecionar todos os registros visíveis"
-                />
-              </th>
-            )}
-            {columns.map((column) => (
-              <th key={column.key} scope="col" className={column.className}>
-                {column.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} aria-selected={selectedIds?.has(row.id) || undefined}>
+          <caption className="sr-only">{caption}</caption>
+          <thead>
+            <tr>
               {selectable && (
-                <td>
+                <th scope="col" className="w-12">
                   <input
                     type="checkbox"
                     className="admin-table-checkbox"
-                    checked={Boolean(selectedIds?.has(row.id))}
-                    onChange={() => onToggle?.(row.id)}
-                    aria-label={`Selecionar ${getRowLabel?.(row) || row.id}`}
+                    checked={Boolean(allSelected)}
+                    onChange={(event) => onToggleAll?.(event.currentTarget.checked)}
+                    aria-label="Selecionar todos os registros visíveis"
                   />
-                </td>
+                </th>
               )}
               {columns.map((column) => (
-                <td key={`${row.id}-${column.key}`} className={column.className}>
-                  {column.render(row)}
-                </td>
+                <th key={column.key} scope="col" className={column.className}>
+                  {column.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} aria-selected={selectedIds?.has(row.id) || undefined}>
+                {selectable && (
+                  <td>
+                    <input
+                      type="checkbox"
+                      className="admin-table-checkbox"
+                      checked={Boolean(selectedIds?.has(row.id))}
+                      onChange={() => onToggle?.(row.id)}
+                      aria-label={`Selecionar ${getRowLabel?.(row) || row.id}`}
+                    />
+                  </td>
+                )}
+                {columns.map((column) => (
+                  <td key={`${row.id}-${column.key}`} className={column.className}>
+                    {column.render(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
       <div className="admin-table-mobile" aria-label={caption}>
@@ -229,10 +204,29 @@ export function AdminDataTable<T extends { id: string }>({
             <article key={row.id} className="admin-table-mobile-card" data-selected={selectedIds?.has(row.id) ? 'true' : undefined}>
               <div className="admin-table-mobile-heading">
                 <div className="min-w-0 flex-1">{columns[0]?.render(row)}</div>
-                {selectable && <label className="admin-table-mobile-select"><input type="checkbox" className="admin-table-checkbox" checked={Boolean(selectedIds?.has(row.id))} onChange={() => onToggle?.(row.id)} aria-label={`Selecionar ${getRowLabel?.(row) || row.id}`} /><span className="sr-only">Selecionar registro</span></label>}
+                {selectable && (
+                  <label className="admin-table-mobile-select">
+                    <input
+                      type="checkbox"
+                      className="admin-table-checkbox"
+                      checked={Boolean(selectedIds?.has(row.id))}
+                      onChange={() => onToggle?.(row.id)}
+                      aria-label={`Selecionar ${getRowLabel?.(row) || row.id}`}
+                    />
+                    <span className="sr-only">Selecionar registro</span>
+                  </label>
+                )}
               </div>
               <dl className="admin-table-mobile-details">
-                {columns.slice(1).filter((column) => column.key !== 'actions').map((column) => <div key={`${row.id}-${column.key}`}><dt>{column.label}</dt><dd>{column.render(row)}</dd></div>)}
+                {columns
+                  .slice(1)
+                  .filter((column) => column.key !== 'actions')
+                  .map((column) => (
+                    <div key={`${row.id}-${column.key}`}>
+                      <dt>{column.label}</dt>
+                      <dd>{column.render(row)}</dd>
+                    </div>
+                  ))}
               </dl>
               {actionColumn && <div className="admin-table-mobile-actions">{actionColumn.render(row)}</div>}
             </article>
@@ -337,6 +331,8 @@ const commandItems: CommandItem[] = [
   { label: 'Cache de reprodução', description: 'Pré-cache, fontes temporárias e aquecimento', href: '/admin/cache' },
   { label: 'Construtor da Home', description: 'Blocos, preview e publicação', href: '/admin/homepage' },
   { label: 'Navegação', description: 'Menu e seções da Home', href: '/admin/navigation' },
+  { label: 'Coleções', description: 'Listas editoriais reutilizáveis', href: '/admin/collections' },
+  { label: 'Personalização', description: 'Aparência, catálogo, player e funcionalidades', href: '/admin/settings/appearance' },
   { label: 'Calendário', description: 'Release Schedule e exceções', href: '/admin/calendar' },
   { label: 'Sistema', description: 'Manutenção e disponibilidade', href: '/admin/system' },
   { label: 'Backups', description: 'Exportação e restauração', href: '/admin/backups' },
@@ -353,9 +349,7 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
   const { panelRef, titleId } = useDialogAccessibility(open, onClose);
   const results = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('pt-BR');
-    return normalized
-      ? commandItems.filter((item) => `${item.label} ${item.description}`.toLocaleLowerCase('pt-BR').includes(normalized))
-      : commandItems;
+    return normalized ? commandItems.filter((item) => `${item.label} ${item.description}`.toLocaleLowerCase('pt-BR').includes(normalized)) : commandItems;
   }, [query]);
 
   useEffect(() => {
@@ -414,24 +408,33 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
           />
           <kbd>Esc</kbd>
         </div>
-        <h2 id={titleId} className="sr-only">Navegação administrativa</h2>
+        <h2 id={titleId} className="sr-only">
+          Navegação administrativa
+        </h2>
         <div id="admin-command-results" className="admin-command-list" role="listbox" aria-label="Destinos administrativos">
-          {results.length ? results.map((item, index) => (
-            <button
-              type="button"
-              key={item.href}
-              id={`admin-command-option-${index}`}
-              role="option"
-              aria-selected={index === currentActiveIndex}
-              className={cn('admin-command-item', (index === currentActiveIndex || pathname === item.href) && 'is-current')}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => navigateTo(item)}
-            >
-              <Command size={17} aria-hidden="true" />
-              <span className="min-w-0 flex-1 text-left"><strong>{item.label}</strong><small>{item.description}</small></span>
-              <ChevronRight size={16} aria-hidden="true" />
-            </button>
-          )) : <p className="admin-command-empty">Nenhuma área encontrada.</p>}
+          {results.length ? (
+            results.map((item, index) => (
+              <button
+                type="button"
+                key={item.href}
+                id={`admin-command-option-${index}`}
+                role="option"
+                aria-selected={index === currentActiveIndex}
+                className={cn('admin-command-item', (index === currentActiveIndex || pathname === item.href) && 'is-current')}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => navigateTo(item)}
+              >
+                <Command size={17} aria-hidden="true" />
+                <span className="min-w-0 flex-1 text-left">
+                  <strong>{item.label}</strong>
+                  <small>{item.description}</small>
+                </span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            ))
+          ) : (
+            <p className="admin-command-empty">Nenhuma área encontrada.</p>
+          )}
         </div>
       </div>
     </div>

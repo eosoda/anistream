@@ -1,35 +1,33 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Film,
-  Search,
-  Sparkles,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Clapperboard,
-  SlidersHorizontal,
-} from 'lucide-react';
+import { Film, Search, Sparkles, Filter, ChevronLeft, ChevronRight, X, Clapperboard, SlidersHorizontal } from 'lucide-react';
 import { kenjitsuService } from '@/services/kenjitsu';
 import { AnimeCard } from '@/components/anime/AnimeCard';
 import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { usePublicExperience } from '@/components/experience/PublicExperienceProvider';
+import { applyCatalogPresentation } from '@/lib/public-experience/catalog';
 
 export default function FilmesPage() {
+  const { config } = usePublicExperience();
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<'all' | 'airing' | 'complete' | 'upcoming'>('all');
-  const [orderBy, setOrderBy] = useState<'score' | 'popularity' | 'title' | 'start_date'>('popularity');
+  const [orderBy, setOrderBy] = useState<'score' | 'popularity' | 'title' | 'start_date'>(() => (config.catalog.defaultSort === 'year' ? 'start_date' : config.catalog.defaultSort));
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [showFilters, setShowFilters] = useState(false);
-
-  const { data: moviesData, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['moviesList', searchQuery, page, statusFilter, orderBy, sortDir],
+  const {
+    data: moviesData,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ['moviesList', searchQuery, page, statusFilter, orderBy, sortDir, config.catalog.defaultPageSize],
     queryFn: () =>
-      kenjitsuService.searchAnime(searchQuery, page, 24, {
+      kenjitsuService.searchAnime(searchQuery, page, config.catalog.defaultPageSize, {
         type: 'movie',
         status: statusFilter,
         orderBy,
@@ -49,6 +47,7 @@ export default function FilmesPage() {
 
   const pagination = moviesData?.pagination;
   const totalPages = pagination?.last_visible_page || (pagination?.has_next_page ? page + 1 : page);
+  const visibleMovies = applyCatalogPresentation(moviesData?.data, config.catalog);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-8 space-y-8 animate-fade-in">
@@ -62,9 +61,7 @@ export default function FilmesPage() {
             <Clapperboard size={14} />
             Catálogo Cinematográfico
           </div>
-          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
-            Filmes de <span className="text-[#FF6B00]">Anime</span>
-          </h1>
+          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">{config.catalog.pageHeadings.movies}</h1>
           <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
             Explore longas-metragens, animações premiadas e filmes das suas franquias de anime favoritas.
           </p>
@@ -115,8 +112,11 @@ export default function FilmesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Status Filter */}
               <div className="space-y-1.5">
-                <label htmlFor="movie-status" className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status</label>
-                <select id="movie-status"
+                <label htmlFor="movie-status" className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Status
+                </label>
+                <select
+                  id="movie-status"
                   value={statusFilter}
                   onChange={(e) => {
                     setStatusFilter(e.target.value as any);
@@ -124,17 +124,28 @@ export default function FilmesPage() {
                   }}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-[#FF6B00]"
                 >
-                  <option value="all" className="bg-[#12131C]">Todos os Status</option>
-                  <option value="complete" className="bg-[#12131C]">Lançado / Concluído</option>
-                  <option value="airing" className="bg-[#12131C]">Em Exibição</option>
-                  <option value="upcoming" className="bg-[#12131C]">Anunciado / Em Breve</option>
+                  <option value="all" className="bg-[#12131C]">
+                    Todos os Status
+                  </option>
+                  <option value="complete" className="bg-[#12131C]">
+                    Lançado / Concluído
+                  </option>
+                  <option value="airing" className="bg-[#12131C]">
+                    Em Exibição
+                  </option>
+                  <option value="upcoming" className="bg-[#12131C]">
+                    Anunciado / Em Breve
+                  </option>
                 </select>
               </div>
 
               {/* Order By */}
               <div className="space-y-1.5">
-                <label htmlFor="movie-sort" className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ordenar Por</label>
-                <select id="movie-sort"
+                <label htmlFor="movie-sort" className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Ordenar Por
+                </label>
+                <select
+                  id="movie-sort"
                   value={orderBy}
                   onChange={(e) => {
                     setOrderBy(e.target.value as any);
@@ -142,17 +153,28 @@ export default function FilmesPage() {
                   }}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-[#FF6B00]"
                 >
-                  <option value="popularity" className="bg-[#12131C]">Mais Populares</option>
-                  <option value="score" className="bg-[#12131C]">Melhores Notas</option>
-                  <option value="title" className="bg-[#12131C]">Título</option>
-                  <option value="start_date" className="bg-[#12131C]">Data de Lançamento</option>
+                  <option value="popularity" className="bg-[#12131C]">
+                    Mais Populares
+                  </option>
+                  <option value="score" className="bg-[#12131C]">
+                    Melhores Notas
+                  </option>
+                  <option value="title" className="bg-[#12131C]">
+                    Título
+                  </option>
+                  <option value="start_date" className="bg-[#12131C]">
+                    Data de Lançamento
+                  </option>
                 </select>
               </div>
 
               {/* Direction */}
               <div className="space-y-1.5">
-                <label htmlFor="movie-order" className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ordem</label>
-                <select id="movie-order"
+                <label htmlFor="movie-order" className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Ordem
+                </label>
+                <select
+                  id="movie-order"
                   value={sortDir}
                   onChange={(e) => {
                     setSortDir(e.target.value as any);
@@ -160,8 +182,12 @@ export default function FilmesPage() {
                   }}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-[#FF6B00]"
                 >
-                  <option value="desc" className="bg-[#12131C]">Decrescente</option>
-                  <option value="asc" className="bg-[#12131C]">Crescente</option>
+                  <option value="desc" className="bg-[#12131C]">
+                    Decrescente
+                  </option>
+                  <option value="asc" className="bg-[#12131C]">
+                    Crescente
+                  </option>
                 </select>
               </div>
             </div>
@@ -199,24 +225,30 @@ export default function FilmesPage() {
 
       {/* Movies Grid */}
       {!isError && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4" aria-busy={isLoading || isFetching}>
+        <div
+          className="catalog-grid"
+          style={
+            {
+              '--catalog-columns-mobile': config.catalog.columns.mobile,
+              '--catalog-columns-tablet': config.catalog.columns.tablet,
+              '--catalog-columns-desktop': config.catalog.columns.desktop,
+            } as CSSProperties
+          }
+          aria-busy={isLoading || isFetching}
+        >
           {isLoading
             ? Array.from({ length: 18 }).map((_, i) => <AnimeCardSkeleton key={i} />)
-            : moviesData?.data?.map((anime, index) => (
-                <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
-              ))}
+            : visibleMovies.map((anime, index) => <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />)}
         </div>
       )}
 
       {/* Empty State when no results */}
-      {!isLoading && !isError && moviesData?.data?.length === 0 && (
+      {!isLoading && !isError && visibleMovies.length === 0 && (
         <EmptyState
           icon={<Film size={32} />}
           title="Nenhum filme encontrado"
           description={
-            searchQuery
-              ? `Não encontramos nenhum filme de anime correspondente a "${searchQuery}".`
-              : 'Nenhum filme disponível para os filtros selecionados.'
+            searchQuery ? `Não encontramos nenhum filme de anime correspondente a "${searchQuery}".` : 'Nenhum filme disponível para os filtros selecionados.'
           }
           onAction={searchQuery ? handleClearSearch : undefined}
           actionText={searchQuery ? 'Limpar Pesquisa' : undefined}
@@ -235,9 +267,7 @@ export default function FilmesPage() {
             Anterior
           </button>
 
-          <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-extrabold text-white">
-            Página {page}
-          </div>
+          <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-extrabold text-white">Página {page}</div>
 
           <button
             onClick={() => setPage((p) => p + 1)}

@@ -1,19 +1,8 @@
 import type { JikanAnime } from '@/types/anime';
 import { localSearchItemToAnime } from '@/types/local-search';
-import type {
-  HomepageBlock,
-  HomepageCatalogFilters,
-  HomepageContentSource,
-  HomepageLayoutDocument,
-  HomepageResolvedBlock,
-} from '@/types/homepage';
-import {
-  getAnimeCatalog,
-  getSeasonAnime,
-  getTopAnime,
-  searchAnimeCatalog,
-  type KenjitsuCatalogFilters,
-} from '@/lib/kenjitsu/catalog';
+import type { HomepageBlock, HomepageCatalogFilters, HomepageContentSource, HomepageLayoutDocument, HomepageResolvedBlock } from '@/types/homepage';
+import { getAnimeCatalog, getSeasonAnime, getTopAnime, searchAnimeCatalog, type KenjitsuCatalogFilters } from '@/lib/kenjitsu/catalog';
+import { getPublishedEditorialCollection } from '@/lib/editorial-collections/repository';
 
 const DEFAULT_LIMIT = 8;
 
@@ -45,7 +34,22 @@ async function resolveSource(source: HomepageContentSource, limit: number): Prom
     }
 
     const result = await searchAnimeCatalog(source.filters?.query || '', 1, limit, toKenjitsuFilters(source.filters));
-    return { items: result.data.slice(0, limit).map(localSearchItemToAnime), missing: 0 };
+    return {
+      items: result.data.slice(0, limit).map(localSearchItemToAnime),
+      missing: 0,
+    };
+  }
+
+  if (source.mode === 'collection') {
+    const collection = await getPublishedEditorialCollection(source.slug);
+    if (!collection) return { items: [], missing: 0 };
+    const ids = collection.items.slice(0, limit).map((item) => String(item.anilistId));
+    const settled = await Promise.allSettled(ids.map((id) => getAnimeCatalog(id)));
+    const items: JikanAnime[] = [];
+    settled.forEach((result) => {
+      if (result.status === 'fulfilled') items.push(result.value);
+    });
+    return { items, missing: settled.length - items.length };
   }
 
   const settled = await Promise.allSettled(source.anilistIds.slice(0, limit).map((id) => getAnimeCatalog(id)));
@@ -86,15 +90,15 @@ async function resolveContentBlock(block: Extract<HomepageBlock, { type: 'hero' 
 }
 
 export async function resolveHomepageDocument(document: HomepageLayoutDocument) {
-  const blocks = document.blocks
-    .filter((block) => block.enabled)
-    .sort((a, b) => a.order - b.order);
+  const blocks = document.blocks.filter((block) => block.enabled).sort((a, b) => a.order - b.order);
 
-  const resolved = await Promise.all(blocks.map(async (block) => {
-    if (block.type === 'hero' || block.type === 'catalog_carousel') return resolveContentBlock(block);
-    if (block.type === 'continue_watching') return resultFor(block, 'client');
-    return resultFor(block, 'ready');
-  }));
+  const resolved = await Promise.all(
+    blocks.map(async (block) => {
+      if (block.type === 'hero' || block.type === 'catalog_carousel') return resolveContentBlock(block);
+      if (block.type === 'continue_watching') return resultFor(block, 'client');
+      return resultFor(block, 'ready');
+    }),
+  );
 
   return {
     layout: document,

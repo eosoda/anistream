@@ -36,6 +36,7 @@ import { useToast } from '@/context/ToastContext';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ReportProblemModal } from '@/components/player/ReportProblemModal';
+import { usePublicExperience } from '@/components/experience/PublicExperienceProvider';
 
 export interface SubtitleTrack {
   src: string;
@@ -144,7 +145,11 @@ const AUDIO_LANGUAGES = [
 type AudioLanguageOption = (typeof AUDIO_LANGUAGES)[number];
 
 function normalizeAudioLanguageId(value?: string | null): AudioLanguageOption['id'] | null {
-  const normalized = value?.trim().toLocaleLowerCase('pt-BR').replace(/[_\s]+/g, '-') || '';
+  const normalized =
+    value
+      ?.trim()
+      .toLocaleLowerCase('pt-BR')
+      .replace(/[_\s]+/g, '-') || '';
 
   if (['pt', 'pt-br', 'ptbr', 'portuguese', 'portugues', 'português', 'brasil', 'dub'].includes(normalized)) return 'pt';
   if (['ja', 'jp', 'japanese', 'japones', 'japonês', 'original', 'sub'].includes(normalized)) return 'ja';
@@ -227,6 +232,7 @@ export function VideoPlayer({
 
   const { saveProgress } = useWatchProgress();
   const { showToast } = useToast();
+  const { config } = usePublicExperience();
   const prefetchedRef = useRef<boolean>(false);
   const resumeSnapshotRef = useRef(getSavedWatchProgress(animeId, episodeNum));
   const resumeHandledRef = useRef(false);
@@ -293,7 +299,7 @@ export function VideoPlayer({
 
       if (existing) {
         const qualityAlreadyAvailable = existing.variants.some(
-          (variant) => variant.quality.toLocaleLowerCase('pt-BR') === server.quality.toLocaleLowerCase('pt-BR')
+          (variant) => variant.quality.toLocaleLowerCase('pt-BR') === server.quality.toLocaleLowerCase('pt-BR'),
         );
         if (!qualityAlreadyAvailable) existing.variants.push(server);
       } else {
@@ -313,19 +319,14 @@ export function VideoPlayer({
   const activeServerIdValue = activeServer?.id ?? null;
   const activeServerSrc = activeServer?.src ?? null;
   const activeServerType = activeServer?.type ?? null;
-  const activeSourceKey = activeServerSrc
-    ? `${activeServerIdValue ?? 'source'}:${activeServerType ?? 'hls'}:${activeServerSrc}`
-    : null;
+  const activeSourceKey = activeServerSrc ? `${activeServerIdValue ?? 'source'}:${activeServerType ?? 'hls'}:${activeServerSrc}` : null;
   const activeSourceGroup = React.useMemo(
     () => sourceGroups.find((group) => group.variants.some((variant) => variant.id === activeServer?.id)) ?? sourceGroups[0],
-    [activeServer?.id, sourceGroups]
+    [activeServer?.id, sourceGroups],
   );
   const availableProviderNames = React.useMemo(
-    () =>
-      resolvedStream?.availableProviders?.length
-        ? resolvedStream.availableProviders
-        : sourceGroups.map((group) => group.name),
-    [resolvedStream, sourceGroups]
+    () => (resolvedStream?.availableProviders?.length ? resolvedStream.availableProviders : sourceGroups.map((group) => group.name)),
+    [resolvedStream, sourceGroups],
   );
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -336,7 +337,7 @@ export function VideoPlayer({
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(config.player.defaultSpeed);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [isLightDimmed, setIsLightDimmed] = useState(false);
@@ -352,7 +353,10 @@ export function VideoPlayer({
 
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     setPlaybackRequested(Boolean(playbackUrl));
@@ -365,6 +369,17 @@ export function VideoPlayer({
     setSettingsPopoverStyle(undefined);
     setServerPickerStyle(undefined);
   }, [animeId, episodeNum, playbackUrl]);
+
+  useEffect(() => {
+    setPlaybackRate(config.player.defaultSpeed);
+    if (videoRef.current) videoRef.current.playbackRate = config.player.defaultSpeed;
+  }, [config.player.defaultSpeed]);
+
+  useEffect(() => {
+    if (!serverList.length || config.player.defaultQuality === 'auto') return;
+    const matching = serverList.find((server) => server.quality.toLocaleLowerCase('pt-BR') === config.player.defaultQuality.toLocaleLowerCase('pt-BR'));
+    if (matching) setActiveServerId(matching.id);
+  }, [config.player.defaultQuality, serverList]);
 
   // A fonte ativa determina os idiomas e as legendas disponíveis. Isso evita
   // exibir opções de outra fonte ou marcar várias legendas quando uma resposta
@@ -390,13 +405,20 @@ export function VideoPlayer({
 
   const [selectedSubTrackId, setSelectedSubTrackId] = useState<string | null | undefined>(undefined);
   const selectedSubTrack =
-    selectedSubTrackId === null
-      ? null
-      : availableSubtitles.find((subtitle) => subtitle.id === selectedSubTrackId) ?? availableSubtitles[0] ?? null;
+    selectedSubTrackId === null ? null : (availableSubtitles.find((subtitle) => subtitle.id === selectedSubTrackId) ?? availableSubtitles[0] ?? null);
 
   useEffect(() => {
+    if (config.player.defaultSubtitle === 'off') {
+      setSelectedSubTrackId(null);
+      return;
+    }
+    if (config.player.defaultSubtitle !== 'auto') {
+      const matching = availableSubtitles.find((subtitle) => subtitle.language.toLocaleLowerCase().startsWith(config.player.defaultSubtitle));
+      setSelectedSubTrackId(matching?.id);
+      return;
+    }
     setSelectedSubTrackId(undefined);
-  }, [activeSourceKey]);
+  }, [activeSourceKey, availableSubtitles, config.player.defaultSubtitle]);
 
   const failedServerIdsRef = useRef<Set<string>>(new Set());
 
@@ -440,7 +462,7 @@ export function VideoPlayer({
         });
       }
     },
-    [activeServer, serverList, showToast]
+    [activeServer, serverList, showToast],
   );
 
   useEffect(() => {
@@ -591,7 +613,13 @@ export function VideoPlayer({
 
   const opening = React.useMemo(() => {
     const interval = resolvedStream?.opening;
-    if (!interval || !Number.isFinite(interval.startSeconds) || !Number.isFinite(interval.endSeconds) || interval.startSeconds < 0 || interval.endSeconds <= interval.startSeconds) {
+    if (
+      !interval ||
+      !Number.isFinite(interval.startSeconds) ||
+      !Number.isFinite(interval.endSeconds) ||
+      interval.startSeconds < 0 ||
+      interval.endSeconds <= interval.startSeconds
+    ) {
       return null;
     }
     return interval;
@@ -634,6 +662,7 @@ export function VideoPlayer({
   }, [autoplayCountdown, onNextEpisode]);
 
   const handleEpisodeCompletion = () => {
+    if (!config.player.markCompleted) return;
     if (videoRef.current) {
       videoRef.current.pause();
       setIsPlaying(false);
@@ -665,7 +694,9 @@ export function VideoPlayer({
     }
   };
 
-  const [audioLang, setAudioLang] = useState<AudioLanguageOption>(AUDIO_LANGUAGES[0]);
+  const [audioLang, setAudioLang] = useState<AudioLanguageOption>(
+    () => AUDIO_LANGUAGES.find((language) => language.id === config.player.defaultAudio) || AUDIO_LANGUAGES[0],
+  );
   const [langToast, setLangToast] = useState<string | null>(null);
   const langToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -701,8 +732,9 @@ export function VideoPlayer({
       return;
     }
 
-    setAudioLang((current) => (availableAudioLanguages.some((language) => language.id === current.id) ? current : availableAudioLanguages[0]));
-  }, [activeServer?.audioLanguage, availableAudioLanguages, resolvedStream?.audioLanguage]);
+    const preferred = config.player.defaultAudio !== 'auto' ? availableAudioLanguages.find((language) => language.id === config.player.defaultAudio) : null;
+    setAudioLang((current) => preferred || (availableAudioLanguages.some((language) => language.id === current.id) ? current : availableAudioLanguages[0]));
+  }, [activeServer?.audioLanguage, availableAudioLanguages, config.player.defaultAudio, resolvedStream?.audioLanguage]);
 
   const handleAudioChange = (lang: AudioLanguageOption) => {
     const matchingServer = serverList.find((server) => normalizeAudioLanguageId(server.audioLanguage) === lang.id);
@@ -817,9 +849,7 @@ export function VideoPlayer({
     const saveCurrentPosition = () => {
       const video = videoRef.current;
       const snapshot =
-        video && video.duration > 0 && video.currentTime > 0
-          ? { currentTime: video.currentTime, duration: video.duration }
-          : latestPlaybackRef.current;
+        video && video.duration > 0 && video.currentTime > 0 ? { currentTime: video.currentTime, duration: video.duration } : latestPlaybackRef.current;
       if (!snapshot.duration || snapshot.duration <= 0 || snapshot.currentTime <= 0) return;
       saveProgress({
         animeId,
@@ -848,6 +878,12 @@ export function VideoPlayer({
     setPlaybackRequested(true);
     onRequestPlayback?.();
   }, [isResolving, onRequestPlayback, serverList.length]);
+
+  useEffect(() => {
+    if (!config.player.autoplay || playbackRequested || isResolving || serverList.length > 0) return;
+    setPlaybackRequested(true);
+    onRequestPlayback?.();
+  }, [config.player.autoplay, isResolving, onRequestPlayback, playbackRequested, serverList.length]);
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
@@ -926,7 +962,7 @@ export function VideoPlayer({
       videoRef.current.currentTime = newTime;
       setCurrentTime(newTime);
     },
-    [duration]
+    [duration],
   );
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -990,7 +1026,7 @@ export function VideoPlayer({
       event.preventDefault();
       openContextMenu(event.clientX, event.clientY);
     },
-    [openContextMenu]
+    [openContextMenu],
   );
 
   const runContextAction = (action: () => void | Promise<void>) => {
@@ -1058,9 +1094,10 @@ export function VideoPlayer({
     const left = Math.min(Math.max(margin, anchorRect.right - popoverRect.width), maxLeft);
     const hasRoomAbove = anchorRect.top - gap - popoverRect.height >= margin;
     const hasMoreRoomAbove = anchorRect.top > window.innerHeight - anchorRect.bottom;
-    const top = hasRoomAbove || hasMoreRoomAbove
-      ? Math.max(margin, anchorRect.top - gap - popoverRect.height)
-      : Math.max(margin, Math.min(anchorRect.bottom + gap, Math.max(margin, window.innerHeight - popoverRect.height - margin)));
+    const top =
+      hasRoomAbove || hasMoreRoomAbove
+        ? Math.max(margin, anchorRect.top - gap - popoverRect.height)
+        : Math.max(margin, Math.min(anchorRect.bottom + gap, Math.max(margin, window.innerHeight - popoverRect.height - margin)));
 
     setSettingsPopoverStyle({
       position: 'fixed',
@@ -1154,6 +1191,7 @@ export function VideoPlayer({
   };
 
   useEffect(() => {
+    if (!config.features.advancedPlayer || !config.player.keyboardShortcuts) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
@@ -1231,7 +1269,25 @@ export function VideoPlayer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [contextMenu, isTheaterMode, isLightDimmed, showSettingsMenu, showServerPicker, showShortcutsModal, volume, isPlaying, duration, togglePlay, toggleFullscreen, toggleMute, skipTime, skipIntro, isInOpening]);
+  }, [
+    config.features.advancedPlayer,
+    config.player.keyboardShortcuts,
+    contextMenu,
+    isTheaterMode,
+    isLightDimmed,
+    showSettingsMenu,
+    showServerPicker,
+    showShortcutsModal,
+    volume,
+    isPlaying,
+    duration,
+    togglePlay,
+    toggleFullscreen,
+    toggleMute,
+    skipTime,
+    skipIntro,
+    isInOpening,
+  ]);
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -1250,7 +1306,7 @@ export function VideoPlayer({
             </div>
           </div>
 
-          {availableProviderNames.length > 0 && (
+          {config.features.advancedPlayer && config.player.showSourcePicker && availableProviderNames.length > 0 && (
             <button
               type="button"
               aria-expanded={showServerPicker}
@@ -1284,9 +1340,7 @@ export function VideoPlayer({
             </div>
             <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
               {availableProviderNames.map((providerName) => {
-                const source = sourceGroups.find(
-                  (group) => group.name.toLocaleLowerCase('pt-BR') === providerName.toLocaleLowerCase('pt-BR')
-                );
+                const source = sourceGroups.find((group) => group.name.toLocaleLowerCase('pt-BR') === providerName.toLocaleLowerCase('pt-BR'));
                 const isActive = activeSourceGroup?.name.toLocaleLowerCase('pt-BR') === providerName.toLocaleLowerCase('pt-BR');
                 return (
                   <button
@@ -1308,9 +1362,7 @@ export function VideoPlayer({
                   >
                     <span className="truncate">{providerName}</span>
                     <span className="flex shrink-0 items-center gap-2 text-[10px] font-medium opacity-75">
-                      {source
-                        ? `${source.variants.length} ${source.variants.length === 1 ? 'qualidade' : 'qualidades'}`
-                        : 'Carregar'}
+                      {source ? `${source.variants.length} ${source.variants.length === 1 ? 'qualidade' : 'qualidades'}` : 'Carregar'}
                       {isActive && <CheckCircle2 size={15} />}
                     </span>
                   </button>
@@ -1351,7 +1403,9 @@ export function VideoPlayer({
           onTouchStart={handleMouseMove}
           onMouseLeave={() => isPlaying && setShowControls(false)}
           className={`relative aspect-video w-full overflow-hidden rounded-[16px] border bg-black shadow-[0_24px_70px_rgba(0,0,0,0.45)] transition-all duration-300 ${
-            isTheaterMode ? 'fixed inset-x-1 top-1/2 z-50 mx-auto max-w-7xl -translate-y-1/2 border-[#FF6B00]/60 shadow-[0_28px_100px_rgba(0,0,0,0.8)] sm:inset-x-6' : 'border-white/10'
+            isTheaterMode
+              ? 'fixed inset-x-1 top-1/2 z-50 mx-auto max-w-7xl -translate-y-1/2 border-[#FF6B00]/60 shadow-[0_28px_100px_rgba(0,0,0,0.8)] sm:inset-x-6'
+              : 'border-white/10'
           }`}
         >
           {contextMenu && activeServer?.type !== 'embed' && (
@@ -1369,9 +1423,7 @@ export function VideoPlayer({
                     {formatTime(currentTime)} / {formatTime(duration)}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-md bg-[#FF6B00]/15 px-2 py-1 text-[10px] font-bold text-[#FF8A3D]">
-                  {activeServer?.quality || 'Auto'}
-                </span>
+                <span className="shrink-0 rounded-md bg-[#FF6B00]/15 px-2 py-1 text-[10px] font-bold text-[#FF8A3D]">{activeServer?.quality || 'Auto'}</span>
               </div>
 
               <button
@@ -1451,32 +1503,36 @@ export function VideoPlayer({
               <div className="my-1 h-px bg-white/10" />
 
               <div className="grid grid-cols-2 gap-1">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() =>
-                    runContextAction(() => {
-                      setShowShortcutsModal(true);
-                    })
-                  }
-                  className="flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
-                >
-                  <Keyboard size={14} />
-                  <span>Atalhos</span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() =>
-                    runContextAction(() => {
-                      setIsReportModalOpen(true);
-                    })
-                  }
-                  className="flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                >
-                  <Flag size={14} />
-                  <span>Reportar</span>
-                </button>
+                {config.features.advancedPlayer && config.player.keyboardShortcuts && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() =>
+                      runContextAction(() => {
+                        setShowShortcutsModal(true);
+                      })
+                    }
+                    className="flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+                  >
+                    <Keyboard size={14} />
+                    <span>Atalhos</span>
+                  </button>
+                )}
+                {config.features.reports && config.player.showReport && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() =>
+                      runContextAction(() => {
+                        setIsReportModalOpen(true);
+                      })
+                    }
+                    className="flex min-h-9 items-center gap-2 rounded-[9px] px-2.5 text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                  >
+                    <Flag size={14} />
+                    <span>Reportar</span>
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1498,33 +1554,49 @@ export function VideoPlayer({
 
           {/* Elemento de Vídeo ou iFrame Embed ou Mensagem de Indisponibilidade */}
           {serverList.length === 0 ? (
-            <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-[#09090D] p-6 text-center" aria-busy={isResolving}>
-              {animeImage && (
-                <SafeImage
-                  src={animeImage}
-                  animeId={animeId}
-                  alt=""
-                  fill
-                  priority
-                  className="pointer-events-none object-cover opacity-35"
-                />
-              )}
+            <div
+              className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-[#09090D] p-6 text-center"
+              aria-busy={isResolving}
+            >
+              {animeImage && <SafeImage src={animeImage} animeId={animeId} alt="" fill priority className="pointer-events-none object-cover opacity-35" />}
               <div className="absolute inset-0 bg-gradient-to-t from-[#09090D] via-[#09090D]/70 to-[#09090D]/45" />
               <div className="relative z-10 flex flex-col items-center gap-3">
                 {isResolving ? (
-                  <button type="button" disabled aria-label="Preparando reprodução" className="flex size-16 items-center justify-center rounded-full bg-[#FF6B00] text-white shadow-[0_12px_35px_rgba(255,107,0,0.35)]">
+                  <button
+                    type="button"
+                    disabled
+                    aria-label="Preparando reprodução"
+                    className="flex size-16 items-center justify-center rounded-full bg-[#FF6B00] text-white shadow-[0_12px_35px_rgba(255,107,0,0.35)]"
+                  >
                     <Loader2 size={28} className="animate-spin" />
                   </button>
                 ) : streamStatusMessage ? (
                   <>
-                    <div className="flex size-12 items-center justify-center rounded-[12px] bg-amber-500/10 text-amber-400"><AlertTriangle size={30} /></div>
+                    <div className="flex size-12 items-center justify-center rounded-[12px] bg-amber-500/10 text-amber-400">
+                      <AlertTriangle size={30} />
+                    </div>
                     <h4 className="text-base font-bold text-white">Não foi possível iniciar este episódio</h4>
                     <p className="max-w-md text-xs text-gray-300">{humanizeResolutionError(streamStatusMessage)}</p>
-                    {onRetryResolve && <button type="button" onClick={onRetryResolve} className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-3)]">Tentar novamente</button>}
+                    {onRetryResolve && (
+                      <button
+                        type="button"
+                        onClick={onRetryResolve}
+                        className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-3)]"
+                      >
+                        Tentar novamente
+                      </button>
+                    )}
                   </>
                 ) : (
-                  <button type="button" onClick={requestPlayback} aria-label="Reproduzir episódio" className="group flex flex-col items-center gap-3 rounded-2xl p-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]">
-                    <span className="flex size-16 items-center justify-center rounded-full bg-[#FF6B00] shadow-[0_12px_35px_rgba(255,107,0,0.35)] transition-transform group-hover:scale-105 sm:size-20"><Play size={32} className="ml-1 fill-current" /></span>
+                  <button
+                    type="button"
+                    onClick={requestPlayback}
+                    aria-label="Reproduzir episódio"
+                    className="group flex flex-col items-center gap-3 rounded-2xl p-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+                  >
+                    <span className="flex size-16 items-center justify-center rounded-full bg-[#FF6B00] shadow-[0_12px_35px_rgba(255,107,0,0.35)] transition-transform group-hover:scale-105 sm:size-20">
+                      <Play size={32} className="ml-1 fill-current" />
+                    </span>
                     <span className="text-xs font-bold text-white/90">Reproduzir episódio</span>
                   </button>
                 )}
@@ -1610,7 +1682,9 @@ export function VideoPlayer({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black text-[#FF6B00] uppercase tracking-wider">Próximo Episódio</span>
-                    <span className="w-6 h-6 rounded-full bg-[#FF6B00] text-white flex items-center justify-center font-black text-xs animate-pulse shadow-md">{autoplayCountdown}s</span>
+                    <span className="w-6 h-6 rounded-full bg-[#FF6B00] text-white flex items-center justify-center font-black text-xs animate-pulse shadow-md">
+                      {autoplayCountdown}s
+                    </span>
                   </div>
                   <h4 className="text-xs font-black text-white truncate mt-0.5">Episódio {nextEpNum}</h4>
                   <p className="text-[10px] text-gray-400 font-medium truncate mt-0.5">{animeTitle}</p>
@@ -1618,7 +1692,10 @@ export function VideoPlayer({
               </div>
 
               <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden my-2.5">
-                <div className="h-full bg-[#FF6B00] transition-all duration-1000 ease-linear shadow-sm" style={{ width: `${(autoplayCountdown / 5) * 100}%` }} />
+                <div
+                  className="h-full bg-[#FF6B00] transition-all duration-1000 ease-linear shadow-sm"
+                  style={{ width: `${(autoplayCountdown / 5) * 100}%` }}
+                />
               </div>
 
               <div className="flex items-center gap-2">
@@ -1657,7 +1734,10 @@ export function VideoPlayer({
                     </div>
                   </div>
 
-                  <button onClick={() => setShowShortcutsModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                  <button
+                    onClick={() => setShowShortcutsModal(false)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                  >
                     <X size={18} />
                   </button>
                 </div>
@@ -2008,59 +2088,70 @@ export function VideoPlayer({
                                 {isLightDimmed ? <Sun size={15} className="text-[#FF6B00]" /> : <Moon size={15} className="text-[#FF6B00]" />}
                                 <span>Apagar Luzes</span>
                               </div>
-                              <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${isLightDimmed ? 'bg-[#FF6B00] text-white' : 'bg-white/10 text-gray-400'}`}>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${isLightDimmed ? 'bg-[#FF6B00] text-white' : 'bg-white/10 text-gray-400'}`}
+                              >
                                 {isLightDimmed ? 'ON' : 'OFF'}
                               </span>
                             </button>
 
                             {/* Marcar Concluído */}
-                            <button
-                              onClick={handleEpisodeCompletion}
-                              className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-emerald-500/20 text-emerald-400 font-bold transition-all text-left"
-                            >
-                              <div className="flex items-center gap-2">
-                                <CheckCircle2 size={15} />
-                                <span>Marcar Concluído</span>
-                              </div>
-                            </button>
+                            {config.player.markCompleted && (
+                              <button
+                                onClick={handleEpisodeCompletion}
+                                className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-emerald-500/20 text-emerald-400 font-bold transition-all text-left"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle2 size={15} />
+                                  <span>Marcar Concluído</span>
+                                </div>
+                              </button>
+                            )}
 
                             <div className="border-t border-white/10 my-1" />
 
                             {/* Atalhos de Teclado */}
-                            <button
-                              onClick={() => {
-                                setShowShortcutsModal(true);
-                                setShowSettingsMenu(false);
-                              }}
-                              className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/10 text-gray-300 font-bold transition-all text-left"
-                            >
-                              <div className="flex items-center gap-2">
-                                <Keyboard size={15} className="text-gray-400" />
-                                <span>Atalhos do Teclado</span>
-                              </div>
-                              <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-gray-400">?</kbd>
-                            </button>
+                            {config.features.advancedPlayer && config.player.keyboardShortcuts && (
+                              <button
+                                onClick={() => {
+                                  setShowShortcutsModal(true);
+                                  setShowSettingsMenu(false);
+                                }}
+                                className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/10 text-gray-300 font-bold transition-all text-left"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Keyboard size={15} className="text-gray-400" />
+                                  <span>Atalhos do Teclado</span>
+                                </div>
+                                <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-gray-400">?</kbd>
+                              </button>
+                            )}
 
                             {/* Reportar Problema */}
-                            <button
-                              onClick={() => {
-                                setIsReportModalOpen(true);
-                                setShowSettingsMenu(false);
-                              }}
-                              className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-amber-500/20 text-amber-400 font-bold transition-all text-left"
-                            >
-                              <div className="flex items-center gap-2">
-                                <AlertTriangle size={15} />
-                                <span>Reportar Problema</span>
-                              </div>
-                            </button>
+                            {config.features.reports && config.player.showReport && (
+                              <button
+                                onClick={() => {
+                                  setIsReportModalOpen(true);
+                                  setShowSettingsMenu(false);
+                                }}
+                                className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-amber-500/20 text-amber-400 font-bold transition-all text-left"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <AlertTriangle size={15} />
+                                  <span>Reportar Problema</span>
+                                </div>
+                              </button>
+                            )}
                           </div>
                         )}
 
                         {/* Nível 2: Submenu Áudio & Legendas */}
                         {settingsTab === 'audio-sub' && (
                           <div className="space-y-2.5 text-xs">
-                            <button onClick={() => setSettingsTab('main')} className="flex items-center gap-1 text-[#FF6B00] font-bold pb-1 border-b border-white/10 w-full text-left">
+                            <button
+                              onClick={() => setSettingsTab('main')}
+                              className="flex items-center gap-1 text-[#FF6B00] font-bold pb-1 border-b border-white/10 w-full text-left"
+                            >
                               <ChevronLeft size={16} />
                               <span>Voltar às Configurações</span>
                             </button>
@@ -2143,7 +2234,10 @@ export function VideoPlayer({
                         {/* Nível 2: Qualidades do provedor atual */}
                         {settingsTab === 'quality' && (
                           <div className="space-y-2 text-xs">
-                            <button onClick={() => setSettingsTab('main')} className="flex items-center gap-1 text-[#FF6B00] font-bold pb-1 border-b border-white/10 w-full text-left">
+                            <button
+                              onClick={() => setSettingsTab('main')}
+                              className="flex items-center gap-1 text-[#FF6B00] font-bold pb-1 border-b border-white/10 w-full text-left"
+                            >
                               <ChevronLeft size={16} />
                               <span>Voltar às Configurações</span>
                             </button>
@@ -2181,7 +2275,10 @@ export function VideoPlayer({
                         {/* Nível 3: Submenu Velocidade */}
                         {settingsTab === 'speed' && (
                           <div className="space-y-2 text-xs">
-                            <button onClick={() => setSettingsTab('main')} className="flex items-center gap-1 text-[#FF6B00] font-bold pb-1 border-b border-white/10 w-full text-left">
+                            <button
+                              onClick={() => setSettingsTab('main')}
+                              className="flex items-center gap-1 text-[#FF6B00] font-bold pb-1 border-b border-white/10 w-full text-left"
+                            >
                               <ChevronLeft size={16} />
                               <span>Voltar às Configurações</span>
                             </button>
@@ -2227,7 +2324,9 @@ export function VideoPlayer({
       </div>
 
       {/* Modal de Report de Erros */}
-      <ReportProblemModal episodeId={String(animeId)} isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
+      {config.features.reports && config.player.showReport && (
+        <ReportProblemModal episodeId={String(animeId)} isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
+      )}
     </div>
   );
 }

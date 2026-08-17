@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 import { AlertTriangle, Minus } from 'lucide-react';
 import { AnimeCarousel } from '@/components/anime/AnimeCarousel';
 import { BannerHero } from '@/components/home/BannerHero';
@@ -38,10 +39,15 @@ function HomeBlockState({ result }: { result?: HomepageResolvedBlock }) {
     );
   }
   return (
-    <div className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-[var(--radius-panel)] border border-amber-400/25 bg-amber-400/[0.06] px-4 text-center text-xs text-amber-100" role="status">
+    <div
+      className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-[var(--radius-panel)] border border-amber-400/25 bg-amber-400/[0.06] px-4 text-center text-xs text-amber-100"
+      role="status"
+    >
       <AlertTriangle size={18} aria-hidden="true" />
       <p>Esta seção está temporariamente indisponível.</p>
-      <Link href="/" className="font-bold underline underline-offset-4">Tentar novamente</Link>
+      <Link href="/" className="font-bold underline underline-offset-4">
+        Tentar novamente
+      </Link>
     </div>
   );
 }
@@ -49,14 +55,7 @@ function HomeBlockState({ result }: { result?: HomepageResolvedBlock }) {
 function renderBlock(block: HomepageBlock, result: HomepageResolvedBlock | undefined, preview: boolean) {
   if (block.type === 'hero') {
     if (result?.status !== 'ready' || !result.data?.length) return <HomeBlockState result={result} />;
-    return (
-      <BannerHero
-        animes={result.data}
-        autoplay={block.autoplay}
-        titleOverride={block.titleOverride}
-        subtitleOverride={block.subtitleOverride}
-      />
-    );
+    return <BannerHero animes={result.data} autoplay={block.autoplay} titleOverride={block.titleOverride} subtitleOverride={block.subtitleOverride} />;
   }
 
   if (block.type === 'catalog_carousel') {
@@ -69,8 +68,12 @@ function renderBlock(block: HomepageBlock, result: HomepageResolvedBlock | undef
           animes={result?.data || []}
           viewAllHref={block.ctaHref}
           viewAllLabel={block.ctaLabel}
+          layout={block.layout}
+          emptyState={block.emptyState}
         />
-        {result?.error && result.status === 'ready' && <p className="mt-2 text-center text-[11px] text-gray-500">Alguns títulos desta seção não estão disponíveis no Kenjitsu.</p>}
+        {result?.error && result.status === 'ready' && (
+          <p className="mt-2 text-center text-[11px] text-gray-500">Alguns títulos desta seção não estão disponíveis no Kenjitsu.</p>
+        )}
       </>
     );
   }
@@ -97,7 +100,8 @@ export function HomepageRenderer({ document, blocks, preview = false }: Homepage
           key={block.id}
           data-homepage-block={block.type}
           data-homepage-block-id={block.id}
-          className={`${frameClasses[block.frame.width]} ${spacingClasses[block.frame.spacing]}`}
+          className={`${frameClasses[block.frame.width]} ${spacingClasses[block.frame.spacing]} ${block.visibility.mobile ? '' : 'max-[639px]:hidden'} ${block.visibility.desktop ? '' : 'min-[640px]:hidden'}`}
+          style={block.background ? ({ backgroundColor: block.background } as CSSProperties) : undefined}
         >
           {renderBlock(block, results.get(block.id), preview)}
         </section>

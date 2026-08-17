@@ -12,6 +12,7 @@ import { SafeImage } from '@/components/ui/SafeImage';
 import { checkPtBrAvailability } from '@/utils/audioFilter';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { toPlainText } from '@/utils/formatters';
+import { usePublicExperience } from '@/components/experience/PublicExperienceProvider';
 
 interface AnimeCardProps {
   anime: JikanAnime;
@@ -24,26 +25,25 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
   const router = useRouter();
   const { isFavorite, toggleFavoriteWithConfirm, newEpisodesMap, markAsSeen } = useFavorites();
   const { getAnimeOverallProgress } = useWatchProgress();
+  const { config } = usePublicExperience();
 
   const favorited = isFavorite(anime.mal_id);
-  const overallProgress = getAnimeOverallProgress(anime.mal_id, anime.episodes);
+  const overallProgress = config.features.watchHistory ? getAnimeOverallProgress(anime.mal_id, anime.episodes) : null;
 
-  const epInfo = favorited ? newEpisodesMap[anime.mal_id] : undefined;
+  const epInfo = config.features.favorites && favorited ? newEpisodesMap[anime.mal_id] : undefined;
   const hasNewEpisode = epInfo?.hasNewEpisode;
 
   const { hasDub } = checkPtBrAvailability(anime);
 
-  const imageUrl =
-    anime.images?.jpg?.image_url ||
-    anime.images?.webp?.image_url ||
-    anime.images?.jpg?.large_image_url ||
-    anime.images?.webp?.large_image_url;
+  const imageUrl = anime.images?.jpg?.image_url || anime.images?.webp?.image_url || anime.images?.jpg?.large_image_url || anime.images?.webp?.large_image_url;
 
   const title = toPlainText(anime.title) || toPlainText(anime.title_english) || toPlainText(anime.title_japanese) || 'Sem título';
   const typeStr = toPlainText(anime.type) || 'TV';
   const isMovie = typeStr.toLowerCase() === 'movie';
   const episodesCount = anime.episodes ? `${anime.episodes} eps` : 'Em lançamento';
   const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null);
+  const statusStr = toPlainText(anime.status);
+  const genreNames = anime.genres?.map((genre) => toPlainText(genre.name)).filter(Boolean).slice(0, 2).join(' · ');
 
   return (
     <div
@@ -58,6 +58,7 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
       <Link href={`/anime/${anime.mal_id}`} className="block relative overflow-hidden aspect-[2/3] w-full bg-neutral-900">
         <SafeImage
           src={imageUrl}
+          fallbackSrc={config.catalog.placeholderImage}
           animeId={anime.mal_id}
           alt={title}
           fill
@@ -77,10 +78,10 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
               <span>{epInfo?.latestEpisodeNum ? `EP. ${epInfo.latestEpisodeNum} NOVO` : 'NOVO EP'}</span>
             </span>
           ) : (
-            <RatingBadge score={anime.score} />
+            config.catalog.showScore && <RatingBadge score={anime.score} />
           )}
 
-          {favorited && (
+          {config.features.favorites && favorited && (
             <span className="p-1.5 rounded-full bg-[#FF6B00] text-white shadow-md">
               <Heart size={12} className="fill-current" />
             </span>
@@ -101,15 +102,13 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
           }`}
         >
           <div className="flex items-center gap-1">
-            <span className="px-1.5 py-0.5 rounded bg-black/60 border border-white/10 flex items-center gap-1">
-              <Tv size={10} className="text-[#FF6B00]" />
-              {typeStr}
-            </span>
-            {yearStr && (
-              <span className="px-1.5 py-0.5 rounded bg-black/60 border border-white/10">
-                {yearStr}
+            {config.catalog.showType && (
+              <span className="px-1.5 py-0.5 rounded bg-black/60 border border-white/10 flex items-center gap-1">
+                <Tv size={10} className="text-[#FF6B00]" />
+                {typeStr}
               </span>
             )}
+            {config.catalog.showYear && yearStr && <span className="px-1.5 py-0.5 rounded bg-black/60 border border-white/10">{yearStr}</span>}
           </div>
 
           {hasDub ? (
@@ -137,13 +136,11 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
                   {isMovie && overallProgress.percentage !== null
                     ? `${overallProgress.percentage}% assistido`
                     : overallProgress.totalEpisodes
-                    ? `${overallProgress.watchedEpCount}/${overallProgress.totalEpisodes} eps`
-                    : `${overallProgress.watchedEpCount} ep${overallProgress.watchedEpCount > 1 ? 's' : ''}`}
+                      ? `${overallProgress.watchedEpCount}/${overallProgress.totalEpisodes} eps`
+                      : `${overallProgress.watchedEpCount} ep${overallProgress.watchedEpCount > 1 ? 's' : ''}`}
                 </span>
               </span>
-              <span className="text-emerald-400 font-black">
-                {overallProgress.percentage !== null ? `${overallProgress.percentage}%` : 'Assistindo'}
-              </span>
+              <span className="text-emerald-400 font-black">{overallProgress.percentage !== null ? `${overallProgress.percentage}%` : 'Assistindo'}</span>
             </div>
 
             {/* Glowing horizontal progress bar */}
@@ -171,7 +168,7 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
               {title}
             </h3>
           </Link>
-          {!isMovie && (
+          {!isMovie && config.catalog.showEpisodes && (
             <p className="min-h-8 break-words text-xs leading-4 text-gray-400">
               {overallProgress ? (
                 <span className="text-emerald-400 font-bold">
@@ -182,6 +179,16 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
               ) : (
                 episodesCount
               )}
+            </p>
+          )}
+          {config.catalog.showStatus && statusStr && (
+            <p className="truncate text-[11px] leading-4 text-gray-500" title={statusStr}>
+              {statusStr}
+            </p>
+          )}
+          {config.catalog.showGenres && genreNames && (
+            <p className="truncate text-[11px] leading-4 text-gray-500" title={genreNames}>
+              {genreNames}
             </p>
           )}
         </div>
@@ -208,27 +215,26 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
         )}
 
         {/* Favorite Action Button */}
-        <div className="flex items-center justify-end pt-1 border-t border-white/5">
-          <Tooltip content={favorited ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'} position="left">
-            <button
-              aria-label={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleFavoriteWithConfirm(anime);
-              }}
-              className={`p-1.5 rounded-full transition-colors ${
-                favorited
-                  ? 'text-[#FF6B00] bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20'
-                  : 'text-gray-400 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              <Heart size={14} className={favorited ? 'fill-current' : ''} />
-            </button>
-          </Tooltip>
-        </div>
+        {config.features.favorites && (
+          <div className="flex items-center justify-end pt-1 border-t border-white/5">
+            <Tooltip content={favorited ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'} position="left">
+              <button
+                aria-label={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleFavoriteWithConfirm(anime);
+                }}
+                className={`p-1.5 rounded-full transition-colors ${
+                  favorited ? 'text-[#FF6B00] bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20' : 'text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Heart size={14} className={favorited ? 'fill-current' : ''} />
+              </button>
+            </Tooltip>
+          </div>
+        )}
       </div>
-
     </div>
   );
 }

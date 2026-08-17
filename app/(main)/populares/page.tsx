@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Flame, ChevronLeft, ChevronRight } from 'lucide-react';
 import { kenjitsuService } from '@/services/kenjitsu';
@@ -9,9 +9,12 @@ import { CompactAnimeCard } from '@/components/anime/CompactAnimeCard';
 import { ViewToggle, ViewMode } from '@/components/catalog/ViewToggle';
 import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { usePublicExperience } from '@/components/experience/PublicExperienceProvider';
+import { applyCatalogPresentation } from '@/lib/public-experience/catalog';
 
 export default function PopularPage() {
   const [page, setPage] = useState(1);
+  const { config } = usePublicExperience();
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === 'undefined') return 'grid';
     const stored = localStorage.getItem('anistream_view_mode') as ViewMode;
@@ -25,10 +28,17 @@ export default function PopularPage() {
     }
   };
 
-  const { data: topData, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['topAnimeList', page],
-    queryFn: () => kenjitsuService.getTopAnime('all', undefined, page, 24),
+  const {
+    data: topData,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ['topAnimeList', page, config.catalog.defaultPageSize],
+    queryFn: () => kenjitsuService.getTopAnime('all', undefined, page, config.catalog.defaultPageSize),
   });
+  const visibleAnime = applyCatalogPresentation(topData?.data, config.catalog);
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
@@ -37,13 +47,9 @@ export default function PopularPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[#FF6B00]">
             <Flame size={24} />
-            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">
-              Animes mais Populares
-            </h1>
+            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">{config.catalog.pageHeadings.popular}</h1>
           </div>
-          <p className="text-sm text-gray-400">
-            Ranking dos animes mais aclamados, assistidos e favoritados no mundo.
-          </p>
+          <p className="text-sm text-gray-400">Ranking dos animes mais aclamados, assistidos e favoritados no mundo.</p>
         </div>
 
         <ViewToggle mode={viewMode} onChange={handleViewModeChange} />
@@ -60,33 +66,33 @@ export default function PopularPage() {
       )}
 
       {/* Anime Grid vs Compact List */}
-      {!isError && (
-        viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4" aria-busy={isLoading || isFetching}>
+      {!isError &&
+        (viewMode === 'grid' ? (
+          <div
+            className="catalog-grid"
+            style={
+              {
+                '--catalog-columns-mobile': config.catalog.columns.mobile,
+                '--catalog-columns-tablet': config.catalog.columns.tablet,
+                '--catalog-columns-desktop': config.catalog.columns.desktop,
+              } as CSSProperties
+            }
+            aria-busy={isLoading || isFetching}
+          >
             {isLoading
               ? Array.from({ length: 24 }).map((_, i) => <AnimeCardSkeleton key={i} />)
-              : topData?.data?.map((anime, index) => (
-                  <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
-                ))}
+              : visibleAnime.map((anime, index) => <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />)}
           </div>
         ) : (
           <div className="space-y-2" aria-busy={isLoading || isFetching}>
             {isLoading
-              ? Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="h-20 bg-white/5 rounded-2xl animate-pulse" />
-                ))
-              : topData?.data?.map((anime, index) => (
-                  <CompactAnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />
-                ))}
+              ? Array.from({ length: 12 }).map((_, i) => <div key={i} className="h-20 bg-white/5 rounded-2xl animate-pulse" />)
+              : visibleAnime.map((anime, index) => <CompactAnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />)}
           </div>
-        )
-      )}
+        ))}
 
-      {!isLoading && !isError && topData?.data?.length === 0 && (
-        <EmptyState
-          title="Nenhum anime encontrado"
-          description="O ranking não possui resultados disponíveis nesta página."
-        />
+      {!isLoading && !isError && visibleAnime.length === 0 && (
+        <EmptyState title="Nenhum anime encontrado" description="O ranking não possui resultados disponíveis nesta página." />
       )}
 
       {/* Pagination */}
@@ -96,25 +102,19 @@ export default function PopularPage() {
             onClick={() => setPage((p) => Math.max(p - 1, 1))}
             disabled={page === 1}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs transition-all ${
-              page > 1
-                ? 'bg-white/10 hover:bg-[#FF6B00] text-white'
-                : 'bg-white/5 text-gray-600 cursor-not-allowed'
+              page > 1 ? 'bg-white/10 hover:bg-[#FF6B00] text-white' : 'bg-white/5 text-gray-600 cursor-not-allowed'
             }`}
           >
             <ChevronLeft size={16} /> Anterior
           </button>
 
-          <span className="text-xs font-bold text-gray-300 px-3 py-1.5 rounded-lg bg-white/5">
-            Página {page}
-          </span>
+          <span className="text-xs font-bold text-gray-300 px-3 py-1.5 rounded-lg bg-white/5">Página {page}</span>
 
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={!topData.pagination.has_next_page}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs transition-all ${
-              topData.pagination.has_next_page
-                ? 'bg-white/10 hover:bg-[#FF6B00] text-white'
-                : 'bg-white/5 text-gray-600 cursor-not-allowed'
+              topData.pagination.has_next_page ? 'bg-white/10 hover:bg-[#FF6B00] text-white' : 'bg-white/5 text-gray-600 cursor-not-allowed'
             }`}
           >
             Próxima <ChevronRight size={16} />

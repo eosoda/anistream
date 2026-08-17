@@ -1,5 +1,10 @@
 import type {NextConfig} from 'next';
 
+const configuredAssetHosts = (process.env.NEXT_PUBLIC_ASSET_HOSTS || '')
+  .split(',')
+  .map((host) => host.trim().toLowerCase())
+  .filter((host) => /^[a-z0-9.-]+$/.test(host));
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   typescript: {
@@ -12,7 +17,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cdn.myanimelist.net https://images.myanimelist.net https://s4.anilist.co https://media.kitsu.io https://img1.ak.crunchyroll.com; media-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' https:; worker-src 'self' blob:;",
+            value: `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cdn.myanimelist.net https://images.myanimelist.net https://s4.anilist.co https://media.kitsu.io https://img1.ak.crunchyroll.com ${configuredAssetHosts.map((host) => `https://${host}`).join(' ')}; media-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' https:; worker-src 'self' blob:;`,
           },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
@@ -55,6 +60,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      ...configuredAssetHosts.map((hostname) => ({
+        protocol: 'https' as const,
+        hostname,
+        port: '',
+        pathname: '/**',
+      })),
     ],
   },
   output: 'standalone',

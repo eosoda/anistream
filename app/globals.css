@@ -45,7 +45,7 @@
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    font-family: var(--font-geist), system-ui, sans-serif;
+    font-family: var(--public-font-family, var(--font-geist), system-ui, sans-serif);
     min-width: 0;
   }
 
@@ -66,6 +66,9 @@
 .surface-panel { background: var(--surface-1); border: 1px solid var(--border-subtle); }
 .admin-field { width: 100%; min-height: 44px; border: 1px solid var(--border-strong); border-radius: var(--radius-field); background: var(--surface-2); padding: .65rem .75rem; color: var(--text-primary); font-size: .875rem; }
 .operation-card { display: grid; gap: 1rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-media); background: var(--surface-1); padding: clamp(1rem, 3vw, 1.5rem); }
+.catalog-grid { display: grid; grid-template-columns: repeat(var(--catalog-columns-mobile, 2), minmax(0, 1fr)); gap: 1rem; }
+@media (min-width: 640px) { .catalog-grid { grid-template-columns: repeat(var(--catalog-columns-tablet, 4), minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .catalog-grid { grid-template-columns: repeat(var(--catalog-columns-desktop, 6), minmax(0, 1fr)); } }
 
 /* Admin Operate surface */
 .admin-shell { min-width: 0; overflow-x: clip; background: var(--admin-page); color: var(--admin-text); }

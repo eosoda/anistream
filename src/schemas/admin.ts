@@ -1,11 +1,39 @@
 import { z } from 'zod';
 
-export const CreateAnnouncementSchema = z.object({
-  title: z.string().min(2, 'O título deve ter pelo menos 2 caracteres').max(100, 'Título muito longo'),
-  content: z.string().min(5, 'O conteúdo deve ter pelo menos 5 caracteres').max(500, 'Conteúdo muito longo'),
-  type: z.enum(['INFO', 'WARNING', 'SUCCESS']).default('INFO'),
-  targetGroup: z.string().optional().default('all'),
-});
+export const CreateAnnouncementSchema = z
+  .object({
+    title: z.string().min(2, 'O título deve ter pelo menos 2 caracteres').max(100, 'Título muito longo'),
+    content: z.string().min(5, 'O conteúdo deve ter pelo menos 5 caracteres').max(500, 'Conteúdo muito longo'),
+    type: z.enum(['INFO', 'WARNING', 'SUCCESS']).default('INFO'),
+    targetGroup: z.string().optional().default('all'),
+    startsAt: z.string().datetime({ local: true }).optional().nullable(),
+    endsAt: z.string().datetime({ local: true }).optional().nullable(),
+    priority: z.number().int().min(0).max(100).default(0),
+    placement: z.enum(['banner', 'home', 'player']).default('banner'),
+    ctaLabel: z.string().trim().max(60).optional().nullable(),
+    ctaHref: z
+      .string()
+      .trim()
+      .regex(/^\/(?!\/)[^\s<>]*$/, 'Use uma rota interna.')
+      .max(180)
+      .optional()
+      .nullable(),
+  })
+  .superRefine((value, context) => {
+    if (value.startsAt && value.endsAt && new Date(value.endsAt) < new Date(value.startsAt)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['endsAt'],
+        message: 'O término precisa ser posterior ao início.',
+      });
+    }
+    if (value.ctaLabel && !value.ctaHref)
+      context.addIssue({
+        code: 'custom',
+        path: ['ctaHref'],
+        message: 'Informe a rota do CTA.',
+      });
+  });
 
 export const CreateWebhookSchema = z.object({
   name: z.string().min(2, 'O nome da integração deve ter pelo menos 2 caracteres').max(60),

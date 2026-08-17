@@ -30,8 +30,11 @@ export async function POST(req: NextRequest) {
 
     if (!parseResult.success) {
       return NextResponse.json(
-        { error: 'Dados inválidos para o anúncio.', details: parseResult.error.flatten() },
-        { status: 400 }
+        {
+          error: 'Dados inválidos para o anúncio.',
+          details: parseResult.error.flatten(),
+        },
+        { status: 400 },
       );
     }
 
@@ -44,10 +47,26 @@ export async function POST(req: NextRequest) {
         type: input.type,
         targetGroup: input.targetGroup,
         active: true,
+        startsAt: input.startsAt ? new Date(input.startsAt) : null,
+        endsAt: input.endsAt ? new Date(input.endsAt) : null,
+        priority: input.priority,
+        placement: input.placement,
+        ctaLabel: input.ctaLabel || null,
+        ctaHref: input.ctaHref || null,
       },
     });
 
-    void recordAdminAudit({ actorId: auth.userId, action: 'broadcast.created', resourceType: 'broadcast', resourceId: announcement.id, summary: `Comunicado “${announcement.title}” publicado.`, metadata: { type: announcement.type, targetGroup: announcement.targetGroup } });
+    void recordAdminAudit({
+      actorId: auth.userId,
+      action: 'broadcast.created',
+      resourceType: 'broadcast',
+      resourceId: announcement.id,
+      summary: `Comunicado “${announcement.title}” publicado.`,
+      metadata: {
+        type: announcement.type,
+        targetGroup: announcement.targetGroup,
+      },
+    });
 
     return NextResponse.json({ success: true, announcement });
   } catch (error) {
@@ -68,8 +87,16 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'ID do anúncio é obrigatório' }, { status: 400 });
     }
 
-    const announcement = await prisma.systemAnnouncement.delete({ where: { id } });
-    void recordAdminAudit({ actorId: auth.userId, action: 'broadcast.deleted', resourceType: 'broadcast', resourceId: id, summary: `Comunicado “${announcement.title}” excluído.` });
+    const announcement = await prisma.systemAnnouncement.delete({
+      where: { id },
+    });
+    void recordAdminAudit({
+      actorId: auth.userId,
+      action: 'broadcast.deleted',
+      resourceType: 'broadcast',
+      resourceId: id,
+      summary: `Comunicado “${announcement.title}” excluído.`,
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[Admin Broadcast Delete Error]', error);

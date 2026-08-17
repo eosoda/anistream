@@ -233,8 +233,16 @@ model SystemAnnouncement {
   type        String   @default("INFO") // INFO, WARNING, SUCCESS
   active      Boolean  @default(true)
   targetGroup String?  @default("all")
+  startsAt    DateTime?
+  endsAt      DateTime?
+  priority    Int      @default(0)
+  placement   String   @default("banner") // banner, home, player
+  ctaLabel    String?
+  ctaHref     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([active, startsAt, endsAt, priority])
 }
 
 model EpisodeReport {
@@ -345,6 +353,66 @@ model HomepageSnapshot {
 
   @@unique([layoutKey, version, kind])
   @@index([layoutKey, createdAt])
+}
+
+model PublicExperienceConfig {
+  id               String                    @id @default(cuid())
+  key              String                    @unique
+  draftJson        Json
+  publishedJson    Json
+  draftVersion     Int                       @default(1)
+  publishedVersion Int                       @default(1)
+  draftUpdatedAt   DateTime                  @updatedAt
+  publishedAt      DateTime                  @default(now())
+  draftUpdatedBy   String?
+  publishedBy      String?
+  createdAt        DateTime                  @default(now())
+  snapshots        PublicExperienceSnapshot[]
+
+  @@index([publishedAt])
+}
+
+model PublicExperienceSnapshot {
+  id          String                @id @default(cuid())
+  configKey   String
+  version     Int
+  kind        String                @default("PUBLISHED") // PUBLISHED ou DRAFT
+  label       String
+  documentJson Json
+  createdAt   DateTime              @default(now())
+  createdBy   String?
+
+  config PublicExperienceConfig @relation(fields: [configKey], references: [key], onDelete: Cascade)
+
+  @@unique([configKey, version, kind])
+  @@index([configKey, createdAt])
+}
+
+model EditorialCollection {
+  id            String                    @id @default(cuid())
+  slug          String                    @unique
+  title         String
+  description   String?
+  coverUrl      String?
+  active        Boolean                   @default(true)
+  publishedFrom DateTime?
+  publishedUntil DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  items         EditorialCollectionItem[]
+}
+
+model EditorialCollectionItem {
+  id           String             @id @default(cuid())
+  collectionId String
+  anilistId    Int
+  order        Int                @default(1)
+  createdAt    DateTime           @default(now())
+
+  collection EditorialCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, anilistId])
+  @@index([collectionId, order])
 }
 
 model MediaProvider {

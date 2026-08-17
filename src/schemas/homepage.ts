@@ -6,10 +6,7 @@ export const InternalHomepageRouteSchema = z
   .trim()
   .min(1, 'A rota é obrigatória.')
   .max(180, 'A rota é muito longa.')
-  .refine(
-    (value) => value.startsWith('/') && !value.startsWith('//') && !/[\s<>]/.test(value),
-    'Use somente uma rota interna do AniStream.'
-  );
+  .refine((value) => value.startsWith('/') && !value.startsWith('//') && !/[\s<>]/.test(value), 'Use somente uma rota interna do AniStream.');
 
 const HomepageFrameSchema = z.object({
   width: z.enum(['content', 'wide', 'full']).default('content'),
@@ -22,6 +19,16 @@ const HomepageBaseBlockSchema = z.object({
   enabled: z.boolean().default(true),
   order: z.number().int().min(1).max(100),
   frame: HomepageFrameSchema,
+  visibility: z
+    .object({
+      desktop: z.boolean().default(true),
+      mobile: z.boolean().default(true),
+    })
+    .default({ desktop: true, mobile: true }),
+  background: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Use uma cor hexadecimal segura.')
+    .optional(),
 });
 
 const HomepageCatalogFiltersSchema = z.object({
@@ -31,8 +38,15 @@ const HomepageCatalogFiltersSchema = z.object({
   type: z.enum(['tv', 'movie', 'ova', 'special', 'ona', 'all']).optional(),
   orderBy: z.enum(['score', 'popularity', 'title', 'start_date']).optional(),
   sort: z.enum(['asc', 'desc']).optional(),
-  letter: z.string().regex(/^(?:all|#|[a-z])$/i).optional(),
-  genres: z.string().regex(/^[0-9,\s]*$/).max(100).optional(),
+  letter: z
+    .string()
+    .regex(/^(?:all|#|[a-z])$/i)
+    .optional(),
+  genres: z
+    .string()
+    .regex(/^[0-9,\s]*$/)
+    .max(100)
+    .optional(),
 });
 
 const HomepageQuerySourceSchema = z
@@ -46,10 +60,18 @@ const HomepageQuerySourceSchema = z
   })
   .superRefine((source, context) => {
     if (source.source === 'top' && !source.category) {
-      context.addIssue({ code: 'custom', path: ['category'], message: 'Escolha uma categoria Kenjitsu.' });
+      context.addIssue({
+        code: 'custom',
+        path: ['category'],
+        message: 'Escolha uma categoria Kenjitsu.',
+      });
     }
     if (source.source === 'season' && (!source.year || !source.season)) {
-      context.addIssue({ code: 'custom', path: ['season'], message: 'Temporada exige ano e estação.' });
+      context.addIssue({
+        code: 'custom',
+        path: ['season'],
+        message: 'Temporada exige ano e estação.',
+      });
     }
   });
 
@@ -61,9 +83,18 @@ const HomepageManualSourceSchema = z.object({
     .max(12, 'Uma coleção pode ter no máximo 12 títulos.'),
 });
 
+const HomepageCollectionSourceSchema = z.object({
+  mode: z.literal('collection'),
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use o slug seguro da coleção.'),
+});
+
 export const HomepageContentSourceSchema = z.discriminatedUnion('mode', [
   HomepageQuerySourceSchema,
   HomepageManualSourceSchema,
+  HomepageCollectionSourceSchema,
 ]);
 
 const HomepageHeroBlockSchema = HomepageBaseBlockSchema.extend({
@@ -75,7 +106,11 @@ const HomepageHeroBlockSchema = HomepageBaseBlockSchema.extend({
   subtitleOverride: z.string().trim().max(240).optional(),
 }).superRefine((block, context) => {
   if (block.source.mode === 'manual' && block.source.anilistIds.length > block.slideLimit) {
-    context.addIssue({ code: 'custom', path: ['source', 'anilistIds'], message: 'A curadoria manual excede o limite de slides.' });
+    context.addIssue({
+      code: 'custom',
+      path: ['source', 'anilistIds'],
+      message: 'A curadoria manual excede o limite de slides.',
+    });
   }
 });
 
@@ -85,6 +120,9 @@ const HomepageCatalogCarouselBlockSchema = HomepageBaseBlockSchema.extend({
   title: z.string().trim().min(1).max(100),
   subtitle: z.string().trim().max(240).optional(),
   limit: z.number().int().min(6).max(12),
+  layout: z.enum(['carousel', 'grid', 'horizontal']).default('carousel'),
+  preCache: z.boolean().default(false),
+  emptyState: z.string().trim().max(180).optional(),
   ctaHref: InternalHomepageRouteSchema.optional(),
   ctaLabel: z.string().trim().max(60).optional(),
 });
@@ -105,10 +143,12 @@ const HomepageEditorialNoticeBlockSchema = HomepageBaseBlockSchema.extend({
   body: z.string().trim().min(1).max(500),
   variant: z.enum(['info', 'warning', 'success']),
   active: z.boolean(),
-  cta: z.object({
-    label: z.string().trim().min(1).max(60),
-    href: InternalHomepageRouteSchema,
-  }).optional(),
+  cta: z
+    .object({
+      label: z.string().trim().min(1).max(60),
+      href: InternalHomepageRouteSchema,
+    })
+    .optional(),
 });
 
 const HomepageDividerBlockSchema = HomepageBaseBlockSchema.extend({
@@ -125,22 +165,32 @@ export const HomepageBlockSchema = z.discriminatedUnion('type', [
   HomepageDividerBlockSchema,
 ]);
 
-export const HomepageLayoutDocumentSchema = z.object({
-  schemaVersion: z.literal(1),
-  blocks: z.array(HomepageBlockSchema).min(1).max(12),
-}).superRefine((document, context) => {
-  const ids = new Set<string>();
-  document.blocks.forEach((block, index) => {
-    if (ids.has(block.id)) {
-      context.addIssue({ code: 'custom', path: ['blocks', index, 'id'], message: 'Cada bloco precisa ter um ID único.' });
-    }
-    ids.add(block.id);
-  });
+export const HomepageLayoutDocumentSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    blocks: z.array(HomepageBlockSchema).min(1).max(12),
+  })
+  .superRefine((document, context) => {
+    const ids = new Set<string>();
+    document.blocks.forEach((block, index) => {
+      if (ids.has(block.id)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['blocks', index, 'id'],
+          message: 'Cada bloco precisa ter um ID único.',
+        });
+      }
+      ids.add(block.id);
+    });
 
-  if (!document.blocks.some((block) => block.enabled)) {
-    context.addIssue({ code: 'custom', path: ['blocks'], message: 'A publicação precisa ter pelo menos um bloco visível.' });
-  }
-});
+    if (!document.blocks.some((block) => block.enabled)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['blocks'],
+        message: 'A publicação precisa ter pelo menos um bloco visível.',
+      });
+    }
+  });
 
 export type ValidatedHomepageDocument = z.infer<typeof HomepageLayoutDocumentSchema>;
 

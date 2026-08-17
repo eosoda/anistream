@@ -1,9 +1,5 @@
 import type { HomeSectionConfig } from '@/types/navigation';
-import type {
-  HomepageBlock,
-  HomepageCatalogCarouselBlock,
-  HomepageLayoutDocument,
-} from '@/types/homepage';
+import type { HomepageBlock, HomepageCatalogCarouselBlock, HomepageLayoutDocument } from '@/types/homepage';
 import { parseHomepageDocument } from '@/schemas/homepage';
 
 const frame = (variant: HomepageBlock['frame']['variant'] = 'default'): HomepageBlock['frame'] => ({
@@ -11,6 +7,8 @@ const frame = (variant: HomepageBlock['frame']['variant'] = 'default'): Homepage
   variant,
   spacing: variant === 'compact' ? 'compact' : 'normal',
 });
+
+const visibility = { desktop: true, mobile: true } as const;
 
 const catalogBlock = (
   id: string,
@@ -24,10 +22,13 @@ const catalogBlock = (
   enabled: true,
   order,
   frame: frame(),
+  visibility,
   source: { mode: 'query', source: 'top', category },
   title,
   subtitle,
   limit: 8,
+  layout: 'carousel',
+  preCache: false,
   ctaHref: category === 'airing' ? '/temporadas' : '/populares',
   ctaLabel: 'Ver todos',
 });
@@ -95,9 +96,7 @@ export function migrateLegacyHomeSections(sections: unknown): HomepageLayoutDocu
 
   if (!migratedBlocks.length) return DEFAULT_HOMEPAGE_DOCUMENT;
 
-  const normalized = migratedBlocks
-    .sort((a, b) => a.order - b.order)
-    .map((block, index) => ({ ...block, order: index + 1 }));
+  const normalized = migratedBlocks.sort((a, b) => a.order - b.order).map((block, index) => ({ ...block, order: index + 1 }));
 
   return parseHomepageDocument({ schemaVersion: 1, blocks: normalized });
 }
@@ -118,17 +117,18 @@ export function homepageSectionSummary(document: HomepageLayoutDocument): HomeSe
     .sort((a, b) => a.order - b.order)
     .map((block, index) => ({
       id: block.id,
-      name: block.type === 'catalog_carousel'
-        ? block.title
-        : block.type === 'hero'
-          ? 'Banner Hero (Destaques)'
-          : block.type === 'continue_watching'
-            ? block.title || 'Continuar Assistindo'
-            : block.type === 'quick_filters'
-              ? block.title || 'Filtros Rápidos'
-              : block.type === 'editorial_notice'
-                ? block.title
-                : block.label || 'Separador',
+      name:
+        block.type === 'catalog_carousel'
+          ? block.title
+          : block.type === 'hero'
+            ? 'Banner Hero (Destaques)'
+            : block.type === 'continue_watching'
+              ? block.title || 'Continuar Assistindo'
+              : block.type === 'quick_filters'
+                ? block.title || 'Filtros Rápidos'
+                : block.type === 'editorial_notice'
+                  ? block.title
+                  : block.label || 'Separador',
       enabled: block.enabled,
       order: index + 1,
     }));

@@ -1,12 +1,6 @@
 import type { JikanAnime } from './anime';
 
-export type HomepageBlockType =
-  | 'hero'
-  | 'catalog_carousel'
-  | 'continue_watching'
-  | 'quick_filters'
-  | 'editorial_notice'
-  | 'divider';
+export type HomepageBlockType = 'hero' | 'catalog_carousel' | 'continue_watching' | 'quick_filters' | 'editorial_notice' | 'divider';
 
 export type HomepageFrameWidth = 'content' | 'wide' | 'full';
 export type HomepageFrameVariant = 'default' | 'featured' | 'muted' | 'compact';
@@ -23,6 +17,11 @@ export interface HomepageBaseBlock {
   enabled: boolean;
   order: number;
   frame: HomepageFrame;
+  visibility: {
+    desktop: boolean;
+    mobile: boolean;
+  };
+  background?: string;
 }
 
 export type HomepageTopCategory = 'airing' | 'trending' | 'upcoming' | 'popular' | 'rating';
@@ -57,7 +56,12 @@ export interface HomepageManualSource {
   anilistIds: string[];
 }
 
-export type HomepageContentSource = HomepageQuerySource | HomepageManualSource;
+export interface HomepageCollectionSource {
+  mode: 'collection';
+  slug: string;
+}
+
+export type HomepageContentSource = HomepageQuerySource | HomepageManualSource | HomepageCollectionSource;
 
 export interface HomepageHeroBlock extends HomepageBaseBlock {
   type: 'hero';
@@ -74,6 +78,9 @@ export interface HomepageCatalogCarouselBlock extends HomepageBaseBlock {
   title: string;
   subtitle?: string;
   limit: number;
+  layout: 'carousel' | 'grid' | 'horizontal';
+  preCache: boolean;
+  emptyState?: string;
   ctaHref?: string;
   ctaLabel?: string;
 }
@@ -175,4 +182,3 @@ export interface HomepageResolvedPayload {
   generatedAt: string;
   source: 'published' | 'draft' | 'emergency';
 }
-

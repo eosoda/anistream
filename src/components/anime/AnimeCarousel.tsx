@@ -9,6 +9,8 @@ import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
+import { usePublicExperience } from '@/components/experience/PublicExperienceProvider';
+import { applyCatalogPresentation } from '@/lib/public-experience/catalog';
 
 interface AnimeCarouselProps {
   title: string;
@@ -18,6 +20,8 @@ interface AnimeCarouselProps {
   viewAllHref?: string;
   viewAllLabel?: string;
   subtitle?: string;
+  layout?: 'carousel' | 'grid' | 'horizontal';
+  emptyState?: string;
 }
 
 export function AnimeCarousel({
@@ -28,18 +32,18 @@ export function AnimeCarousel({
   viewAllHref,
   viewAllLabel = 'Ver todos →',
   subtitle,
+  layout = 'carousel',
+  emptyState = 'Nenhum anime disponível nesta categoria no momento.',
 }: AnimeCarouselProps) {
   const { isFavorite, toggleFavoriteWithConfirm } = useFavorites();
   const { getAnimeOverallProgress } = useWatchProgress();
-  const {
-    ref: scrollContainerRef,
-    elementRef: scrollContainerElementRef,
-    isDragging,
-  } = useDraggableScroll<HTMLDivElement>();
+  const { config } = usePublicExperience();
+  const { ref: scrollContainerRef, elementRef: scrollContainerElementRef, isDragging } = useDraggableScroll<HTMLDivElement>();
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
-  const visibleAnimes = isExpanded ? animes : animes.slice(0, 4);
+  const curatedAnimes = applyCatalogPresentation(animes, config.catalog);
+  const visibleAnimes = layout === 'grid' ? curatedAnimes : isExpanded ? curatedAnimes : curatedAnimes.slice(0, 4);
 
   useEffect(() => {
     let frameId = 0;
@@ -70,13 +74,18 @@ export function AnimeCarousel({
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerElementRef.current) return;
-    if (direction === 'right' && !isExpanded && animes.length > visibleAnimes.length) {
+    if (direction === 'right' && !isExpanded && curatedAnimes.length > visibleAnimes.length) {
       setIsExpanded(true);
-      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-        const container = scrollContainerElementRef.current;
-        if (!container) return;
-        container.scrollBy({ left: container.clientWidth * 0.75, behavior: 'smooth' });
-      }));
+      window.requestAnimationFrame(() =>
+        window.requestAnimationFrame(() => {
+          const container = scrollContainerElementRef.current;
+          if (!container) return;
+          container.scrollBy({
+            left: container.clientWidth * 0.75,
+            behavior: 'smooth',
+          });
+        }),
+      );
       return;
     }
     const { clientWidth } = scrollContainerElementRef.current;
@@ -93,11 +102,7 @@ export function AnimeCarousel({
       <div className="flex items-end justify-between mb-4">
         <div>
           <div className="flex items-center gap-2">
-            {icon ? (
-              <span className="text-[#FF6B00]">{icon}</span>
-            ) : (
-              <Sparkles className="text-[#FF6B00]" size={20} />
-            )}
+            {icon ? <span className="text-[#FF6B00]">{icon}</span> : <Sparkles className="text-[#FF6B00]" size={20} />}
             <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">{title}</h2>
           </div>
           {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
@@ -105,11 +110,7 @@ export function AnimeCarousel({
 
         <div className="flex items-center gap-2">
           {viewAllHref && (
-            <Link
-              href={viewAllHref}
-              prefetch={false}
-              className="text-xs font-semibold text-[#FF6B00] hover:text-[#FF8533] hover:underline mr-2"
-            >
+            <Link href={viewAllHref} prefetch={false} className="text-xs font-semibold text-[#FF6B00] hover:text-[#FF8533] hover:underline mr-2">
               {viewAllLabel}
             </Link>
           )}
@@ -120,9 +121,7 @@ export function AnimeCarousel({
             disabled={!canScrollLeft}
             aria-label="Anterior"
             className={`p-2 rounded-full border border-white/10 transition-all ${
-              canScrollLeft
-                ? 'bg-white/10 hover:bg-[#FF6B00] text-white hover:border-[#FF6B00]'
-                : 'bg-white/5 text-gray-600 border-white/5 cursor-not-allowed'
+              canScrollLeft ? 'bg-white/10 hover:bg-[#FF6B00] text-white hover:border-[#FF6B00]' : 'bg-white/5 text-gray-600 border-white/5 cursor-not-allowed'
             }`}
           >
             <ChevronLeft size={18} />
@@ -132,9 +131,7 @@ export function AnimeCarousel({
             disabled={!canScrollRight}
             aria-label="Próximo"
             className={`p-2 rounded-full border border-white/10 transition-all ${
-              canScrollRight
-                ? 'bg-white/10 hover:bg-[#FF6B00] text-white hover:border-[#FF6B00]'
-                : 'bg-white/5 text-gray-600 border-white/5 cursor-not-allowed'
+              canScrollRight ? 'bg-white/10 hover:bg-[#FF6B00] text-white hover:border-[#FF6B00]' : 'bg-white/5 text-gray-600 border-white/5 cursor-not-allowed'
             }`}
           >
             <ChevronRight size={18} />
@@ -146,17 +143,15 @@ export function AnimeCarousel({
       <div
         ref={scrollContainerRef}
         onPointerDown={() => setIsExpanded(true)}
-        className={`flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar touch-pan-y py-2 px-1 cursor-grab active:cursor-grabbing select-none overscroll-x-contain ${
-          isDragging ? 'scroll-auto snap-none' : 'scroll-smooth snap-x snap-mandatory'
+        className={`${layout === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 overflow-visible' : 'flex gap-3 sm:gap-4 overflow-x-auto'} no-scrollbar touch-pan-y py-2 px-1 ${layout === 'grid' ? '' : 'cursor-grab active:cursor-grabbing select-none overscroll-x-contain'} ${
+          layout === 'grid' ? '' : isDragging ? 'scroll-auto snap-none' : 'scroll-smooth snap-x snap-mandatory'
         }`}
       >
-        {!isLoading && (!animes || animes.length === 0) ? (
-          <div className="w-full py-8 text-center glass-panel rounded-2xl border border-white/5 text-gray-400 text-xs font-semibold">
-            Nenhum anime disponível nesta categoria no momento.
-          </div>
+        {!isLoading && curatedAnimes.length === 0 ? (
+          <div className="w-full py-8 text-center glass-panel rounded-2xl border border-white/5 text-gray-400 text-xs font-semibold">{emptyState}</div>
         ) : isLoading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-[145px] min-[560px]:w-[170px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start">
+            <div key={i} className={layout === 'grid' ? 'min-w-0' : 'w-[145px] min-[560px]:w-[170px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start'}>
               <AnimeCardSkeleton />
             </div>
           ))
@@ -164,7 +159,7 @@ export function AnimeCarousel({
           visibleAnimes.map((anime) => (
             <div
               key={anime.mal_id}
-              className="w-[145px] min-[560px]:w-[170px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start"
+              className={layout === 'grid' ? 'min-w-0' : 'w-[145px] min-[560px]:w-[170px] sm:w-[185px] md:w-[205px] flex-shrink-0 snap-start'}
             >
               <CarouselAnimeCard
                 anime={anime}

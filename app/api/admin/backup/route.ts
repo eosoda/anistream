@@ -5,19 +5,21 @@ import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { recordAdminAudit } from '@/lib/admin/audit';
 import { readJsonBodyLimited, InvalidJsonBodyError, RequestBodyTooLargeError } from '@/lib/security/body-limit';
 import { toPlainText } from '@/utils/formatters';
+import { PublicExperienceConfigSchema } from '@/schemas/public-experience';
+import { EditorialCollectionCreateSchema } from '@/schemas/editorial-collection';
 
 type JsonRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): JsonRecord {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
 function stringValue(record: JsonRecord, key: string, fallback = ''): string {
-  return typeof record[key] === 'string' ? record[key] as string : fallback;
+  return typeof record[key] === 'string' ? (record[key] as string) : fallback;
 }
 
 function optionalString(record: JsonRecord, key: string): string | null {
-  return typeof record[key] === 'string' ? record[key] as string : null;
+  return typeof record[key] === 'string' ? (record[key] as string) : null;
 }
 
 function optionalPlainText(record: JsonRecord, key: string): string | null {
@@ -25,15 +27,15 @@ function optionalPlainText(record: JsonRecord, key: string): string | null {
 }
 
 function numberValue(record: JsonRecord, key: string, fallback = 0): number {
-  return typeof record[key] === 'number' && Number.isFinite(record[key]) ? record[key] as number : fallback;
+  return typeof record[key] === 'number' && Number.isFinite(record[key]) ? (record[key] as number) : fallback;
 }
 
 function optionalNumber(record: JsonRecord, key: string): number | null {
-  return typeof record[key] === 'number' && Number.isFinite(record[key]) ? record[key] as number : null;
+  return typeof record[key] === 'number' && Number.isFinite(record[key]) ? (record[key] as number) : null;
 }
 
 function booleanValue(record: JsonRecord, key: string, fallback: boolean): boolean {
-  return typeof record[key] === 'boolean' ? record[key] as boolean : fallback;
+  return typeof record[key] === 'boolean' ? (record[key] as boolean) : fallback;
 }
 
 function optionalDate(record: JsonRecord, key: string): Date | null {
@@ -57,7 +59,7 @@ function jsonValue(value: unknown): Prisma.InputJsonValue {
 }
 
 function arrayValue(record: JsonRecord, key: string): unknown[] {
-  return Array.isArray(record[key]) ? record[key] as unknown[] : [];
+  return Array.isArray(record[key]) ? (record[key] as unknown[]) : [];
 }
 
 function isSensitiveSettingKey(key: string): boolean {
@@ -72,10 +74,12 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
   const homepage = asRecord(data.homepage);
   const homepageLayouts = arrayValue(homepage, 'layouts').slice(0, 100).map(asRecord);
   const homepageSnapshots = arrayValue(homepage, 'snapshots').slice(0, 500).map(asRecord);
+  const experience = asRecord(data.experience);
+  const experienceConfigs = arrayValue(experience, 'configs').slice(0, 10).map(asRecord);
+  const experienceSnapshots = arrayValue(experience, 'snapshots').slice(0, 500).map(asRecord);
+  const collections = arrayValue(data, 'collections').slice(0, 500).map(asRecord);
   const providerData = asRecord(data.providers);
-  const mediaProviders = (Array.isArray(data.providers) ? data.providers : arrayValue(providerData, 'mediaProviders'))
-    .slice(0, 1000)
-    .map(asRecord);
+  const mediaProviders = (Array.isArray(data.providers) ? data.providers : arrayValue(providerData, 'mediaProviders')).slice(0, 1000).map(asRecord);
   const queues = arrayValue(data, 'autoIndexerQueue').slice(0, 5000).map(asRecord);
 
   let importedAnimes = 0;
@@ -208,7 +212,9 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
         const season = Math.max(1, Math.trunc(numberValue(episodeData, 'season', 1)));
         const number = numberValue(episodeData, 'number', 1);
         const episode = await tx.episode.upsert({
-          where: { animeId_season_number: { animeId: anime.id, season, number } },
+          where: {
+            animeId_season_number: { animeId: anime.id, season, number },
+          },
           update: {
             title: optionalString(episodeData, 'title'),
             description: optionalPlainText(episodeData, 'description'),
@@ -265,13 +271,17 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
               failureCount: numberValue(sourceData, 'failureCount'),
               trafficBytes: bigintValue(sourceData, 'trafficBytes'),
               subtitles: {
-                create: arrayValue(sourceData, 'subtitles').slice(0, 100).map(asRecord).map((subtitleData) => ({
-                  ...(optionalString(subtitleData, 'id') ? { id: stringValue(subtitleData, 'id') } : {}),
-                  language: stringValue(subtitleData, 'language', 'pt-BR'),
-                  label: stringValue(subtitleData, 'label', stringValue(subtitleData, 'language', 'Legenda')),
-                  format: stringValue(subtitleData, 'format', 'vtt'),
-                  urlEncrypted: stringValue(subtitleData, 'urlEncrypted'),
-                })).filter((subtitle) => subtitle.urlEncrypted),
+                create: arrayValue(sourceData, 'subtitles')
+                  .slice(0, 100)
+                  .map(asRecord)
+                  .map((subtitleData) => ({
+                    ...(optionalString(subtitleData, 'id') ? { id: stringValue(subtitleData, 'id') } : {}),
+                    language: stringValue(subtitleData, 'language', 'pt-BR'),
+                    label: stringValue(subtitleData, 'label', stringValue(subtitleData, 'language', 'Legenda')),
+                    format: stringValue(subtitleData, 'format', 'vtt'),
+                    urlEncrypted: stringValue(subtitleData, 'urlEncrypted'),
+                  }))
+                  .filter((subtitle) => subtitle.urlEncrypted),
               },
             },
           });
@@ -303,6 +313,12 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
           type: stringValue(item, 'type', 'INFO'),
           active: booleanValue(item, 'active', true),
           targetGroup: optionalString(item, 'targetGroup'),
+          startsAt: optionalDate(item, 'startsAt'),
+          endsAt: optionalDate(item, 'endsAt'),
+          priority: numberValue(item, 'priority'),
+          placement: stringValue(item, 'placement', 'banner'),
+          ctaLabel: optionalString(item, 'ctaLabel'),
+          ctaHref: optionalString(item, 'ctaHref'),
         },
         create: {
           id,
@@ -311,6 +327,12 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
           type: stringValue(item, 'type', 'INFO'),
           active: booleanValue(item, 'active', true),
           targetGroup: optionalString(item, 'targetGroup'),
+          startsAt: optionalDate(item, 'startsAt'),
+          endsAt: optionalDate(item, 'endsAt'),
+          priority: numberValue(item, 'priority'),
+          placement: stringValue(item, 'placement', 'banner'),
+          ctaLabel: optionalString(item, 'ctaLabel'),
+          ctaHref: optionalString(item, 'ctaHref'),
         },
       });
     }
@@ -381,7 +403,10 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
       const layoutKey = stringValue(item, 'layoutKey', 'main');
       const version = Math.max(1, Math.trunc(numberValue(item, 'version', 1)));
       const kind = stringValue(item, 'kind', 'PUBLISHED');
-      const layout = await tx.homepageLayout.findUnique({ where: { key: layoutKey }, select: { key: true } });
+      const layout = await tx.homepageLayout.findUnique({
+        where: { key: layoutKey },
+        select: { key: true },
+      });
       if (!layout) continue;
       await tx.homepageSnapshot.upsert({
         where: { layoutKey_version_kind: { layoutKey, version, kind } },
@@ -400,6 +425,111 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
           createdBy: null,
         },
       });
+    }
+
+    for (const item of experienceConfigs) {
+      const key = stringValue(item, 'key', 'main');
+      const draftJson = item.draftJson;
+      const publishedJson = item.publishedJson;
+      if (!PublicExperienceConfigSchema.safeParse(draftJson).success || !PublicExperienceConfigSchema.safeParse(publishedJson).success) continue;
+      await tx.publicExperienceConfig.upsert({
+        where: { key },
+        update: {
+          draftJson: jsonValue(draftJson),
+          publishedJson: jsonValue(publishedJson),
+          draftVersion: Math.max(1, Math.trunc(numberValue(item, 'draftVersion', 1))),
+          publishedVersion: Math.max(1, Math.trunc(numberValue(item, 'publishedVersion', 1))),
+          publishedAt: optionalDate(item, 'publishedAt') || new Date(),
+          draftUpdatedBy: null,
+          publishedBy: null,
+        },
+        create: {
+          key,
+          draftJson: jsonValue(draftJson),
+          publishedJson: jsonValue(publishedJson),
+          draftVersion: Math.max(1, Math.trunc(numberValue(item, 'draftVersion', 1))),
+          publishedVersion: Math.max(1, Math.trunc(numberValue(item, 'publishedVersion', 1))),
+          publishedAt: optionalDate(item, 'publishedAt') || new Date(),
+          draftUpdatedBy: null,
+          publishedBy: null,
+        },
+      });
+    }
+
+    for (const item of experienceSnapshots) {
+      const configKey = stringValue(item, 'configKey', 'main');
+      const version = Math.max(1, Math.trunc(numberValue(item, 'version', 1)));
+      const kind = stringValue(item, 'kind', 'PUBLISHED');
+      const documentJson = item.documentJson;
+      if (!PublicExperienceConfigSchema.safeParse(documentJson).success) continue;
+      const config = await tx.publicExperienceConfig.findUnique({
+        where: { key: configKey },
+        select: { key: true },
+      });
+      if (!config) continue;
+      await tx.publicExperienceSnapshot.upsert({
+        where: { configKey_version_kind: { configKey, version, kind } },
+        update: {
+          label: stringValue(item, 'label', 'Snapshot importado'),
+          documentJson: jsonValue(documentJson),
+          createdBy: null,
+        },
+        create: {
+          configKey,
+          version,
+          kind,
+          label: stringValue(item, 'label', 'Snapshot importado'),
+          documentJson: jsonValue(documentJson),
+          createdBy: null,
+        },
+      });
+    }
+
+    for (const item of collections) {
+      const rawItems = arrayValue(item, 'items').map(asRecord);
+      const parsed = EditorialCollectionCreateSchema.safeParse({
+        slug: stringValue(item, 'slug'),
+        title: stringValue(item, 'title'),
+        description: optionalString(item, 'description'),
+        coverUrl: optionalString(item, 'coverUrl'),
+        active: booleanValue(item, 'active', true),
+        publishedFrom: optionalString(item, 'publishedFrom'),
+        publishedUntil: optionalString(item, 'publishedUntil'),
+        anilistIds: rawItems.map((entry) => Math.trunc(numberValue(entry, 'anilistId'))).filter((id) => id > 0),
+      });
+      if (!parsed.success) continue;
+      const value = parsed.data;
+      const collection = await tx.editorialCollection.upsert({
+        where: { slug: value.slug },
+        update: {
+          title: value.title,
+          description: value.description ?? null,
+          coverUrl: value.coverUrl ?? null,
+          active: value.active,
+          publishedFrom: optionalDate(item, 'publishedFrom'),
+          publishedUntil: optionalDate(item, 'publishedUntil'),
+        },
+        create: {
+          slug: value.slug,
+          title: value.title,
+          description: value.description ?? null,
+          coverUrl: value.coverUrl ?? null,
+          active: value.active,
+          publishedFrom: optionalDate(item, 'publishedFrom'),
+          publishedUntil: optionalDate(item, 'publishedUntil'),
+        },
+      });
+      await tx.editorialCollectionItem.deleteMany({
+        where: { collectionId: collection.id },
+      });
+      if (value.anilistIds.length)
+        await tx.editorialCollectionItem.createMany({
+          data: value.anilistIds.map((anilistId, index) => ({
+            collectionId: collection.id,
+            anilistId,
+            order: index + 1,
+          })),
+        });
     }
 
     for (const item of mediaProviders) {
@@ -469,7 +599,19 @@ export async function GET(request: NextRequest) {
   if (!auth.authenticated) return auth.errorResponse!;
 
   try {
-    const [animes, announcements, releases, settings, homepageLayouts, homepageSnapshots, mediaProviders, queues] = await Promise.all([
+    const [
+      animes,
+      announcements,
+      releases,
+      settings,
+      homepageLayouts,
+      homepageSnapshots,
+      experienceConfigs,
+      experienceSnapshots,
+      collections,
+      mediaProviders,
+      queues,
+    ] = await Promise.all([
       prisma.anime.findMany({
         include: {
           aliases: true,
@@ -489,33 +631,52 @@ export async function GET(request: NextRequest) {
       prisma.systemSetting.findMany(),
       prisma.homepageLayout.findMany(),
       prisma.homepageSnapshot.findMany(),
+      prisma.publicExperienceConfig.findMany(),
+      prisma.publicExperienceSnapshot.findMany(),
+      prisma.editorialCollection.findMany({ include: { items: true } }),
       prisma.mediaProvider.findMany(),
       prisma.autoIndexerQueue.findMany(),
     ]);
 
-    const dump = JSON.parse(JSON.stringify({
-      version: '2.0',
-      exportedAt: new Date().toISOString(),
-      exportType: 'catalog-and-configuration',
-      data: {
-        animes,
-        announcements,
-        releases,
-        settings: settings.filter((setting) => !isSensitiveSettingKey(setting.key)),
-        navigation: settings.filter((setting) => setting.key.includes('navigation')),
-        homepage: { layouts: homepageLayouts, snapshots: homepageSnapshots },
-        providers: { mediaProviders },
-        autoIndexerQueue: queues,
-      },
-      excluded: ['admin_users', 'AdminSession', 'AdminAuditLog', 'WebhookConfig'],
-    }, (_key, value) => (typeof value === 'bigint' ? value.toString() : value)));
+    const dump = JSON.parse(
+      JSON.stringify(
+        {
+          version: '2.0',
+          exportedAt: new Date().toISOString(),
+          exportType: 'catalog-and-configuration',
+          data: {
+            animes,
+            announcements,
+            releases,
+            settings: settings.filter((setting) => !isSensitiveSettingKey(setting.key)),
+            navigation: settings.filter((setting) => setting.key.includes('navigation')),
+            homepage: {
+              layouts: homepageLayouts,
+              snapshots: homepageSnapshots,
+            },
+            experience: {
+              configs: experienceConfigs,
+              snapshots: experienceSnapshots,
+            },
+            collections,
+            providers: { mediaProviders },
+            autoIndexerQueue: queues,
+          },
+          excluded: ['admin_users', 'AdminSession', 'AdminAuditLog', 'WebhookConfig'],
+        },
+        (_key, value) => (typeof value === 'bigint' ? value.toString() : value),
+      ),
+    );
 
     void recordAdminAudit({
       actorId: auth.userId,
       action: 'backup.exported',
       resourceType: 'backup',
       summary: 'Exportação JSON de catálogo e configurações realizada.',
-      metadata: { animeCount: animes.length, providerCount: mediaProviders.length },
+      metadata: {
+        animeCount: animes.length,
+        providerCount: mediaProviders.length,
+      },
     });
 
     return new NextResponse(JSON.stringify(dump, null, 2), {

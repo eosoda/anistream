@@ -2,15 +2,20 @@
 
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
+import { usePublicExperience } from '@/components/experience/PublicExperienceProvider';
 
 interface Announcement {
   id: string;
   title: string;
   content: string;
   type: 'INFO' | 'WARNING' | 'SUCCESS';
+  placement?: 'banner' | 'home' | 'player';
+  ctaLabel?: string | null;
+  ctaHref?: string | null;
 }
 
 export function BroadcastBanner() {
+  const { config } = usePublicExperience();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
@@ -33,9 +38,9 @@ export function BroadcastBanner() {
     };
   }, []);
 
-  const visibleAnnouncements = announcements.filter((a) => !dismissedIds.includes(a.id));
+  const visibleAnnouncements = announcements.filter((a) => a.placement !== 'player' && !dismissedIds.includes(a.id));
 
-  if (visibleAnnouncements.length === 0) return null;
+  if (!config.features.publicAnnouncements || visibleAnnouncements.length === 0) return null;
 
   const current = visibleAnnouncements[0];
 
@@ -63,9 +68,7 @@ export function BroadcastBanner() {
 
   return (
     <div
-      className={`w-full py-2.5 px-4 border-b text-xs flex items-center justify-between gap-3 transition-all ${getTypeStyle(
-        current.type
-      )}`}
+      className={`w-full py-2.5 px-4 border-b text-xs flex items-center justify-between gap-3 transition-all ${getTypeStyle(current.type)}`}
       role="status"
       aria-live="polite"
     >
@@ -73,6 +76,11 @@ export function BroadcastBanner() {
         {getTypeIcon(current.type)}
         <span className="font-black uppercase tracking-wider">{current.title}:</span>
         <span className="font-medium text-gray-200">{current.content}</span>
+        {current.ctaLabel && current.ctaHref && (
+          <a href={current.ctaHref} className="shrink-0 font-bold underline decoration-[var(--accent)] underline-offset-2">
+            {current.ctaLabel}
+          </a>
+        )}
       </div>
 
       <button

@@ -8,6 +8,7 @@ import { DEFAULT_NAVIGATION_CONFIG } from '@/lib/navigation/defaults';
 import { getVisibleNavigation, toPublicNavigation } from '@/lib/navigation/presentation';
 import { NAVIGATION_DESTINATIONS, isConfigurablePageId } from '@/lib/navigation/registry';
 import { useToast } from '@/context/ToastContext';
+import { usePublicExperience } from '@/components/experience/PublicExperienceProvider';
 
 interface PublicNavigationContextValue {
   settings: PublicNavigationSettings;
@@ -55,7 +56,9 @@ export function PublicNavigationProvider({ children }: { children: ReactNode }) 
   const query = useQuery({
     queryKey: ['publicNavigation'],
     queryFn: async () => {
-      const response = await fetch('/api/settings/public', { cache: 'no-store' });
+      const response = await fetch('/api/settings/public', {
+        cache: 'no-store',
+      });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error?.message || 'Não foi possível carregar a navegação pública.');
       const parsed = parsePublicSettings(payload.data);
@@ -82,12 +85,15 @@ export function PublicNavigationProvider({ children }: { children: ReactNode }) 
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }, [pathname, query.isLoading, settings.pages, showToast]);
 
-  const value = useMemo<PublicNavigationContextValue>(() => ({
-    settings,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFallback: !query.data,
-  }), [query.data, query.isError, query.isLoading, settings]);
+  const value = useMemo<PublicNavigationContextValue>(
+    () => ({
+      settings,
+      isLoading: query.isLoading,
+      isError: query.isError,
+      isFallback: !query.data,
+    }),
+    [query.data, query.isError, query.isLoading, settings],
+  );
 
   return <PublicNavigationContext.Provider value={value}>{children}</PublicNavigationContext.Provider>;
 }
@@ -101,7 +107,10 @@ export function useVisiblePublicNavigation() {
   return {
     ...state,
     settings,
-    items: getVisibleNavigation({ navigation: settings.navigation, pages: settings.pages }),
+    items: getVisibleNavigation({
+      navigation: settings.navigation,
+      pages: settings.pages,
+    }),
   };
 }
 
@@ -109,13 +118,24 @@ export function PublicPageGate({ pageId, children }: { pageId: ConfigurablePageI
   const router = useRouter();
   const pathname = usePathname();
   const { settings, isLoading } = usePublicNavigation();
+  const { config } = usePublicExperience();
   const page = pageId ? settings.pages.find((item) => item.id === pageId) : undefined;
-  const redirecting = Boolean(page && !page.enabled);
+  const featureByPage: Partial<Record<ConfigurablePageId, keyof typeof config.features>> = {
+    seasons: 'seasons',
+    calendar: 'calendar',
+    movies: 'movies',
+    favorites: 'favorites',
+  };
+  const featureKey = pageId ? featureByPage[pageId] : undefined;
+  const featureDisabled = Boolean(featureKey && !config.features[featureKey]);
+  const redirecting = Boolean((page && !page.enabled) || featureDisabled);
 
   useEffect(() => {
-    if (!redirecting || !page || pathname === page.redirectHref) return;
-    router.replace(createNoticeUrl(page.redirectHref, page.id));
-  }, [page, pathname, redirecting, router]);
+    if (!redirecting || !page) return;
+    const redirectHref = featureDisabled ? '/' : page.redirectHref;
+    if (pathname === redirectHref) return;
+    router.replace(createNoticeUrl(redirectHref, page.id));
+  }, [featureDisabled, page, pathname, redirecting, router]);
 
   if (!pageId || isLoading || !redirecting) return <>{children}</>;
 

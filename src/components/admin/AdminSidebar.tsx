@@ -10,9 +10,11 @@ import {
   ExternalLink,
   Film,
   Flame,
+  FolderOpen,
   LayoutDashboard,
   LayoutTemplate,
   Navigation,
+  Palette,
   PlugZap,
   Puzzle,
   RadioTower,
@@ -50,8 +52,10 @@ const navGroups: Array<{ label: string; items: AdminNavItem[] }> = [
     label: 'Gerenciar',
     items: [
       { name: 'Animes e episódios', href: '/admin/animes', exact: false, icon: Film },
+      { name: 'Personalização', href: '/admin/settings/appearance', exact: false, icon: Palette },
       { name: 'Construtor da Home', href: '/admin/homepage', exact: true, icon: LayoutTemplate },
       { name: 'Navegação', href: '/admin/navigation', exact: true, icon: Navigation },
+      { name: 'Coleções', href: '/admin/collections', exact: true, icon: FolderOpen },
       { name: 'Calendário', href: '/admin/calendar', exact: true, icon: CalendarDays },
     ],
   },
@@ -67,26 +71,14 @@ const navGroups: Array<{ label: string; items: AdminNavItem[] }> = [
   },
 ];
 
-export function AdminSidebar({
-  collapsed,
-  onToggleCollapse,
-  mobileOpen,
-  onCloseMobile,
-}: AdminSidebarProps) {
+export function AdminSidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile }: AdminSidebarProps) {
   const pathname = usePathname();
 
-  const isActive = (item: AdminNavItem) => item.exact ? pathname === item.href : pathname.startsWith(item.href);
+  const isActive = (item: AdminNavItem) => (item.exact ? pathname === item.href : pathname.startsWith(item.href));
 
   return (
     <>
-      {mobileOpen && (
-        <button
-          type="button"
-          aria-label="Fechar menu lateral"
-          onClick={onCloseMobile}
-          className="fixed inset-0 z-40 bg-black/70 lg:hidden"
-        />
-      )}
+      {mobileOpen && <button type="button" aria-label="Fechar menu lateral" onClick={onCloseMobile} className="fixed inset-0 z-40 bg-black/70 lg:hidden" />}
 
       <aside
         aria-label="Navegação administrativa"
@@ -103,8 +95,12 @@ export function AdminSidebar({
             </span>
             {!collapsed && (
               <span className="min-w-0">
-                <strong className="block truncate text-sm font-extrabold tracking-tight text-white">Ani<span className="text-[var(--accent)]">Stream</span></strong>
-                <span className="mt-0.5 flex items-center gap-1 text-[.63rem] font-bold uppercase tracking-[.14em] text-[var(--admin-dim)]"><Wrench size={10} aria-hidden="true" /> Admin</span>
+                <strong className="block truncate text-sm font-extrabold tracking-tight text-white">
+                  Ani<span className="text-[var(--accent)]">Stream</span>
+                </strong>
+                <span className="mt-0.5 flex items-center gap-1 text-[.63rem] font-bold uppercase tracking-[.14em] text-[var(--admin-dim)]">
+                  <Wrench size={10} aria-hidden="true" /> Admin
+                </span>
               </span>
             )}
           </Link>
