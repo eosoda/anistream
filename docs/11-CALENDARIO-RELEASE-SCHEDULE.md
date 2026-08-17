@@ -81,4 +81,4 @@ npm run build
 npm run test:e2e
 ```
 
-O fluxo não exige cron nem deploy Railway. O stack local usa PostgreSQL, Redis, AniStream e Kenjitsu self-hosted pelo único `docker-compose.yml`.
+O fluxo não exige cron local nem deploy automático. O stack local usa PostgreSQL, Redis, AniStream e Kenjitsu self-hosted pelo único `docker-compose.yml`; o cron de backup só é configurado no host da VPS durante o rollout autorizado.

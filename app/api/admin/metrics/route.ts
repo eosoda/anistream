@@ -45,7 +45,8 @@ export async function GET(request: NextRequest) {
       healthLogs,
       source: 'kenjitsu',
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Erro ao calcular metricas administrativas', message: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Admin Metrics Error]', error);
+    return NextResponse.json({ error: 'Não foi possível calcular as métricas administrativas.' }, { status: 502 });
   }
 }

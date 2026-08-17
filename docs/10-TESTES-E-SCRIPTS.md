@@ -1,6 +1,6 @@
 # 10. Testes e scripts de validação local
 
-Esta documentação descreve a validação local do AniStream, do painel operacional e da integração Kenjitsu. Nenhum comando desta página faz deploy em Railway.
+Esta documentação descreve a validação local do AniStream, do painel operacional e da integração Kenjitsu. Nenhum comando desta página faz deploy.
 
 ## 1. Pré-requisitos
 
@@ -9,8 +9,8 @@ Para executar a validação completa:
 - Node.js 22.19+;
 - Docker Desktop com Compose;
 - PostgreSQL e Redis locais, ou o stack definido em `docker-compose.yml`;
-- repositórios irmãos `../kenjitsu`, `../kenjitsu-extensions` e `../extensions-source` para o Compose self-hosted;
-- banco inicializado com `npx prisma db push` quando executar sem Docker.
+- repositórios irmãos `../kenjitsu` e `../kenjitsu-extensions` para o Compose self-hosted;
+- banco inicializado com `npm run db:migrate` quando executar sem Docker.
 
 ## 2. Testes unitários
 
@@ -80,8 +80,8 @@ Verificações úteis:
 ```bash
 curl http://localhost:3000/api/health
 docker compose ps
-docker logs anistream_selfhosted_app
-docker logs anistream_selfhosted_kenjitsu
+docker compose logs app
+docker compose logs kenjitsu
 ```
 
 O health esperado confirma PostgreSQL, Redis, aplicação e Kenjitsu. O primeiro acesso pode redirecionar para `/setup` se não houver administrador. O primeiro acesso à Home ou ao builder cria automaticamente o singleton `HomepageLayout`; a chave legada `home_sections` é removida somente após a migração transacional.
@@ -115,7 +115,9 @@ npm run test:kenjitsu
 
 O probe usa apenas o primeiro resultado e o reporta como `WARN`; ele não altera a resolução segura do catálogo. `WARN` significa cadeia de episódios/sources funcional, mas busca ou taxonomia que precisa de revisão. `FAIL` significa erro no inventário, detalhes, episódios ou sources.
 
-O inventário local deve anunciar 30 extensões. Fontes removidas por indisponibilidade do domínio não devem ser reativadas manualmente: primeiro confirme uma atualização no `extensions-source`, depois porte a correção para o fork self-hosted e repita o smoke.
+O inventário local deve anunciar 30 extensões. No beta, somente as 12 extensões
+da allowlist aprovada entram no smoke e podem ser habilitadas; qualquer alteração
+exige repetir o smoke e revisar a configuração do AniStream.
 
 ## 7. Scripts auxiliares
 

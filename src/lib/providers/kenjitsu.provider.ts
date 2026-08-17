@@ -12,6 +12,7 @@ import { resolveAnilistId, resolveKenjitsuExtensionInfo } from '@/lib/kenjitsu/c
 import { getEnabledKenjitsuExtensions } from '@/lib/kenjitsu/settings';
 import { mapWithConcurrency } from '@/lib/kenjitsu/concurrency';
 import { KENJITSU_EXTENSION_IDS, type KenjitsuExtensionId, type KenjitsuProviderEpisode } from '@/lib/kenjitsu/types';
+import { toPlainText } from '@/utils/formatters';
 
 const EXTENSION_LABELS: Record<KenjitsuExtensionId, string> = {
   anizone: 'AniZone',
@@ -77,7 +78,11 @@ export class KenjitsuProvider implements AnimeProvider {
     if (signal?.aborted) throw new Error('Operação abortada pelo cliente');
     const anilistId = await resolveAnilistId(animeId);
     const metadata = await kenjitsuClient.getMetadata(anilistId);
-    const extensionIds = await getEnabledKenjitsuExtensions();
+    const [enabledExtensionIds, cacheSettings] = await Promise.all([
+      getEnabledKenjitsuExtensions(),
+      import('@/lib/streams/playback-cache').then(({ getPlaybackCacheSettings }) => getPlaybackCacheSettings()).catch(() => null),
+    ]);
+    const extensionIds = enabledExtensionIds.filter((extensionId) => !cacheSettings || cacheSettings.extensionIds.includes(extensionId));
     const results = await mapWithConcurrency(
       extensionIds,
       async (extensionId) => {
@@ -86,7 +91,15 @@ export class KenjitsuProvider implements AnimeProvider {
         const providerEpisodes = resolved.info.providerEpisodes || resolved.info.data?.providerEpisodes || [];
         return providerEpisodes.flatMap((episode) =>
           episode.episodeId && episode.episodeNumber != null
-            ? [{ id: `${extensionId}:${episode.episodeId}`, animeId, season: 1, number: Number(episode.episodeNumber), title: episode.title, description: episode.overview, thumbnailUrl: episode.thumbnail }]
+            ? [{
+                id: `${extensionId}:${episode.episodeId}`,
+                animeId,
+                season: 1,
+                number: Number(episode.episodeNumber),
+                title: toPlainText(episode.title) || `Episódio ${episode.episodeNumber}`,
+                description: toPlainText(episode.overview),
+                thumbnailUrl: episode.thumbnail,
+              }]
             : [],
         );
       },
@@ -103,7 +116,11 @@ export class KenjitsuProvider implements AnimeProvider {
     if (signal?.aborted) throw new Error('Operação abortada pelo cliente');
     const anilistId = await resolveAnilistId(input.animeId);
     const metadata = await kenjitsuClient.getMetadata(anilistId);
-    const extensionIds = await getEnabledKenjitsuExtensions();
+    const [enabledExtensionIds, cacheSettings] = await Promise.all([
+      getEnabledKenjitsuExtensions(),
+      import('@/lib/streams/playback-cache').then(({ getPlaybackCacheSettings }) => getPlaybackCacheSettings()).catch(() => null),
+    ]);
+    const extensionIds = enabledExtensionIds.filter((extensionId) => !cacheSettings || cacheSettings.extensionIds.includes(extensionId));
     const version = versionForAudio(input.preferredAudio);
 
     const results = await mapWithConcurrency(
@@ -133,11 +150,16 @@ export class KenjitsuProvider implements AnimeProvider {
             provider: EXTENSION_LABELS[extensionId],
             url: source.url,
             type,
-            quality: source.quality || 'Auto',
+            quality: toPlainText(source.quality) || 'Auto',
             audioLanguage: version === 'dub' ? 'pt-BR' : 'ja',
             subtitles: (sourceResponse.data?.subtitles || []).flatMap((subtitle) =>
               subtitle.url
-                ? [{ language: subtitle.lang || subtitle.label || 'und', label: subtitle.label || subtitle.lang || 'Legenda', url: subtitle.url, format: 'vtt' as const }]
+                ? [{
+                    language: toPlainText(subtitle.lang) || toPlainText(subtitle.label) || 'und',
+                    label: toPlainText(subtitle.label) || toPlainText(subtitle.lang) || 'Legenda',
+                    url: subtitle.url,
+                    format: 'vtt' as const,
+                  }]
                 : [],
             ),
             requiresProxy: type !== 'embed',
@@ -171,13 +193,14 @@ export class KenjitsuProvider implements AnimeProvider {
         errorMessage: active === 0 ? 'Nenhuma extensão retornada pelo Kenjitsu.' : undefined,
       };
     } catch (error) {
+      console.error('[Kenjitsu Provider Health Error]', error);
       return {
         providerId: this.id,
         name: this.name,
         status: 'down',
         latencyMs: Date.now() - startedAt,
         lastChecked: new Date().toISOString(),
-        errorMessage: error instanceof Error ? error.message : 'Falha ao consultar o Kenjitsu.',
+        errorMessage: 'Falha ao consultar o Kenjitsu.',
       };
     }
   }

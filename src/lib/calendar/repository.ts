@@ -8,6 +8,7 @@ import type {
   ReleaseScheduleSettings,
 } from '@/types/calendar';
 import type { Prisma } from '@prisma/client';
+import { toPlainText } from '@/utils/formatters';
 
 export const CALENDAR_SETTINGS_KEY = 'calendar_settings';
 export const CALENDAR_VERSION_KEY = 'calendar_version';
@@ -44,8 +45,8 @@ export function getAnimeAnilistId(anime: CalendarAnimeRecord): number | null {
 export function toAnimeSummary(anime: CalendarAnimeRecord): ReleaseScheduleAnimeSummary {
   return {
     id: anime.id,
-    title: anime.title,
-    originalTitle: anime.originalTitle,
+    title: toPlainText(anime.title) || 'Anime',
+    originalTitle: toPlainText(anime.originalTitle),
     posterUrl: anime.posterUrl,
     anilistId: getAnimeAnilistId(anime),
   };

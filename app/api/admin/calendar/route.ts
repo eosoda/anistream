@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     const timezone = request.nextUrl.searchParams.get('timezone');
     return apiSuccess(await getAdminCalendarState(timezone));
   } catch (error) {
-    return apiError('ADMIN_CALENDAR_FETCH_ERROR', error instanceof Error ? error.message : 'Não foi possível carregar a configuração do calendário.', 500);
+    console.error('[Admin Calendar Fetch Error]', error);
+    return apiError('ADMIN_CALENDAR_FETCH_ERROR', 'Não foi possível carregar a configuração do calendário.', 500);
   }
 }
 
@@ -57,6 +58,7 @@ export async function PUT(request: NextRequest) {
     });
     return apiSuccess(await getAdminCalendarState(request.nextUrl.searchParams.get('timezone')));
   } catch (error) {
-    return apiError('ADMIN_CALENDAR_SAVE_ERROR', error instanceof Error ? error.message : 'Não foi possível salvar o calendário.', 500);
+    console.error('[Admin Calendar Save Error]', error);
+    return apiError('ADMIN_CALENDAR_SAVE_ERROR', 'Não foi possível salvar o calendário.', 500);
   }
 }

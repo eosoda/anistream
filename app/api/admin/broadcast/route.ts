@@ -5,14 +5,18 @@ import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { recordAdminAudit } from '@/lib/admin/audit';
 
 // GET: Listar todos os anúncios (Admin)
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) return auth.errorResponse!;
+
   try {
     const announcements = await prisma.systemAnnouncement.findMany({
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json({ announcements });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Broadcast Read Error]', error);
+    return NextResponse.json({ error: 'Não foi possível carregar os comunicados.' }, { status: 500 });
   }
 }
 
@@ -46,8 +50,9 @@ export async function POST(req: NextRequest) {
     void recordAdminAudit({ actorId: auth.userId, action: 'broadcast.created', resourceType: 'broadcast', resourceId: announcement.id, summary: `Comunicado “${announcement.title}” publicado.`, metadata: { type: announcement.type, targetGroup: announcement.targetGroup } });
 
     return NextResponse.json({ success: true, announcement });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Broadcast Create Error]', error);
+    return NextResponse.json({ error: 'Não foi possível criar o comunicado.' }, { status: 500 });
   }
 }
 
@@ -66,7 +71,8 @@ export async function DELETE(req: NextRequest) {
     const announcement = await prisma.systemAnnouncement.delete({ where: { id } });
     void recordAdminAudit({ actorId: auth.userId, action: 'broadcast.deleted', resourceType: 'broadcast', resourceId: id, summary: `Comunicado “${announcement.title}” excluído.` });
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Broadcast Delete Error]', error);
+    return NextResponse.json({ error: 'Não foi possível excluir o comunicado.' }, { status: 500 });
   }
 }

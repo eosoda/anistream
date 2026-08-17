@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { normalizeAnimeTitle } from '@/lib/anime/normalize-title';
 import type { Prisma } from '@prisma/client';
 import { recordAdminAudit } from '@/lib/admin/audit';
+import { toPlainText } from '@/utils/formatters';
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuth(request);
@@ -66,9 +67,10 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / pageSize),
       },
     });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Admin Anime List Error]', error);
     return NextResponse.json(
-      { error: 'Erro ao listar animes', message: err.message },
+      { error: 'Não foi possível listar os animes.' },
       { status: 500 }
     );
   }
@@ -114,7 +116,7 @@ export async function POST(request: NextRequest) {
         originalTitle: data.originalTitle,
         normalizedTitle,
         slug,
-        description: data.description,
+        description: toPlainText(data.description),
         posterUrl: data.posterUrl,
         backdropUrl: data.bannerUrl,
         releaseYear: data.releaseYear,
@@ -132,9 +134,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ anime: newAnime }, { status: 201 });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Admin Anime Create Error]', error);
     return NextResponse.json(
-      { error: 'Erro ao cadastrar anime', message: err.message },
+      { error: 'Não foi possível cadastrar o anime.' },
       { status: 500 }
     );
   }

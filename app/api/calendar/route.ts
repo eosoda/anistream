@@ -27,9 +27,10 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    console.error('[Calendar Fetch Error]', error);
     return apiError(
       'CALENDAR_FETCH_ERROR',
-      error instanceof Error ? error.message : 'Não foi possível carregar o calendário.',
+      'Não foi possível carregar o calendário.',
       502,
     );
   }

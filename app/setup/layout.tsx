@@ -58,12 +58,12 @@ export default function SetupLayout({ children }: { children: React.ReactNode })
 
       {/* Setup Dedicated Footer */}
       <footer className="w-full border-t border-white/10 bg-[#0B0B0F]/90 backdrop-blur-md py-4 relative z-10 mt-auto">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
           <div className="flex items-center gap-2 font-medium">
             <Database size={14} className="text-[#FF6B00]" />
             <span>AniStream System Setup & Initialization</span>
           </div>
-          <p className="text-[11px] text-gray-500">
+          <p className="text-[11px] text-gray-400">
             © {new Date().getFullYear()} AniStream • Banco de Dados, Administrador & Kenjitsu
           </p>
         </div>

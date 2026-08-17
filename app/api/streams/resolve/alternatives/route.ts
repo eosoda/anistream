@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { EpisodeLookupInputSchema } from '@/schemas/episode';
 import { defaultStreamResolver } from '@/lib/streams/resolver';
-import { checkRateLimit } from '@/lib/security/rate-limit';
+import { checkDistributedRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import {
   prepareStreamResolveContext,
@@ -10,7 +10,7 @@ import {
 
 export async function POST(request: NextRequest) {
   const reqPath = request.nextUrl.pathname;
-  const rateLimit = checkRateLimit(request, 'resolve-stream-alternatives', {
+  const rateLimit = await checkDistributedRateLimit(`resolve-stream-alternatives:${getClientIp(request)}`, {
     limit: 20,
     windowMs: 60000,
   });
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       'Limite de solicita\u00e7\u00f5es de fontes atingido. Aguarde 1 minuto.',
       429,
       undefined,
-      undefined,
+      rateLimitHeaders(rateLimit),
       reqPath
     );
   }
@@ -72,11 +72,12 @@ export async function POST(request: NextRequest) {
       }
     );
   } catch (err: any) {
+    console.error('[Stream Alternatives Resolve Error]', err);
     return apiError(
       'INTERNAL_RESOLVE_ERROR',
       'Erro ao buscar fontes alternativas.',
       500,
-      { message: err?.message || 'Erro desconhecido' },
+      undefined,
       undefined,
       reqPath
     );

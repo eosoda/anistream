@@ -13,7 +13,7 @@ Este índice organiza a documentação técnica, de produto, execução local e 
 | [`05-PLAYER-E-STREAMING.md`](./05-PLAYER-E-STREAMING.md) | Player e streaming | Para playback, HLS, embeds e atalhos. |
 | [`06-SERVICOS-E-APIS.md`](./06-SERVICOS-E-APIS.md) | APIs e resiliência | Para Kenjitsu, Redis, SSRF e contratos administrativos. |
 | [`07-OFFLINE-E-CACHE-IDB.md`](./07-OFFLINE-E-CACHE-IDB.md) | Offline e IndexedDB | Para cache local e funcionamento offline. |
-| [`08-DEPLOYMENT-E-RAILWAY.md`](./08-DEPLOYMENT-E-RAILWAY.md) | Docker e deployment futuro | Para execução self-hosted e referência de hospedagem; Railway não é usado na validação atual. |
+| [`08-DEPLOYMENT-E-RAILWAY.md`](./08-DEPLOYMENT-E-RAILWAY.md) | Docker e deployment no Dokploy | Para execução self-hosted e rollout controlado do beta. |
 | [`09-PAINEL-ADMINISTRATIVO.md`](./09-PAINEL-ADMINISTRATIVO.md) | Painel operacional | Para setup, dashboard, catálogo, Home customizável, extensões, auditoria e rotas admin. |
 | [`10-TESTES-E-SCRIPTS.md`](./10-TESTES-E-SCRIPTS.md) | Testes locais | Para Vitest, Playwright, Docker, TypeScript e smoke Kenjitsu. |
 | [`11-CALENDARIO-RELEASE-SCHEDULE.md`](./11-CALENDARIO-RELEASE-SCHEDULE.md) | Calendário semanal | Para o contrato público, regras administrativas, timezones, cache e operação. |

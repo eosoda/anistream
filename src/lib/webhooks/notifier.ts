@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { safeFetch } from '@/lib/security/safe-fetch';
 
 export interface WebhookPayload {
   title: string;
@@ -26,9 +27,11 @@ export async function dispatchWebhooks(payload: WebhookPayload): Promise<void> {
 
     for (const hook of webhooks) {
       if (hook.platform === 'DISCORD') {
-        fetch(hook.url, {
+        safeFetch(hook.url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          allowContentType: true,
+          timeoutMs: 5000,
           body: JSON.stringify({
             username: 'AniStream Bot',
             avatar_url: 'https://anistream.app/logo.png',
@@ -44,26 +47,28 @@ export async function dispatchWebhooks(payload: WebhookPayload): Promise<void> {
             ],
           }),
         }).catch((err) => {
-          console.error(`[Webhook] Error sending to Discord hook (${hook.id}):`, err);
+          console.error(`[Webhook] Discord ${hook.id}:`, err instanceof Error ? err.message : 'Falha desconhecida');
         });
       } else if (hook.platform === 'TELEGRAM') {
         const text = `<b>${payload.title}</b>\n${payload.description}\n\n${(payload.fields || [])
           .map((f) => `• <b>${f.name}:</b> ${f.value}`)
           .join('\n')}`;
 
-        fetch(hook.url, {
+        safeFetch(hook.url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          allowContentType: true,
+          timeoutMs: 5000,
           body: JSON.stringify({
             text,
             parse_mode: 'HTML',
           }),
         }).catch((err) => {
-          console.error(`[Webhook] Error sending to Telegram hook (${hook.id}):`, err);
+          console.error(`[Webhook] Telegram ${hook.id}:`, err instanceof Error ? err.message : 'Falha desconhecida');
         });
       }
     }
   } catch (err) {
-    console.error('[Webhook] Failed to dispatch webhooks:', err);
+    console.error('[Webhook] Failed to dispatch webhooks:', err instanceof Error ? err.message : 'Falha desconhecida');
   }
 }

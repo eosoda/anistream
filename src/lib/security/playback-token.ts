@@ -89,10 +89,11 @@ export async function verifyPlaybackToken(
         expiresAt: exp,
       },
     };
-  } catch (err: any) {
+  } catch (error) {
+    console.warn('[Playback Token Validation Error]', error);
     return {
       valid: false,
-      reason: `Token de reprodução inválido ou expirado: ${err.message}`,
+      reason: 'Token de reprodução inválido ou expirado.',
     };
   }
 }

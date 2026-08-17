@@ -19,6 +19,7 @@ import {
   Rocket,
   Settings,
   Wrench,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +43,7 @@ const navGroups: Array<{ label: string; items: AdminNavItem[] }> = [
     items: [
       { name: 'Visão geral', href: '/admin', exact: true, icon: LayoutDashboard },
       { name: 'Extensões Kenjitsu', href: '/admin/extensions', exact: true, icon: Puzzle },
+      { name: 'Cache de reprodução', href: '/admin/cache', exact: true, icon: Zap },
     ],
   },
   {

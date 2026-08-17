@@ -26,7 +26,7 @@ export default function FilmesPage() {
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: moviesData, isLoading, isError, refetch } = useQuery({
+  const { data: moviesData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['moviesList', searchQuery, page, statusFilter, orderBy, sortDir],
     queryFn: () =>
       kenjitsuService.searchAnime(searchQuery, page, 24, {
@@ -199,7 +199,7 @@ export default function FilmesPage() {
 
       {/* Movies Grid */}
       {!isError && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4" aria-busy={isLoading || isFetching}>
           {isLoading
             ? Array.from({ length: 18 }).map((_, i) => <AnimeCardSkeleton key={i} />)
             : moviesData?.data?.map((anime, index) => (

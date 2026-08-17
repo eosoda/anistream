@@ -24,8 +24,9 @@ export async function GET(request: NextRequest) {
       source: 'kenjitsu',
     });
   } catch (error) {
+    console.error('[Admin Sources Read Error]', error);
     return NextResponse.json(
-      { error: 'Erro ao buscar fontes', message: error instanceof Error ? error.message : 'Erro desconhecido' },
+      { error: 'Não foi possível carregar as fontes.' },
       { status: 500 },
     );
   }

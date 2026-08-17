@@ -151,14 +151,13 @@ O ambiente oficial desta fase é local:
 docker compose up -d --build
 ```
 
-O Compose sobe AniStream, Kenjitsu, PostgreSQL e os dois Redis. Os três repositórios irmãos (`kenjitsu`, `kenjitsu-extensions` e `extensions-source`) são usados como contexto local para a imagem self-hosted.
+O Compose sobe AniStream, Kenjitsu, PostgreSQL e os dois Redis. Os repositórios irmãos `kenjitsu` e `kenjitsu-extensions` são usados como contexto local para a imagem self-hosted.
 
 Para atualizar sem tocar nos projetos oficiais:
 
 ```bash
 git -C ../kenjitsu fetch upstream --tags
 git -C ../kenjitsu-extensions fetch upstream --tags
-git -C ../extensions-source fetch upstream --tags
 ```
 
-Depois, cada atualização deve ser revisada no fork, validada localmente e integrada ao AniStream por PR. Railway não faz parte da validação atual.
+Depois, cada atualização deve ser revisada no fork, validada localmente e integrada ao AniStream por PR. O rollout no Dokploy só ocorre após autorização explícita.

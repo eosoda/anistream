@@ -4,6 +4,7 @@ import { UpdateAnimeSchema } from '@/schemas/anime';
 import { prisma } from '@/lib/db/prisma';
 import { normalizeAnimeTitle } from '@/lib/anime/normalize-title';
 import { recordAdminAudit } from '@/lib/admin/audit';
+import { toPlainText } from '@/utils/formatters';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await verifyAdminAuth(request);
@@ -32,9 +33,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Anime não encontrado' }, { status: 404 });
     }
 
-    return NextResponse.json({ anime });
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Erro ao buscar anime', message: err.message }, { status: 500 });
+    return NextResponse.json({ anime: { ...anime, description: toPlainText(anime.description), synopsis: toPlainText(anime.synopsis) } });
+  } catch (error) {
+    console.error('[Admin Anime Read Error]', error);
+    return NextResponse.json({ error: 'Não foi possível carregar o anime.' }, { status: 500 });
   }
 }
 
@@ -61,7 +63,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         ...(data.title ? { title: data.title, normalizedTitle } : {}),
         ...(data.originalTitle !== undefined ? { originalTitle: data.originalTitle } : {}),
         ...(data.slug ? { slug: data.slug } : {}),
-        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.description !== undefined ? { description: toPlainText(data.description) } : {}),
         ...(data.posterUrl !== undefined ? { posterUrl: data.posterUrl } : {}),
         ...(data.bannerUrl !== undefined ? { backdropUrl: data.bannerUrl } : {}),
         ...(data.releaseYear !== undefined ? { releaseYear: data.releaseYear } : {}),
@@ -74,8 +76,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     void recordAdminAudit({ actorId: auth.userId, action: 'anime.updated', resourceType: 'anime', resourceId: id, summary: `Anime “${updatedAnime.title}” atualizado.`, metadata: { fields: Object.keys(data) } });
 
     return NextResponse.json({ anime: updatedAnime });
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Erro ao atualizar anime', message: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Anime Update Error]', error);
+    return NextResponse.json({ error: 'Não foi possível atualizar o anime.' }, { status: 500 });
   }
 }
 
@@ -93,7 +96,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     void recordAdminAudit({ actorId: auth.userId, action: 'anime.deleted', resourceType: 'anime', resourceId: id, summary: `Anime “${anime.title}” excluído.`, metadata: { cascadeEpisodes: true } });
 
     return NextResponse.json({ success: true, message: 'Anime excluído com sucesso' });
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Erro ao excluir anime', message: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin Anime Delete Error]', error);
+    return NextResponse.json({ error: 'Não foi possível excluir o anime.' }, { status: 500 });
   }
 }

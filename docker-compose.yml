@@ -1,18 +1,17 @@
 # Compose unico do AniStream.
-# Os defaults executam localmente; variaveis podem ser sobrescritas por Railway
-# ou outro orquestrador que suporte Compose/servicos equivalentes.
+# Os defaults abaixo existem somente para desenvolvimento local. O ambiente
+# do Dokploy deve injetar todos os valores explicitamente.
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: anistream_selfhosted_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-anistream_db}
-    ports:
-      - '${ANISTREAM_POSTGRES_PORT:-5432}:5432'
+    expose:
+      - '5432'
     volumes:
       - anistream_selfhosted_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,27 +22,28 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: anistream_selfhosted_redis
     restart: unless-stopped
-    ports:
-      - '${ANISTREAM_REDIS_PORT:-6379}:6379'
+    command: ['redis-server', '--appendonly', 'yes', '--requirepass', '${REDIS_PASSWORD:-redis-local-password}']
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis-local-password}
+    expose:
+      - '6379'
     volumes:
       - anistream_selfhosted_redis_data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD}" ping | grep PONG']
       interval: 5s
       timeout: 5s
       retries: 10
 
   kenjitsu-redis:
     image: redis:7-alpine
-    container_name: anistream_selfhosted_kenjitsu_redis
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes', '--requirepass', '${KENJITSU_REDIS_PASSWORD:-kenjitsu-local-password}']
     environment:
       REDIS_PASSWORD: ${KENJITSU_REDIS_PASSWORD:-kenjitsu-local-password}
-    ports:
-      - '${KENJITSU_REDIS_PORT:-6380}:6379'
+    expose:
+      - '6379'
     volumes:
       - anistream_selfhosted_kenjitsu_redis_data:/data
     healthcheck:
@@ -56,12 +56,11 @@ services:
     build:
       context: ..
       dockerfile: kenjitsu/Dockerfile.selfhosted
-    container_name: anistream_selfhosted_kenjitsu
     restart: unless-stopped
     environment:
       PORT: 3000
       HOST: 0.0.0.0
-      API_KEY: ${KENJITSU_API_KEY:-}
+      API_KEY: ${KENJITSU_API_KEY:-kenjitsu-local-api-key-32-chars}
       ANIZONEURL: ${ANIZONEURL:-https://anizone.to}
       ANIKOTOURL: ${ANIKOTOURL:-https://anikototv.to}
       ANIDBURL: ${ANIDBURL:-https://anidb.app}
@@ -73,8 +72,8 @@ services:
       REDIS_TLS: ${KENJITSU_REDIS_TLS:-false}
       MAX_API_REQUESTS: ${KENJITSU_MAX_API_REQUESTS:-120}
       WINDOW_IN_MINUTES: ${KENJITSU_WINDOW_IN_MINUTES:-1}
-    ports:
-      - '${KENJITSU_PORT:-3001}:3000'
+    expose:
+      - '3000'
     healthcheck:
       test: ['CMD-SHELL', 'wget --no-verbose --tries=1 --header="x-api-key: $${API_KEY}" --spider http://127.0.0.1:3000/api/extensions/health || exit 1']
       interval: 10s
@@ -89,26 +88,28 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: anistream_selfhosted_app
     restart: unless-stopped
     ports:
       - '${ANISTREAM_APP_PORT:-3000}:3000'
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://user:password@postgres:5432/anistream_db?schema=public}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      # Keep the local Compose app aligned with the password-protected Redis
+      # service. The Dokploy topology injects REDIS_URL explicitly instead.
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis-local-password}@redis:6379
       KENJITSU_BASE_URL: ${KENJITSU_BASE_URL:-http://kenjitsu:3000}
-      KENJITSU_API_KEY: ${KENJITSU_API_KEY:-}
+      KENJITSU_API_KEY: ${KENJITSU_API_KEY:-kenjitsu-local-api-key-32-chars}
       KENJITSU_REQUEST_TIMEOUT_MS: ${KENJITSU_REQUEST_TIMEOUT_MS:-10000}
       KENJITSU_CACHE_TTL_SECONDS: ${KENJITSU_CACHE_TTL_SECONDS:-300}
       CALENDAR_CACHE_TTL_SECONDS: ${CALENDAR_CACHE_TTL_SECONDS:-1800}
-      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-super-secret-admin-key-min-32-chars-long}
-      PLAYBACK_TOKEN_SECRET: ${PLAYBACK_TOKEN_SECRET:-super-secret-playback-jwt-key-min-32-chars}
-      SOURCE_ENCRYPTION_KEY: ${SOURCE_ENCRYPTION_KEY:-32-bytes-encryption-key-for-aes-256-gcm!}
-      INITIAL_SETUP_KEY: ${INITIAL_SETUP_KEY:-}
-      SETUP_KEY: ${SETUP_KEY:-}
+      CACHE_WARM_WORKER_TOKEN: ${CACHE_WARM_WORKER_TOKEN:-local-cache-worker-token-32-chars}
+      TRUSTED_PROXY_IP_HEADER: ${TRUSTED_PROXY_IP_HEADER:-CF-Connecting-IP}
+      INITIAL_SETUP_KEY: ${INITIAL_SETUP_KEY:-setup-local-development-key-32-chars}
+      PLAYBACK_TOKEN_SECRET: ${PLAYBACK_TOKEN_SECRET:-local-playback-token-secret-for-development}
+      SOURCE_ENCRYPTION_KEY: ${SOURCE_ENCRYPTION_KEY:-local-source-encryption-key-for-development-32}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      ANISTREAM_ALLOW_INSECURE_LOCAL_E2E: ${ANISTREAM_ALLOW_INSECURE_LOCAL_E2E:-true}
     healthcheck:
-      test: ['CMD-SHELL', 'wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1']
+      test: ['CMD-SHELL', 'wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health/live || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5

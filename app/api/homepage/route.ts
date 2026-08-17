@@ -25,7 +25,8 @@ export async function GET() {
       },
     );
   } catch (error) {
-    return apiError('HOMEPAGE_FETCH_ERROR', error instanceof Error ? error.message : 'Não foi possível carregar a Home.', 502);
+    console.error('[Homepage Fetch Error]', error);
+    return apiError('HOMEPAGE_FETCH_ERROR', 'Não foi possível carregar a Home.', 502);
   }
 }
 

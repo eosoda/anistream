@@ -38,7 +38,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const updated = await prisma.episodeSource.update({ where: { id: sourceId }, data: updateData });
     return NextResponse.json({ success: true, episodeId: epId, source: updated });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao atualizar fonte.' }, { status: 500 });
+    console.error('[Admin Source Update Error]', error);
+    return NextResponse.json({ error: 'Não foi possível atualizar a fonte.' }, { status: 500 });
   }
 }
 
@@ -52,6 +53,7 @@ export async function DELETE(request: NextRequest) {
     await prisma.episodeSource.delete({ where: { id: sourceId } });
     return NextResponse.json({ success: true, message: 'Fonte removida.' });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao remover fonte.' }, { status: 500 });
+    console.error('[Admin Source Delete Error]', error);
+    return NextResponse.json({ error: 'Não foi possível remover a fonte.' }, { status: 500 });
   }
 }

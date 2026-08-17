@@ -84,7 +84,6 @@ export default function AdminNavigationPage() {
   useEffect(() => {
     const controller = new AbortController();
     // A carga inicial sincroniza a tela com a fonte administrativa externa.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load(controller.signal);
     return () => controller.abort();
   }, [load]);

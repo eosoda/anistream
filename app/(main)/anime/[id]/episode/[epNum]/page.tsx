@@ -3,7 +3,7 @@
 import React, { use, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ChevronLeft, ChevronRight, List, CheckCircle2, Clock } from 'lucide-react';
 import { kenjitsuService } from '@/services/kenjitsu';
 import { DetailSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -11,6 +11,7 @@ import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
+import { toPlainText } from '@/utils/formatters';
 
 export default function EpisodePlayerPage({ params }: { params: Promise<{ id: string; epNum: string }> }) {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
   const { progressMap } = useWatchProgress();
   const [preferredProvider, setPreferredProvider] = React.useState<string | null>(null);
   const [isProviderPreferenceReady, setIsProviderPreferenceReady] = React.useState(false);
-  const metadataRetryRef = React.useRef(false);
+  const [hasPlaybackRequest, setHasPlaybackRequest] = React.useState(false);
   const {
     ref: episodeScrollRef,
     elementRef: episodeScrollElementRef,
@@ -38,10 +39,6 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
     return () => window.clearTimeout(timeoutId);
   }, []);
 
-  useEffect(() => {
-    metadataRetryRef.current = false;
-  }, [animeId, epNum, preferredProvider]);
-
   // Fetch Anime Main Info
   const { data: anime, isLoading: isLoadingAnime } = useQuery({
     queryKey: ['animeDetail', animeId],
@@ -56,7 +53,8 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
     enabled: !isNaN(animeId),
   });
 
-  // Fetch Streams via API /api/streams/resolve
+  // A fonte só é resolvida depois da intenção explícita de reprodução. Isso
+  // mantém a página leve e evita consultar Kenjitsu/relay ao abrir o episódio.
   const {
     data: streamResult,
     isLoading: isResolvingStream,
@@ -74,9 +72,9 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
             season: 1,
             episode: epNum,
             episodeNumber: epNum,
-            animeTitle: anime?.title_english || anime?.title,
-            originalTitle: anime?.title_japanese,
-            aliases: anime?.titles?.map((title) => title.title).filter(Boolean),
+            animeTitle: toPlainText(anime?.title_english) || toPlainText(anime?.title) || undefined,
+            originalTitle: toPlainText(anime?.title_japanese) || undefined,
+            aliases: anime?.titles?.map((title) => toPlainText(title.title)).filter((title): title is string => Boolean(title)),
             preferredProvider: preferredProvider || undefined,
             resolutionMode: 'fast',
           }),
@@ -100,25 +98,8 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
         };
       }
     },
-    enabled: !isNaN(animeId) && !isNaN(epNum) && isProviderPreferenceReady,
-    placeholderData: keepPreviousData,
+    enabled: false,
   });
-
-  // O primeiro pedido usa apenas o identificador e o banco local. Se ele nÃ£o
-  // Se os metadados terminarem depois da primeira resolução, repetimos uma única vez.
-  // com os tÃ­tulos enriquecidos, sem criar um waterfall para toda navegaÃ§Ã£o.
-  useEffect(() => {
-    if (
-      !anime ||
-      isResolvingStream ||
-      streamResult?.data ||
-      metadataRetryRef.current
-    ) {
-      return;
-    }
-    metadataRetryRef.current = true;
-    void refetchStream();
-  }, [anime, isResolvingStream, refetchStream, streamResult?.data]);
 
   const alternativesQuery = useQuery({
     queryKey: ['streamAlternatives', animeId, epNum, preferredProvider],
@@ -131,19 +112,24 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
           season: 1,
           episode: epNum,
           episodeNumber: epNum,
-          animeTitle: anime?.title_english || anime?.title,
-          originalTitle: anime?.title_japanese,
-          aliases: anime?.titles?.map((title) => title.title).filter(Boolean),
+          animeTitle: toPlainText(anime?.title_english) || toPlainText(anime?.title) || undefined,
+          originalTitle: toPlainText(anime?.title_japanese) || undefined,
+          aliases: anime?.titles?.map((title) => toPlainText(title.title)).filter((title): title is string => Boolean(title)),
         }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error?.message || 'Não foi possível buscar outras fontes.');
       return payload.data || payload;
     },
-    enabled: Boolean(streamResult?.data?.resolution?.alternativesPending),
+    enabled: false,
     staleTime: 60_000,
     retry: 1,
   });
+
+  useEffect(() => {
+    if (!hasPlaybackRequest || !isProviderPreferenceReady) return;
+    void refetchStream();
+  }, [hasPlaybackRequest, isProviderPreferenceReady, preferredProvider, refetchStream]);
 
   const resolvedStream = React.useMemo(() => {
     const baseStream = streamResult?.data;
@@ -209,7 +195,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
   const prevEp = epNum > 1 ? epNum - 1 : null;
   const nextEp = anime?.episodes ? (epNum < anime.episodes ? epNum + 1 : null) : epNum + 1;
 
-  const mainTitle = anime?.title_english || anime?.title || 'Anime';
+  const mainTitle = toPlainText(anime?.title_english) || toPlainText(anime?.title) || 'Anime';
   const posterUrl = anime?.images?.webp?.large_image_url || anime?.images?.jpg?.large_image_url;
 
   return (
@@ -231,11 +217,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
               <ChevronLeft size={16} />
               Episódio Anterior
             </Link>
-          ) : (
-            <button disabled className="px-3 py-1.5 rounded-lg bg-white/5 text-gray-600 border border-white/5 text-xs font-bold cursor-not-allowed">
-              Anterior
-            </button>
-          )}
+          ) : null}
 
           <span className="px-3 py-1.5 rounded-lg bg-[#FF6B00]/20 text-[#FF6B00] font-black text-xs border border-[#FF6B00]/30">EP {epNum}</span>
 
@@ -257,12 +239,29 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
         animeTitle={mainTitle}
         animeImage={posterUrl}
         episodeNum={epNum}
-        episodeTitle={currentEp?.title}
+         episodeTitle={toPlainText(currentEp?.title) || undefined}
         nextEpNum={nextEp}
         resolvedStream={resolvedStream}
-        streamStatusMessage={streamResult?.error}
-        isResolving={isResolvingStream || isRefreshingStream || alternativesQuery.isFetching}
-        onRetryResolve={() => { void refetchStream(); }}
+        streamStatusMessage={hasPlaybackRequest ? streamResult?.error : null}
+        isResolving={hasPlaybackRequest && (isResolvingStream || isRefreshingStream || alternativesQuery.isFetching)}
+        onRequestPlayback={() => {
+          if (isResolvingStream || isRefreshingStream) return;
+          setHasPlaybackRequest(true);
+        }}
+        onOpenSourcePicker={() => {
+          if (
+            hasPlaybackRequest &&
+            streamResult?.data?.resolution?.alternativesPending &&
+            !alternativesQuery.data &&
+            !alternativesQuery.isFetching
+          ) {
+            void alternativesQuery.refetch();
+          }
+        }}
+        onRetryResolve={() => {
+          setHasPlaybackRequest(true);
+          void refetchStream();
+        }}
         onNextEpisode={() => {
           if (nextEp) {
             router.push(`/anime/${animeId}/episode/${nextEp}`);
@@ -312,7 +311,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
                     <SafeImage
                       src={posterUrl}
                       animeId={animeId}
-                      alt={ep.title || `Episódio ${ep.mal_id}`}
+                        alt={toPlainText(ep.title) || `Episódio ${ep.mal_id}`}
                       fill
                       sizes="(max-width: 640px) 144px, 160px"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -341,7 +340,7 @@ export default function EpisodePlayerPage({ params }: { params: Promise<{ id: st
                     <span className={`text-xs font-black ${isCurrent ? 'text-[#FF6B00]' : 'text-white'}`}>EP {ep.mal_id}</span>
                     {progress && !progress.completed && progress.percentage > 0 && <span className="text-[10px] text-gray-400 font-mono">{progress.percentage}%</span>}
                   </div>
-                  <p className="text-[10px] text-gray-300 truncate font-semibold mt-0.5">{ep.title || `Episódio ${ep.mal_id}`}</p>
+                  <p className="text-[10px] text-gray-300 truncate font-semibold mt-0.5">{toPlainText(ep.title) || `Episódio ${ep.mal_id}`}</p>
                 </div>
 
                 {/* Bottom Watch Progress Line */}

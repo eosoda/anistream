@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
       pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     });
   } catch (error) {
-    return NextResponse.json({ error: 'Não foi possível carregar o histórico administrativo.', message: error instanceof Error ? error.message : undefined }, { status: 503 });
+    console.error('[Admin Audit Read Error]', error);
+    return NextResponse.json({ error: 'Não foi possível carregar o histórico administrativo.' }, { status: 503 });
   }
 }

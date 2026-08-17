@@ -27,9 +27,10 @@ function run() {
   const postgresDb = process.env.POSTGRES_DB || 'anistream_db';
 
   const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@postgres:5432/${postgresDb}?schema=public`;
-  const redisUrl = 'redis://redis:6379';
+  const redisPassword = generateSecureToken('redis', 24);
+  const kenjitsuRedisPassword = generateSecureToken('kjredis', 24);
+  const kenjitsuApiKey = generateSecureToken('kjapi', 32);
 
-  const adminSessionSecret = generateSecureToken('adm_sec', 32);
   const playbackTokenSecret = generateSecureToken('pb_jwt', 32);
   const sourceEncryptionKey = generateSecureToken('enc', 32);
   const initialSetupKey = generateSecureToken('setup', 12);
@@ -48,25 +49,27 @@ POSTGRES_DB="${postgresDb}"
 DATABASE_URL="${databaseUrl}"
 
 # Cache Redis (Docker Service)
-REDIS_URL="${redisUrl}"
+REDIS_PASSWORD="${redisPassword}"
+REDIS_URL="redis://:${redisPassword}@redis:6379"
 
 # Segurança & Chaves Secretas Criptográficas
-ADMIN_SESSION_SECRET="${adminSessionSecret}"
 PLAYBACK_TOKEN_SECRET="${playbackTokenSecret}"
 SOURCE_ENCRYPTION_KEY="${sourceEncryptionKey}"
 
 # Chave Inicial de Instalação (Proteção do assistente /setup)
 INITIAL_SETUP_KEY="${initialSetupKey}"
-SETUP_KEY="${initialSetupKey}"
 
 # API de catálogo, episódios e mídia
 KENJITSU_BASE_URL="http://kenjitsu:3000"
-KENJITSU_API_KEY=""
+KENJITSU_API_KEY="${kenjitsuApiKey}"
 KENJITSU_REQUEST_TIMEOUT_MS="10000"
 KENJITSU_CACHE_TTL_SECONDS="300"
+KENJITSU_REDIS_PASSWORD="${kenjitsuRedisPassword}"
+KENJITSU_REDIS_TLS="false"
 
 # URL Base da Aplicação
 NEXT_PUBLIC_APP_URL="${appUrl}"
+TRUSTED_PROXY_IP_HEADER="CF-Connecting-IP"
 `;
 
   // 2. Salvar ou atualizar arquivo .env
@@ -83,12 +86,14 @@ NEXT_PUBLIC_APP_URL="${appUrl}"
   console.log('===================================================================');
   console.log(`  POSTGRES_USER            : ${postgresUser}`);
   console.log(`  POSTGRES_PASSWORD        : ${postgresPassword}`);
-  console.log(`  ADMIN_SESSION_SECRET     : ${adminSessionSecret}`);
+  console.log(`  REDIS_PASSWORD           : ${redisPassword}`);
+  console.log(`  KENJITSU_REDIS_PASSWORD  : ${kenjitsuRedisPassword}`);
+  console.log(`  KENJITSU_API_KEY         : ${kenjitsuApiKey}`);
   console.log(`  PLAYBACK_TOKEN_SECRET    : ${playbackTokenSecret}`);
   console.log(`  SOURCE_ENCRYPTION_KEY    : ${sourceEncryptionKey}`);
   console.log(`  INITIAL_SETUP_KEY        : ${initialSetupKey}`);
   console.log('-------------------------------------------------------------------');
-  console.log(`  URL de Instalação Direta : http://localhost:3000/setup?key=${initialSetupKey}`);
+  console.log('  Setup: acesse /setup e informe a chave no campo indicado.');
   console.log('===================================================================\n');
   console.log('🚀 Para iniciar o Docker com as novas variáveis, execute:');
   console.log('   docker compose up -d --build\n');

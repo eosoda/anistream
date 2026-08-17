@@ -128,7 +128,6 @@ export default function AdminCalendarPage() {
 
   useEffect(() => {
     // A carga inicial sincroniza dados externos; a atualização de estado é intencional.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

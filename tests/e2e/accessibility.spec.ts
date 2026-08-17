@@ -1,18 +1,9 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { readFileSync } from 'node:fs';
-
-function adminToken() {
-  if (process.env.ADMIN_SESSION_SECRET) return process.env.ADMIN_SESSION_SECRET;
-  const match = readFileSync('.env', 'utf8').match(/^ADMIN_SESSION_SECRET=["']?([^"'\r\n]+)["']?/m);
-  if (!match) throw new Error('ADMIN_SESSION_SECRET é necessário para os testes administrativos.');
-  return match[1];
-}
+import { signInAdmin } from './admin-session';
 
 async function authenticateAdmin(page: import('@playwright/test').Page) {
-  await page.context().addCookies([
-    { name: 'admin_token', value: adminToken(), url: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000' },
-  ]);
+  await signInAdmin(page);
 }
 
 for (const viewport of [

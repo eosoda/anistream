@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -45,18 +45,11 @@ function getPasswordStrength(password: string) {
 
 function SetupWizardForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [testingDb, setTestingDb] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [dbConnected, setDbConnected] = useState(false);
-  const [postgresPingMs, setPostgresPingMs] = useState<number | null>(null);
-  const [stats, setStats] = useState<{
-    animeCount: number;
-    episodeCount: number;
-  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [setupKey, setSetupKey] = useState('');
   const [keyValid, setKeyValid] = useState<boolean | null>(null);
@@ -71,18 +64,13 @@ function SetupWizardForm() {
   const [isSeedingPopular, setIsSeedingPopular] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    const urlKey = searchParams.get('key');
-    // The setup key is an external URL input synchronized into the wizard state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (urlKey) setSetupKey(urlKey);
-  }, [searchParams]);
-
   const checkStatus = useCallback(async () => {
     setTestingDb(true);
     try {
-      const keyQuery = setupKey ? `?key=${encodeURIComponent(setupKey)}` : '';
-      const response = await fetch(`/api/setup/status${keyQuery}`);
+      const response = await fetch('/api/setup/status', {
+        headers: setupKey ? { 'x-setup-key': setupKey } : undefined,
+        cache: 'no-store',
+      });
       const data = await response.json();
 
       if (data.isInitialized) {
@@ -91,12 +79,9 @@ function SetupWizardForm() {
       }
 
       setDbConnected(Boolean(data.dbConnected));
-      setPostgresPingMs(data.postgresPingMs || 0);
-      setStats(data.stats || null);
       if (setupKey) setKeyValid(data.keyValid);
     } catch {
       setDbConnected(false);
-      setPostgresPingMs(null);
     } finally {
       setTestingDb(false);
       setCheckingStatus(false);
@@ -105,7 +90,6 @@ function SetupWizardForm() {
 
   useEffect(() => {
     // The initial request synchronizes this client view with the setup API.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void checkStatus();
   }, [checkStatus]);
 
@@ -116,9 +100,8 @@ function SetupWizardForm() {
     try {
       const response = await fetch('/api/setup/initialize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-setup-key': setupKey },
         body: JSON.stringify({
-          setupKey,
           admin: {
             name: adminName,
             email: adminEmail,
@@ -207,7 +190,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
           <p className="text-xs text-gray-400">
             Configure o banco de dados, a chave de segurança e a conta mestre em poucas etapas.
           </p>
-          <div className="grid grid-cols-4 gap-2 pt-2" aria-label="Progresso da instalação">
+          <div className="grid grid-cols-4 gap-2 pt-2" role="group" aria-label="Progresso da instalação">
             {[1, 2, 3, 4].map((step) => (
               <div
                 key={step}
@@ -244,7 +227,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
                 />
               </div>
               <p className={`text-[10px] ${keyValid === false ? 'text-red-400' : 'text-gray-400'}`}>
-                Consulte os logs do container Docker (<code>docker logs anistream_selfhosted_app</code>) para visualizar a chave.
+                Use o valor de <code>INITIAL_SETUP_KEY</code> configurado no ambiente do serviço para continuar.
               </p>
             </div>
 
@@ -255,7 +238,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
                   <div>
                     <h2 className="text-sm font-bold text-white">Conexão PostgreSQL</h2>
                     <p className="text-xs text-gray-400">
-                      {dbConnected ? `Conectado! Latência: ${postgresPingMs}ms` : 'Falha ao conectar. Verifique DATABASE_URL.'}
+                      {dbConnected ? 'Conectado e pronto para a instalação.' : 'Falha ao conectar. Verifique DATABASE_URL.'}
                     </p>
                   </div>
                 </div>
@@ -273,13 +256,6 @@ Catálogo e mídia   : API Kenjitsu self-hosted
                 </div>
               </div>
 
-              {stats && (
-                <div className="grid grid-cols-3 gap-2 border-t border-white/10 pt-2 text-center">
-                  <div className="rounded-xl bg-white/5 p-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Animes</span><span className="text-xs font-mono font-bold text-white">{stats.animeCount}</span></div>
-                  <div className="rounded-xl bg-white/5 p-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Episódios</span><span className="text-xs font-mono font-bold text-white">{stats.episodeCount}</span></div>
-                  <div className="rounded-xl bg-white/5 p-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Kenjitsu</span><span className="text-xs font-mono font-bold text-emerald-400">Ativo</span></div>
-                </div>
-              )}
             </div>
 
             <button
@@ -310,7 +286,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
               </div>
             </div>
             <div>
-              <label htmlFor="setup-admin-password" className="mb-1 block text-xs font-bold text-gray-300">Senha (mínimo 6 caracteres)</label>
+              <label htmlFor="setup-admin-password" className="mb-1 block text-xs font-bold text-gray-300">Senha (mínimo 12 caracteres)</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-gray-400" />
                 <input id="setup-admin-password" type={showPassword ? 'text' : 'password'} placeholder="Digite sua senha de acesso" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-10 text-xs text-white placeholder-gray-500 focus:border-[#FF6B00] focus:outline-none" />
@@ -339,7 +315,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
 
             <div className="flex items-center justify-between pt-4">
               <button type="button" onClick={() => setCurrentStep(1)} className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/20"><ArrowLeft size={16} />Voltar</button>
-              <button type="button" disabled={!adminName.trim() || !adminEmail.trim() || adminPassword.length < 6 || confirmPassword !== adminPassword} onClick={() => setCurrentStep(3)} className="flex items-center gap-2 rounded-xl bg-[#FF6B00] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#FF6B00]/80 disabled:opacity-50"><span>Avançar para Integração Kenjitsu</span><ArrowRight size={16} /></button>
+              <button type="button" disabled={!adminName.trim() || !adminEmail.trim() || adminPassword.length < 12 || confirmPassword !== adminPassword} onClick={() => setCurrentStep(3)} className="flex items-center gap-2 rounded-xl bg-[#FF6B00] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#FF6B00]/80 disabled:opacity-50"><span>Avançar para Integração Kenjitsu</span><ArrowRight size={16} /></button>
             </div>
           </div>
         )}

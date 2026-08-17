@@ -82,7 +82,7 @@ export default function AnimeListPage() {
   };
 
   // Fetch anime in alphabetical/symbol order + combined filters
-  const { data: animeListData, isLoading, isError, refetch } = useQuery({
+  const { data: animeListData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: [
       'animeListAlphabetical',
       selectedLetter,
@@ -309,7 +309,7 @@ export default function AnimeListPage() {
       {/* Content Rendering: Grid vs Compact List */}
       {!isError && (
         viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4" aria-busy={isLoading || isFetching}>
             {isLoading
               ? Array.from({ length: 24 }).map((_, i) => <AnimeCardSkeleton key={i} />)
               : animeListData?.data?.map((anime, index) => (
@@ -317,7 +317,7 @@ export default function AnimeListPage() {
                 ))}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2" aria-busy={isLoading || isFetching}>
             {isLoading
               ? Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="h-20 bg-white/5 rounded-2xl animate-pulse" />

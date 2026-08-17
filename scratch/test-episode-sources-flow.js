@@ -26,6 +26,14 @@ function makeRequest(options, postData) {
 async function run() {
   console.log('--- TESTANDO FLUXO DE FONTES DE EPISÓDIO NO ADMIN ---');
 
+  const email = process.env.E2E_ADMIN_EMAIL;
+  const password = process.env.E2E_ADMIN_PASSWORD;
+  if (!email || !password) {
+    console.error('Defina E2E_ADMIN_EMAIL e E2E_ADMIN_PASSWORD para executar este teste.');
+    process.exitCode = 1;
+    return;
+  }
+
   // 1. Login Admin
   const loginRes = await makeRequest(
     {
@@ -33,9 +41,9 @@ async function run() {
       port: 3000,
       path: '/api/admin/login',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     },
-    { email: 'admin@anistream.com', password: 'admin123456' }
+    { email, password }
   );
 
   console.log('Login Status:', loginRes.status);

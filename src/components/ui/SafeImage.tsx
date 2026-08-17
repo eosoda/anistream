@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import Image, { ImageProps } from 'next/image';
 
-interface SafeImageProps extends Omit<ImageProps, 'src'> {
+export interface SafeImageProps extends Omit<ImageProps, 'src'> {
   src: string | null | undefined;
   fallbackSrc?: string | null;
   animeId?: number;
+  showSkeleton?: boolean;
 }
 
 function getAnimePosterSvgFallback(title?: string | React.ReactNode): string {
@@ -27,41 +28,81 @@ function cleanImageUrl(url: string | null | undefined): string {
   return url?.trim() || '';
 }
 
-export function SafeImage({ src, fallbackSrc, alt, className, unoptimized, ...props }: SafeImageProps) {
+export function SafeImage({
+  src,
+  fallbackSrc,
+  alt,
+  className,
+  unoptimized,
+  onLoad,
+  onError,
+  showSkeleton = true,
+  priority,
+  loading: requestedLoading,
+  ...props
+}: SafeImageProps) {
   const getSvgFallback = () => getAnimePosterSvgFallback(alt);
   const cleanedSrc = cleanImageUrl(src);
   const cleanedFallback = cleanImageUrl(fallbackSrc);
   const initialSrc = cleanedSrc || cleanedFallback || getSvgFallback();
-  const [prevSrc, setPrevSrc] = useState<string | null | undefined>(src);
-  const [currentSrc, setCurrentSrc] = useState<string>(initialSrc);
-  const [errorCount, setErrorCount] = useState(0);
+  const sourceKey = `${src ?? ''}\u0000${fallbackSrc ?? ''}\u0000${alt ?? ''}`;
+  const [imageState, setImageState] = useState({ sourceKey, currentSrc: initialSrc, errorCount: 0, isLoaded: false });
 
-  if (prevSrc !== src) {
-    setPrevSrc(src);
-    setCurrentSrc(cleanedSrc || cleanedFallback || getSvgFallback());
-    setErrorCount(0);
-  }
+  // Derive the initial state for a new URL during render. This avoids a
+  // second render/effect cycle while still resetting skeleton/fallback state
+  // when a card reuses the component with another image.
+  const isCurrentSource = imageState.sourceKey === sourceKey;
+  const currentSrc = isCurrentSource ? imageState.currentSrc : initialSrc;
+  const errorCount = isCurrentSource ? imageState.errorCount : 0;
+  const isLoaded = isCurrentSource && imageState.isLoaded;
 
-  const handleError = () => {
-    if (errorCount === 0 && cleanedFallback && cleanedFallback !== currentSrc) {
-      setCurrentSrc(cleanedFallback);
-      setErrorCount(1);
-      return;
-    }
-    setCurrentSrc(getSvgFallback());
-    setErrorCount(2);
+  const handleLoad: NonNullable<ImageProps['onLoad']> = (event) => {
+    setImageState({ sourceKey, currentSrc, errorCount, isLoaded: true });
+    onLoad?.(event);
   };
 
+  const handleError: NonNullable<ImageProps['onError']> = (event) => {
+    onError?.(event);
+
+    if (errorCount === 0 && cleanedFallback && cleanedFallback !== currentSrc) {
+      setImageState({ sourceKey, currentSrc: cleanedFallback, errorCount: 1, isLoaded: false });
+      return;
+    }
+
+    setImageState({ sourceKey, currentSrc: getSvgFallback(), errorCount: 2, isLoaded: false });
+  };
+
+  const imageClassName = [
+    className,
+    ...(showSkeleton && props.fill
+      ? ['transition-opacity duration-300', isLoaded ? 'opacity-100' : 'opacity-0']
+      : []),
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <Image
-      {...props}
-      src={currentSrc}
-      alt={alt || 'Anime Cover'}
-      className={className}
-      unoptimized={unoptimized}
-      referrerPolicy="no-referrer"
-      draggable={false}
-      onError={handleError}
-    />
+    <>
+      {showSkeleton && props.fill && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-0 bg-white/[0.06] animate-pulse transition-opacity duration-300 ${isLoaded ? 'opacity-0' : 'opacity-100'}`}
+        />
+      )}
+      <Image
+        {...props}
+        src={currentSrc}
+        alt={alt || 'Anime Cover'}
+        className={imageClassName}
+        priority={priority}
+        loading={priority ? undefined : requestedLoading ?? 'lazy'}
+        fetchPriority={priority ? 'high' : props.fetchPriority}
+        unoptimized={unoptimized}
+        referrerPolicy="no-referrer"
+        draggable={false}
+        onLoad={handleLoad}
+        onError={handleError}
+      />
+    </>
   );
 }

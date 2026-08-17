@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import Hls from 'hls.js';
 import {
   Play,
@@ -58,6 +58,7 @@ interface ResolvedAlternative {
   quality?: string;
   audioLanguage?: string;
   playbackUrl: string;
+  subtitles?: ResolvedSubTrack[];
 }
 
 interface ResolvedStream {
@@ -81,6 +82,16 @@ interface ResolvedStream {
   } | null;
 }
 
+interface PlayerServer {
+  id: string;
+  provider: string;
+  quality: string;
+  type: string;
+  src: string;
+  audioLanguage?: string;
+  subtitles?: ResolvedSubTrack[];
+}
+
 export interface VideoPlayerProps {
   animeId?: number;
   animeTitle?: string;
@@ -92,6 +103,8 @@ export interface VideoPlayerProps {
   resolvedStream?: ResolvedStream | null;
   streamStatusMessage?: string | null;
   isResolving?: boolean;
+  onRequestPlayback?: () => void;
+  onOpenSourcePicker?: () => void;
   onRetryResolve?: () => void;
   onNextEpisode?: () => void;
   onProviderChange?: (provider: string) => void;
@@ -126,7 +139,48 @@ const AUDIO_LANGUAGES = [
     code: 'ES',
     badge: 'DUB',
   },
-];
+] as const;
+
+type AudioLanguageOption = (typeof AUDIO_LANGUAGES)[number];
+
+function normalizeAudioLanguageId(value?: string | null): AudioLanguageOption['id'] | null {
+  const normalized = value?.trim().toLocaleLowerCase('pt-BR').replace(/[_\s]+/g, '-') || '';
+
+  if (['pt', 'pt-br', 'ptbr', 'portuguese', 'portugues', 'português', 'brasil', 'dub'].includes(normalized)) return 'pt';
+  if (['ja', 'jp', 'japanese', 'japones', 'japonês', 'original', 'sub'].includes(normalized)) return 'ja';
+  if (['en', 'eng', 'english', 'ingles', 'inglês'].includes(normalized)) return 'en';
+  if (['es', 'spa', 'spanish', 'espanol', 'español'].includes(normalized)) return 'es';
+
+  return null;
+}
+
+function normalizeSubtitleTracks(tracks?: ResolvedSubTrack[]): ResolvedSubTrack[] {
+  const usedIds = new Set<string>();
+
+  return (tracks || []).flatMap((track, index) => {
+    if (!track || typeof track.url !== 'string' || !track.url.trim()) return [];
+
+    const language = typeof track.language === 'string' && track.language.trim() ? track.language.trim() : 'und';
+    const label = typeof track.label === 'string' && track.label.trim() ? track.label.trim() : language;
+    const readableId = `${language}-${label}`
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLocaleLowerCase('en-US');
+    const baseId = typeof track.id === 'string' && track.id.trim() ? track.id.trim() : `subtitle-${readableId || 'track'}-${index + 1}`;
+    let id = baseId;
+    let suffix = 2;
+
+    while (usedIds.has(id)) {
+      id = `${baseId}-${suffix}`;
+      suffix += 1;
+    }
+    usedIds.add(id);
+
+    return [{ ...track, id, language, label, url: track.url.trim() }];
+  });
+}
 
 function humanizeResolutionError(message?: string | null): string {
   if (!message) return 'Nenhum servidor ativou este episódio no momento.';
@@ -150,6 +204,8 @@ export function VideoPlayer({
   resolvedStream,
   streamStatusMessage,
   isResolving = false,
+  onRequestPlayback,
+  onOpenSourcePicker,
   onRetryResolve,
   onNextEpisode,
   onProviderChange,
@@ -157,6 +213,10 @@ export function VideoPlayer({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
+  const settingsPopoverRef = useRef<HTMLDivElement | null>(null);
+  const serverPickerRef = useRef<HTMLDivElement | null>(null);
+  const serverPickerPopoverRef = useRef<HTMLDivElement | null>(null);
   const hlsRef = useRef<InstanceType<typeof Hls> | null>(null);
   const retryCountRef = useRef<number>(0);
   const isPlayingRef = useRef(false);
@@ -179,7 +239,7 @@ export function VideoPlayer({
   }, [animeId, episodeNum]);
 
   // Construir variantes de reprodução e agrupar qualidades do mesmo provedor.
-  const serverList = React.useMemo(() => {
+  const serverList = React.useMemo<PlayerServer[]>(() => {
     const effectiveStream =
       resolvedStream ||
       (playbackUrl
@@ -197,6 +257,8 @@ export function VideoPlayer({
         quality: effectiveStream.quality || 'Auto',
         type: effectiveStream.type || 'hls',
         src: effectiveStream.playbackUrl,
+        audioLanguage: effectiveStream.audioLanguage,
+        subtitles: effectiveStream.subtitles || [],
       };
 
       const altServers = (effectiveStream.alternatives || []).map((alt, idx) => ({
@@ -205,6 +267,8 @@ export function VideoPlayer({
         quality: alt.quality || 'Auto',
         type: alt.type || effectiveStream.type || 'hls',
         src: alt.playbackUrl,
+        audioLanguage: alt.audioLanguage,
+        subtitles: alt.subtitles || [],
       }));
 
       return [mainServer, ...altServers];
@@ -265,6 +329,7 @@ export function VideoPlayer({
   );
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackRequested, setPlaybackRequested] = useState(Boolean(playbackUrl));
   const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
   const [isSwitchingSource, setIsSwitchingSource] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -282,18 +347,56 @@ export function VideoPlayer({
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showServerPicker, setShowServerPicker] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'main' | 'audio-sub' | 'quality' | 'speed'>('main');
+  const [settingsPopoverStyle, setSettingsPopoverStyle] = useState<React.CSSProperties | undefined>();
+  const [serverPickerStyle, setServerPickerStyle] = useState<React.CSSProperties | undefined>();
 
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
-  // Subtitles extraídas da API ou vazias
+  useEffect(() => {
+    setPlaybackRequested(Boolean(playbackUrl));
+    setIsPlaying(false);
+    isPlayingRef.current = false;
+    previousSourceKeyRef.current = null;
+    setShowSettingsMenu(false);
+    setShowServerPicker(false);
+    setSettingsTab('main');
+    setSettingsPopoverStyle(undefined);
+    setServerPickerStyle(undefined);
+  }, [animeId, episodeNum, playbackUrl]);
+
+  // A fonte ativa determina os idiomas e as legendas disponíveis. Isso evita
+  // exibir opções de outra fonte ou marcar várias legendas quando uma resposta
+  // legada não possuía IDs.
   const availableSubtitles = React.useMemo(() => {
-    return resolvedStream?.subtitles || [];
-  }, [resolvedStream]);
+    return normalizeSubtitleTracks(activeServer?.subtitles);
+  }, [activeServer?.subtitles]);
+
+  const availableAudioLanguages = React.useMemo<AudioLanguageOption[]>(() => {
+    const ids = new Set<AudioLanguageOption['id']>();
+
+    serverList.forEach((server) => {
+      const id = normalizeAudioLanguageId(server.audioLanguage);
+      if (id) ids.add(id);
+    });
+
+    const streamAudioId = normalizeAudioLanguageId(resolvedStream?.audioLanguage);
+    if (streamAudioId) ids.add(streamAudioId);
+
+    const options = AUDIO_LANGUAGES.filter((language) => ids.has(language.id));
+    return options.length > 0 ? options : [AUDIO_LANGUAGES[0]];
+  }, [resolvedStream?.audioLanguage, serverList]);
 
   const [selectedSubTrackId, setSelectedSubTrackId] = useState<string | null | undefined>(undefined);
-  const selectedSubTrack = selectedSubTrackId === null ? null : (availableSubtitles.find((subtitle) => subtitle.id === selectedSubTrackId) ?? availableSubtitles[0] ?? null);
+  const selectedSubTrack =
+    selectedSubTrackId === null
+      ? null
+      : availableSubtitles.find((subtitle) => subtitle.id === selectedSubTrackId) ?? availableSubtitles[0] ?? null;
+
+  useEffect(() => {
+    setSelectedSubTrackId(undefined);
+  }, [activeSourceKey]);
 
   const failedServerIdsRef = useRef<Set<string>>(new Set());
 
@@ -347,11 +450,22 @@ export function VideoPlayer({
   // Carregamento dinâmico do HLS.js para streams .m3u8 com fallback nativo MP4
   useEffect(() => {
     const videoEl = videoRef.current;
-    if (!videoEl || !activeServerSrc || !activeSourceKey) return;
+    if (!videoEl) return;
+
+    if (!playbackRequested || !activeServerSrc || !activeSourceKey) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      videoEl.pause();
+      videoEl.removeAttribute('src');
+      videoEl.load();
+      return;
+    }
 
     const previousSourceKey = previousSourceKeyRef.current;
     const previousTime = Number.isFinite(videoEl.currentTime) ? videoEl.currentTime : 0;
-    const shouldResume = isPlayingRef.current || !videoEl.paused;
+    const shouldResume = playbackRequested || isPlayingRef.current || !videoEl.paused;
     const isSourceChange = previousSourceKey !== null && previousSourceKey !== activeSourceKey;
 
     if (isSourceChange && previousTime > 0) {
@@ -382,7 +496,7 @@ export function VideoPlayer({
         lowLatencyMode: true,
         backBufferLength: 90,
         maxBufferLength: 30,
-        autoStartLoad: true,
+        autoStartLoad: false,
       });
 
       createdHls = hls;
@@ -437,7 +551,7 @@ export function VideoPlayer({
         hlsRef.current = null;
       }
     };
-  }, [activeSourceKey, activeServerSrc, activeServerType]);
+  }, [activeSourceKey, activeServerSrc, activeServerType, playbackRequested]);
 
   // Picture-in-Picture event listeners
   useEffect(() => {
@@ -551,13 +665,52 @@ export function VideoPlayer({
     }
   };
 
-  const [audioLang, setAudioLang] = useState(AUDIO_LANGUAGES[0]);
+  const [audioLang, setAudioLang] = useState<AudioLanguageOption>(AUDIO_LANGUAGES[0]);
   const [langToast, setLangToast] = useState<string | null>(null);
+  const langToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleAudioChange = (lang: (typeof AUDIO_LANGUAGES)[0]) => {
+  const dismissLangToast = useCallback(() => {
+    if (langToastTimeoutRef.current) {
+      clearTimeout(langToastTimeoutRef.current);
+      langToastTimeoutRef.current = null;
+    }
+    setLangToast(null);
+  }, []);
+
+  const showLangToast = useCallback((message: string) => {
+    if (langToastTimeoutRef.current) clearTimeout(langToastTimeoutRef.current);
+    setLangToast(message);
+    langToastTimeoutRef.current = setTimeout(() => {
+      langToastTimeoutRef.current = null;
+      setLangToast(null);
+    }, 2500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (langToastTimeoutRef.current) clearTimeout(langToastTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const activeAudioId = normalizeAudioLanguageId(activeServer?.audioLanguage || resolvedStream?.audioLanguage);
+    const activeOption = availableAudioLanguages.find((language) => language.id === activeAudioId);
+
+    if (activeOption) {
+      setAudioLang((current) => (current.id === activeOption.id ? current : activeOption));
+      return;
+    }
+
+    setAudioLang((current) => (availableAudioLanguages.some((language) => language.id === current.id) ? current : availableAudioLanguages[0]));
+  }, [activeServer?.audioLanguage, availableAudioLanguages, resolvedStream?.audioLanguage]);
+
+  const handleAudioChange = (lang: AudioLanguageOption) => {
+    const matchingServer = serverList.find((server) => normalizeAudioLanguageId(server.audioLanguage) === lang.id);
+    if (matchingServer && matchingServer.id !== activeServer?.id) {
+      setActiveServerId(matchingServer.id);
+    }
     setAudioLang(lang);
-    setLangToast(`Áudio: ${lang.label}`);
-    setTimeout(() => setLangToast(null), 2500);
+    showLangToast(`Áudio: ${lang.label}`);
   };
 
   const [resumePrompt, setResumePrompt] = useState<{
@@ -686,9 +839,22 @@ export function VideoPlayer({
     };
   }, [animeId, animeImage, animeTitle, episodeNum, episodeTitle, saveProgress]);
 
+  const requestPlayback = useCallback(() => {
+    if (serverList.length > 0) {
+      void videoRef.current?.play().catch(() => {});
+      return;
+    }
+    if (isResolving) return;
+    setPlaybackRequested(true);
+    onRequestPlayback?.();
+  }, [isResolving, onRequestPlayback, serverList.length]);
+
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || serverList.length === 0) {
+      requestPlayback();
+      return;
+    }
     const currentlyPlaying = isPlayingRef.current && !video.paused;
     if (currentlyPlaying) {
       video.pause();
@@ -708,7 +874,7 @@ export function VideoPlayer({
         setResumePrompt((prev) => ({ ...prev, show: false }));
       }
     }
-  }, [saveProgress, animeId, animeTitle, animeImage, episodeNum, episodeTitle, duration, resumePrompt.show]);
+  }, [saveProgress, animeId, animeTitle, animeImage, episodeNum, episodeTitle, duration, resumePrompt.show, requestPlayback, serverList.length]);
 
   const handleResume = (resumeTime: number) => {
     if (videoRef.current) {
@@ -859,6 +1025,123 @@ export function VideoPlayer({
     };
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (!showSettingsMenu && !showServerPicker) return;
+
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (showSettingsMenu && !settingsMenuRef.current?.contains(target)) setShowSettingsMenu(false);
+      if (showServerPicker && !serverPickerRef.current?.contains(target)) setShowServerPicker(false);
+    };
+    const focusTimer = window.setTimeout(() => {
+      const root = showSettingsMenu ? settingsMenuRef.current : serverPickerRef.current;
+      root?.querySelector<HTMLButtonElement>('button')?.focus();
+    }, 0);
+
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener('pointerdown', closeOnOutsidePress);
+    };
+  }, [showSettingsMenu, showServerPicker]);
+
+  const updateSettingsPopoverPosition = useCallback(() => {
+    const anchor = settingsMenuRef.current;
+    const popover = settingsPopoverRef.current;
+    if (!anchor || !popover) return;
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const popoverRect = popover.getBoundingClientRect();
+    const margin = 8;
+    const gap = 8;
+    const maxLeft = Math.max(margin, window.innerWidth - popoverRect.width - margin);
+    const left = Math.min(Math.max(margin, anchorRect.right - popoverRect.width), maxLeft);
+    const hasRoomAbove = anchorRect.top - gap - popoverRect.height >= margin;
+    const hasMoreRoomAbove = anchorRect.top > window.innerHeight - anchorRect.bottom;
+    const top = hasRoomAbove || hasMoreRoomAbove
+      ? Math.max(margin, anchorRect.top - gap - popoverRect.height)
+      : Math.max(margin, Math.min(anchorRect.bottom + gap, Math.max(margin, window.innerHeight - popoverRect.height - margin)));
+
+    setSettingsPopoverStyle({
+      position: 'fixed',
+      left,
+      top,
+      right: 'auto',
+      bottom: 'auto',
+      transform: 'none',
+    });
+  }, []);
+
+  const updateServerPickerPosition = useCallback(() => {
+    const anchor = serverPickerRef.current;
+    if (!anchor) return;
+
+    const margin = 8;
+    const gap = 8;
+    const anchorRect = anchor.getBoundingClientRect();
+    const width = Math.min(anchorRect.width, Math.max(0, window.innerWidth - margin * 2));
+    const left = Math.min(Math.max(margin, anchorRect.left), Math.max(margin, window.innerWidth - width - margin));
+    const spaceAbove = Math.max(0, anchorRect.top - gap - margin);
+    const spaceBelow = Math.max(0, window.innerHeight - anchorRect.bottom - gap - margin);
+    const opensBelow = spaceBelow >= spaceAbove;
+    const maxHeight = Math.max(96, Math.min(window.innerHeight * 0.7, 384, Math.max(spaceAbove, spaceBelow)));
+    const top = opensBelow
+      ? Math.max(margin, Math.min(anchorRect.bottom + gap, window.innerHeight - margin - maxHeight))
+      : Math.max(margin, anchorRect.top - gap - maxHeight);
+
+    setServerPickerStyle({
+      position: 'fixed',
+      left,
+      top,
+      width,
+      maxHeight,
+      right: 'auto',
+      bottom: 'auto',
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!showSettingsMenu) {
+      setSettingsPopoverStyle(undefined);
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(updateSettingsPopoverPosition);
+    return () => window.cancelAnimationFrame(frame);
+  }, [settingsTab, showSettingsMenu, updateSettingsPopoverPosition]);
+
+  useEffect(() => {
+    if (!showSettingsMenu) return;
+
+    window.addEventListener('resize', updateSettingsPopoverPosition);
+    window.addEventListener('scroll', updateSettingsPopoverPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateSettingsPopoverPosition);
+      window.removeEventListener('scroll', updateSettingsPopoverPosition, true);
+    };
+  }, [showSettingsMenu, updateSettingsPopoverPosition]);
+
+  useLayoutEffect(() => {
+    if (!showServerPicker) {
+      setServerPickerStyle(undefined);
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(updateServerPickerPosition);
+    return () => window.cancelAnimationFrame(frame);
+  }, [showServerPicker, updateServerPickerPosition]);
+
+  useEffect(() => {
+    if (!showServerPicker) return;
+
+    window.addEventListener('resize', updateServerPickerPosition);
+    window.addEventListener('scroll', updateServerPickerPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateServerPickerPosition);
+      window.removeEventListener('scroll', updateServerPickerPosition, true);
+    };
+  }, [showServerPicker, updateServerPickerPosition]);
+
   const handleMouseMove = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -883,6 +1166,9 @@ export function VideoPlayer({
           e.preventDefault();
         } else if (showSettingsMenu) {
           setShowSettingsMenu(false);
+          e.preventDefault();
+        } else if (showServerPicker) {
+          setShowServerPicker(false);
           e.preventDefault();
         } else if (showShortcutsModal) {
           setShowShortcutsModal(false);
@@ -945,21 +1231,21 @@ export function VideoPlayer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [contextMenu, isTheaterMode, isLightDimmed, showSettingsMenu, showShortcutsModal, volume, isPlaying, duration, togglePlay, toggleFullscreen, toggleMute, skipTime, skipIntro, isInOpening]);
+  }, [contextMenu, isTheaterMode, isLightDimmed, showSettingsMenu, showServerPicker, showShortcutsModal, volume, isPlaying, duration, togglePlay, toggleFullscreen, toggleMute, skipTime, skipIntro, isInOpening]);
 
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Barra de Seleção de Servidores Dinâmica */}
-      <div className="relative z-40">
+      <div ref={serverPickerRef} className="relative z-40">
         <div className="flex min-h-14 items-center justify-between gap-3 rounded-[14px] border border-white/10 bg-[#121219] px-3 py-2.5 sm:px-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#FF6B00]/15 text-[#FF7A1A]">
               {isResolving ? <Loader2 size={17} className="animate-spin" /> : <Server size={17} />}
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-medium text-zinc-400">{isResolving ? 'Buscando fontes' : 'Fonte atual'}</p>
+              <p className="text-[11px] font-medium text-zinc-400">{isResolving ? 'Preparando reprodução' : 'Fonte atual'}</p>
               <p className="truncate text-sm font-semibold text-white">
-                {activeServer ? `${activeServer.provider} · ${activeServer.quality}` : isResolving ? 'Aguarde um instante' : 'Indisponível'}
+                {activeServer ? `${activeServer.provider} · ${activeServer.quality}` : isResolving ? 'Aguarde um instante' : 'Pronto para reproduzir'}
               </p>
             </div>
           </div>
@@ -969,8 +1255,12 @@ export function VideoPlayer({
               type="button"
               aria-expanded={showServerPicker}
               aria-controls="player-server-picker"
-              onClick={() => setShowServerPicker((open) => !open)}
-              className="flex min-h-10 shrink-0 items-center gap-2 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-zinc-200 transition-colors hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+              onClick={() => {
+                const willOpen = !showServerPicker;
+                setShowServerPicker(willOpen);
+                if (willOpen) onOpenSourcePicker?.();
+              }}
+              className="flex min-h-11 shrink-0 items-center gap-2 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-zinc-200 transition-colors hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
             >
               <span className="hidden sm:inline">
                 {availableProviderNames.length} {availableProviderNames.length === 1 ? 'fonte' : 'fontes'}
@@ -984,13 +1274,15 @@ export function VideoPlayer({
         {showServerPicker && availableProviderNames.length > 0 && (
           <div
             id="player-server-picker"
-            className="absolute inset-x-0 top-[calc(100%+8px)] overflow-hidden rounded-[14px] border border-white/10 bg-[#14141C] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.55)]"
+            ref={serverPickerPopoverRef}
+            style={serverPickerStyle}
+            className="player-server-picker z-50 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-[14px] border border-white/10 bg-[#14141C] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.55)]"
           >
             <div className="flex items-center justify-between px-2 pb-2 pt-1">
               <p className="text-xs font-semibold text-white">Escolha uma fonte</p>
               <p className="text-[11px] text-zinc-500">Qualidade nas configurações</p>
             </div>
-            <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
               {availableProviderNames.map((providerName) => {
                 const source = sourceGroups.find(
                   (group) => group.name.toLocaleLowerCase('pt-BR') === providerName.toLocaleLowerCase('pt-BR')
@@ -1206,32 +1498,37 @@ export function VideoPlayer({
 
           {/* Elemento de Vídeo ou iFrame Embed ou Mensagem de Indisponibilidade */}
           {serverList.length === 0 ? (
-            <div className="flex h-full w-full flex-col items-center justify-center space-y-4 bg-[#09090D] p-6 text-center" role="status" aria-live="polite">
-              {isResolving ? (
-                <>
-                  <Loader2 size={30} className="animate-spin text-[#FF6B00]" />
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-white">Consultando fontes Kenjitsu</h4>
-                    <p className="max-w-sm text-xs leading-5 text-zinc-400">Verificando disponibilidade e qualidade para este episódio.</p>
-                  </div>
-                  <ol className="grid w-full max-w-sm gap-1.5 text-left text-[11px] text-zinc-400 sm:grid-cols-3" aria-label="Etapas da resolução">
-                    <li className="border border-[#FF6B00]/30 bg-[#FF6B00]/10 px-2.5 py-2 text-[#FFB27A]">1. Consultar Kenjitsu</li>
-                    <li className="border border-white/10 bg-white/[.03] px-2.5 py-2">2. Validar fonte</li>
-                    <li className="border border-white/10 bg-white/[.03] px-2.5 py-2">3. Preparar player</li>
-                  </ol>
-                </>
-              ) : (
-                <>
-                  <div className="flex size-12 items-center justify-center rounded-[12px] bg-amber-500/10 text-amber-400">
-                    <AlertTriangle size={32} />
-                  </div>
-                  <h4 className="text-base font-bold text-white">Nenhuma fonte de transmissão disponível</h4>
-                  <p className="text-xs text-gray-400 max-w-md">
-                    {humanizeResolutionError(streamStatusMessage)} Tente novamente ou escolha outro episódio.
-                  </p>
-                  {onRetryResolve && <button type="button" onClick={onRetryResolve} className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-3)]">Tentar novamente</button>}
-                </>
+            <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-[#09090D] p-6 text-center" aria-busy={isResolving}>
+              {animeImage && (
+                <SafeImage
+                  src={animeImage}
+                  animeId={animeId}
+                  alt=""
+                  fill
+                  priority
+                  className="pointer-events-none object-cover opacity-35"
+                />
               )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#09090D] via-[#09090D]/70 to-[#09090D]/45" />
+              <div className="relative z-10 flex flex-col items-center gap-3">
+                {isResolving ? (
+                  <button type="button" disabled aria-label="Preparando reprodução" className="flex size-16 items-center justify-center rounded-full bg-[#FF6B00] text-white shadow-[0_12px_35px_rgba(255,107,0,0.35)]">
+                    <Loader2 size={28} className="animate-spin" />
+                  </button>
+                ) : streamStatusMessage ? (
+                  <>
+                    <div className="flex size-12 items-center justify-center rounded-[12px] bg-amber-500/10 text-amber-400"><AlertTriangle size={30} /></div>
+                    <h4 className="text-base font-bold text-white">Não foi possível iniciar este episódio</h4>
+                    <p className="max-w-md text-xs text-gray-300">{humanizeResolutionError(streamStatusMessage)}</p>
+                    {onRetryResolve && <button type="button" onClick={onRetryResolve} className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-3)]">Tentar novamente</button>}
+                  </>
+                ) : (
+                  <button type="button" onClick={requestPlayback} aria-label="Reproduzir episódio" className="group flex flex-col items-center gap-3 rounded-2xl p-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]">
+                    <span className="flex size-16 items-center justify-center rounded-full bg-[#FF6B00] shadow-[0_12px_35px_rgba(255,107,0,0.35)] transition-transform group-hover:scale-105 sm:size-20"><Play size={32} className="ml-1 fill-current" /></span>
+                    <span className="text-xs font-bold text-white/90">Reproduzir episódio</span>
+                  </button>
+                )}
+              </div>
             </div>
           ) : activeServer?.type === 'embed' ? (
             <iframe
@@ -1245,7 +1542,7 @@ export function VideoPlayer({
           ) : (
             <video
               ref={videoRef}
-              preload="auto"
+              preload="none"
               poster={hasRenderedFrame ? undefined : animeImage}
               onLoadedMetadata={handleLoadedMetadata}
               onLoadedData={() => {
@@ -1272,7 +1569,18 @@ export function VideoPlayer({
               onError={() => handleVideoError()}
               onClick={togglePlay}
               className="w-full h-full object-contain cursor-pointer"
-            />
+            >
+              {selectedSubTrack?.url && (
+                <track
+                  key={selectedSubTrack.id}
+                  kind="subtitles"
+                  src={selectedSubTrack.url}
+                  srcLang={selectedSubTrack.language || 'und'}
+                  label={selectedSubTrack.label}
+                  default
+                />
+              )}
+            </video>
           )}
 
           {/* Ação contextual: existe somente dentro do intervalo configurado da abertura. */}
@@ -1410,10 +1718,18 @@ export function VideoPlayer({
 
           {/* Notificação Toast de Idioma */}
           {langToast && (
-            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-2xl glass-panel bg-neutral-900/95 border border-[#FF6B00] text-white text-xs font-bold shadow-2xl backdrop-blur-xl animate-fade-in flex items-center gap-2">
+            <button
+              type="button"
+              role="status"
+              aria-live="polite"
+              aria-label={`${langToast}. Toque para dispensar.`}
+              onClick={dismissLangToast}
+              className="absolute inset-x-3 top-3 z-50 mx-auto flex w-fit max-w-[calc(100%-1.5rem)] items-center justify-center gap-2 rounded-2xl border border-[#FF6B00] bg-neutral-900/95 px-4 py-2 text-center text-xs font-bold text-white shadow-2xl backdrop-blur-xl animate-fade-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B00]"
+            >
               <Languages size={16} className="text-[#FF6B00]" />
-              <span>{langToast}</span>
-            </div>
+              <span className="min-w-0 break-words">{langToast}</span>
+              <X size={13} className="shrink-0 text-zinc-400" aria-hidden="true" />
+            </button>
           )}
 
           {/* Banner Flutuante para Retomar Vídeo */}
@@ -1467,7 +1783,7 @@ export function VideoPlayer({
           {/* Barra de Controles Inferior Redesenhada e Limpa */}
           {serverList.length > 0 && activeServer?.type !== 'embed' && (
             <div
-              className={`absolute inset-x-0 bottom-0 z-20 space-y-1.5 bg-gradient-to-t from-black via-black/75 to-transparent p-2 pt-10 transition-opacity duration-300 sm:p-3 sm:pt-14 ${
+              className={`player-controls absolute inset-x-0 bottom-0 z-20 space-y-1.5 bg-gradient-to-t from-black via-black/75 to-transparent p-2 pt-10 transition-opacity duration-300 sm:p-3 sm:pt-14 ${
                 showControls || !isPlaying ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
               }`}
             >
@@ -1603,7 +1919,7 @@ export function VideoPlayer({
                   </Tooltip>
 
                   {/* Menu Unificado de Configurações ⚙️ */}
-                  <div className="relative">
+                  <div ref={settingsMenuRef} className="relative">
                     <Tooltip content="Configurações do Player" position="top">
                       <button
                         type="button"
@@ -1623,7 +1939,11 @@ export function VideoPlayer({
 
                     {/* Popover Multinível de Configurações */}
                     {showSettingsMenu && (
-                      <div className="absolute bottom-12 right-0 p-3 rounded-2xl glass-panel bg-neutral-900/95 border border-white/10 shadow-2xl z-40 min-w-[220px] sm:min-w-[250px] animate-fade-in backdrop-blur-xl">
+                      <div
+                        ref={settingsPopoverRef}
+                        style={settingsPopoverStyle}
+                        className="player-settings-popover z-40 max-h-[min(70dvh,32rem)] w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-neutral-900/95 p-2 shadow-2xl glass-panel animate-fade-in backdrop-blur-xl sm:p-3"
+                      >
                         {/* Nível 1: Menu Principal */}
                         {settingsTab === 'main' && (
                           <div className="space-y-1 text-xs">
@@ -1642,7 +1962,7 @@ export function VideoPlayer({
                                 <span>Áudio & Legendas</span>
                               </div>
                               <div className="flex items-center gap-1 text-gray-400 font-mono text-[10px]">
-                                <span>
+                                <span className="min-w-0 max-w-[11rem] truncate text-right">
                                   {audioLang.code} {selectedSubTrack ? `| CC: ${selectedSubTrack.label}` : ' (Sem CC)'}
                                 </span>
                                 <ChevronRight size={14} />
@@ -1748,18 +2068,20 @@ export function VideoPlayer({
                             {/* Seção Idioma do Áudio */}
                             <div className="space-y-1">
                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Idioma do Áudio</span>
-                              {AUDIO_LANGUAGES.map((lang) => {
+                              {availableAudioLanguages.map((lang) => {
                                 const isSelected = audioLang.id === lang.id;
                                 return (
                                   <button
+                                    type="button"
                                     key={lang.id}
+                                    aria-pressed={isSelected}
                                     onClick={() => handleAudioChange(lang)}
-                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl font-bold transition-all ${
+                                    className={`flex min-h-9 w-full min-w-0 items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-left font-bold transition-all ${
                                       isSelected ? 'bg-[#FF6B00] text-white shadow-md' : 'hover:bg-white/10 text-gray-300'
                                     }`}
                                   >
-                                    <span>{lang.label}</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 font-mono">{lang.badge}</span>
+                                    <span className="min-w-0 truncate">{lang.label}</span>
+                                    <span className="shrink-0 rounded bg-black/30 px-1.5 py-0.5 text-[10px] font-mono">{lang.badge}</span>
                                   </button>
                                 );
                               })}
@@ -1778,11 +2100,13 @@ export function VideoPlayer({
                               ) : (
                                 <div className="space-y-1">
                                   <button
+                                    type="button"
+                                    aria-pressed={selectedSubTrack === null}
                                     onClick={() => {
                                       setSelectedSubTrackId(null);
-                                      setLangToast('Legendas Desativadas');
+                                      showLangToast('Legendas desativadas');
                                     }}
-                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl font-bold transition-all ${
+                                    className={`flex min-h-9 w-full min-w-0 items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-left font-bold transition-all ${
                                       selectedSubTrack === null ? 'bg-[#FF6B00] text-white shadow-md' : 'hover:bg-white/10 text-gray-300'
                                     }`}
                                   >
@@ -1794,16 +2118,18 @@ export function VideoPlayer({
                                     const isSelected = selectedSubTrack?.id === sub.id;
                                     return (
                                       <button
+                                        type="button"
                                         key={sub.id}
+                                        aria-pressed={isSelected}
                                         onClick={() => {
                                           setSelectedSubTrackId(sub.id);
-                                          setLangToast(`Legenda: ${sub.label}`);
+                                          showLangToast(`Legenda: ${sub.label}`);
                                         }}
-                                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl font-bold transition-all ${
+                                        className={`flex min-h-9 w-full min-w-0 items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-left font-bold transition-all ${
                                           isSelected ? 'bg-[#FF6B00] text-white shadow-md' : 'hover:bg-white/10 text-gray-300'
                                         }`}
                                       >
-                                        <span>{sub.label}</span>
+                                        <span className="min-w-0 truncate">{sub.label}</span>
                                         {isSelected && <CheckCircle2 size={13} />}
                                       </button>
                                     );

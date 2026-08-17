@@ -80,7 +80,8 @@ async function resolveContentBlock(block: Extract<HomepageBlock, { type: 'hero' 
       result.missing ? `${result.missing} título(s) foram ignorados por indisponibilidade no Kenjitsu.` : undefined,
     );
   } catch (error) {
-    return resultFor(block, 'error', [], error instanceof Error ? error.message : 'Não foi possível consultar o Kenjitsu.');
+    console.error('[Homepage Block Resolution Error]', error);
+    return resultFor(block, 'error', [], 'Não foi possível consultar o Kenjitsu.');
   }
 }
 

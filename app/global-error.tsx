@@ -3,7 +3,6 @@
 import React from 'react';
 
 export default function GlobalError({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -15,7 +14,7 @@ export default function GlobalError({
         <div className="max-w-md text-center space-y-4">
           <h2 className="text-2xl font-black text-white">Algo deu errado!</h2>
           <p className="text-xs text-gray-400">
-            {error?.message || 'Ocorreu um erro inesperado na aplicação.'}
+            Ocorreu um erro inesperado na aplicação.
           </p>
           <button
             onClick={() => reset()}

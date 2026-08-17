@@ -1,60 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getOrCreateSetupKey, validateSetupKey } from '@/lib/security/setup-key';
+import { checkDistributedRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
 
 export async function GET(request: NextRequest) {
-  const startTime = Date.now();
+  const rateLimit = await checkDistributedRateLimit(`setup:status:${getClientIp(request)}`, { limit: 30, windowMs: 60 * 1000 }, { failClosed: true });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: rateLimit.backend === 'unavailable' ? 'Status de setup temporariamente indisponível.' : 'Muitas consultas de setup.' },
+      { status: rateLimit.backend === 'unavailable' ? 503 : 429, headers: { ...rateLimitHeaders(rateLimit), 'Cache-Control': 'no-store' } },
+    );
+  }
 
   try {
-    let dbConnected = false;
-    let postgresPingMs = 0;
-    let adminCount = 0;
-    let animeCount = 0;
-    let episodeCount = 0;
+    const admin = await prisma.adminUser.findFirst({ select: { id: true } });
+    const isInitialized = Boolean(admin);
+    if (!isInitialized) getOrCreateSetupKey();
+    const key = request.headers.get('x-setup-key');
 
-    try {
-      const dbStart = Date.now();
-      await prisma.$queryRaw`SELECT 1`;
-      postgresPingMs = Date.now() - dbStart;
-      dbConnected = true;
-
-      adminCount = await prisma.adminUser.count();
-      animeCount = await prisma.anime.count();
-      episodeCount = await prisma.episode.count();
-    } catch (err: any) {
-      console.error('[Setup Status DB Error]', err);
-      dbConnected = false;
-    }
-
-    const isInitialized = adminCount > 0;
-
-    // Se ainda não inicializado, garante que a chave do setup existe nos logs
-    if (!isInitialized) {
-      getOrCreateSetupKey();
-    }
-
-    // Verificar se uma chave foi fornecida na query string
-    const searchParams = request.nextUrl.searchParams;
-    const providedKey = searchParams.get('key') || request.headers.get('x-setup-key');
-    const keyValid = !isInitialized && providedKey ? validateSetupKey(providedKey) : false;
-
-    return NextResponse.json({
-      dbConnected,
-      postgresPingMs,
-      isInitialized,
-      setupKeyRequired: !isInitialized,
-      keyValid,
-      stats: {
-        adminCount,
-        animeCount,
-        episodeCount,
-      },
-      totalDurationMs: Date.now() - startTime,
-    });
-  } catch (err: any) {
     return NextResponse.json(
-      { dbConnected: false, isInitialized: false, error: err.message },
-      { status: 500 }
+      {
+        dbConnected: true,
+        isInitialized,
+        setupKeyRequired: !isInitialized,
+        keyValid: !isInitialized && Boolean(key) && validateSetupKey(key),
+      },
+      { headers: { ...rateLimitHeaders(rateLimit), 'Cache-Control': 'no-store' } },
+    );
+  } catch (error) {
+    console.error('[Setup Status Error]', error instanceof Error ? error.message : 'Falha desconhecida');
+    return NextResponse.json(
+      { dbConnected: false, isInitialized: false, setupKeyRequired: true, keyValid: false },
+      { status: 503, headers: { ...rateLimitHeaders(rateLimit), 'Cache-Control': 'no-store' } },
     );
   }
 }

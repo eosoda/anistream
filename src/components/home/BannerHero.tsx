@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Play, Heart, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
 import { JikanAnime } from '@/types/anime';
 import { RatingBadge } from '@/components/ui/RatingBadge';
-import { formatSeasonName } from '@/utils/formatters';
+import { formatSeasonName, toPlainText } from '@/utils/formatters';
 import { useFavorites } from '@/hooks/useFavorites';
 import { SafeImage } from '@/components/ui/SafeImage';
 
@@ -55,7 +55,7 @@ export function BannerHero({
 
   if (isLoading || !animes || animes.length === 0) {
     return (
-      <div className="w-full h-[48vh] sm:h-[54vh] min-h-[360px] sm:min-h-[420px] max-h-[520px] bg-neutral-900/50 animate-pulse relative rounded-b-3xl overflow-hidden flex items-end p-6 md:p-12">
+      <div className="w-full h-[48vh] sm:h-[54vh] min-h-[360px] sm:min-h-[420px] max-h-[520px] bg-neutral-900/50 animate-pulse relative rounded-b-3xl overflow-hidden flex items-end p-6 md:p-12" role="status" aria-busy="true" aria-label="Carregando destaque">
         <div className="max-w-2xl space-y-4">
           <div className="h-6 bg-white/10 rounded w-32" />
           <div className="h-10 bg-white/10 rounded w-3/4" />
@@ -69,8 +69,11 @@ export function BannerHero({
   const favorited = isFavorite(currentAnime.mal_id);
 
   const computedTitle =
-    currentAnime.title_english || currentAnime.title || currentAnime.title_japanese || 'Anime';
-  const title = titleOverride || computedTitle;
+    toPlainText(currentAnime.title_english) || toPlainText(currentAnime.title) || toPlainText(currentAnime.title_japanese) || 'Anime';
+  const title = toPlainText(titleOverride) || computedTitle;
+  const synopsis = toPlainText(subtitleOverride || currentAnime.synopsis) || 'Sem sinopse disponível.';
+  const typeLabel = toPlainText(currentAnime.type);
+  const seasonLabel = toPlainText(currentAnime.season);
 
   const backdropImage =
     currentAnime.mal_id === 52991
@@ -88,6 +91,7 @@ export function BannerHero({
   return (
     <div
       className="relative w-full h-[48vh] sm:h-[54vh] min-h-[360px] sm:min-h-[420px] max-h-[520px] overflow-hidden rounded-b-2xl sm:rounded-b-3xl bg-[#0B0B0F]"
+      aria-busy={isLoading}
       onMouseEnter={() => setIsAutoplay(false)}
       onMouseLeave={() => setIsAutoplay(true)}
     >
@@ -120,15 +124,15 @@ export function BannerHero({
                 {/* Badges row */}
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <RatingBadge score={currentAnime.score} size="md" />
-                  {currentAnime.season && currentAnime.year && (
+                  {seasonLabel && currentAnime.year && (
                     <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/10 text-white border border-white/10 text-[11px] sm:text-xs font-semibold backdrop-blur-md">
                       <Calendar size={11} className="text-[#FF6B00]" />
-                      {formatSeasonName(currentAnime.season)} {currentAnime.year}
+                      {formatSeasonName(seasonLabel)} {currentAnime.year}
                     </span>
                   )}
-                  {currentAnime.type && (
+                  {typeLabel && (
                     <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30 text-[11px] sm:text-xs font-bold">
-                      {currentAnime.type}
+                      {typeLabel}
                     </span>
                   )}
                 </div>
@@ -145,14 +149,14 @@ export function BannerHero({
                       key={genre.mal_id}
                       className="px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-[10px] sm:text-xs text-gray-200"
                     >
-                      {genre.name}
+                      {toPlainText(genre.name) || 'Gênero'}
                     </span>
                   ))}
                 </div>
 
                 {/* Synopsis */}
                 <p className="text-xs sm:text-sm text-gray-300 line-clamp-2 max-w-xl leading-relaxed">
-                  {subtitleOverride || currentAnime.synopsis || 'Sem sinopse disponível.'}
+                  {synopsis}
                 </p>
 
                 {/* CTA Buttons */}
@@ -232,13 +236,13 @@ export function BannerHero({
                     : 'after:size-2 after:rounded-full after:bg-white/50 hover:after:bg-white'
                 }`}
                 aria-label={`Ir para slide ${idx + 1}`}
-                title={animeItem.title_english || animeItem.title}
+                title={toPlainText(animeItem.title_english) || toPlainText(animeItem.title) || 'Anime'}
               >
                 {isSelected && itemImg && (
                   <SafeImage
                     src={itemImg}
                     animeId={animeItem.mal_id}
-                    alt={animeItem.title}
+                alt={toPlainText(animeItem.title) || 'Anime'}
                     fill
                     sizes="32px"
                     className="object-cover"

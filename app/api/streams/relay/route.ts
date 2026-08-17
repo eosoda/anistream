@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decryptData, encryptData } from '@/lib/security/crypto';
 import { verifyPlaybackToken } from '@/lib/security/playback-token';
-import { validateUrlSsrf } from '@/lib/security/ssrf';
-import { checkRateLimit } from '@/lib/security/rate-limit';
+import { safeFetch, readResponseTextLimited, filterUpstreamHeaders, withIdleTimeout } from '@/lib/security/safe-fetch';
+import { checkDistributedRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
 
 interface RelayDescriptor {
   sourceId: string;
@@ -54,14 +54,14 @@ function rewriteHlsManifest(
 }
 
 export async function GET(request: NextRequest) {
-  const rateLimit = checkRateLimit(request, 'stream-relay', {
+  const rateLimit = await checkDistributedRateLimit(`stream-relay:${getClientIp(request)}`, {
     limit: 600,
     windowMs: 60000,
   });
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Limite de solicitações de mídia excedido.' },
-      { status: 429 }
+      { status: 429, headers: rateLimitHeaders(rateLimit) }
     );
   }
 
@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
   let descriptor: RelayDescriptor;
   try {
     descriptor = JSON.parse(decryptData(encryptedPayload));
+    if (!descriptor || typeof descriptor.sourceId !== 'string' || typeof descriptor.url !== 'string' || typeof descriptor.type !== 'string') throw new Error('invalid_descriptor');
   } catch {
     return NextResponse.json(
       { error: 'Descritor de mídia inválido.' },
@@ -87,38 +88,28 @@ export async function GET(request: NextRequest) {
   const verification = await verifyPlaybackToken(token, descriptor.sourceId);
   if (!verification.valid) {
     return NextResponse.json(
-      { error: verification.reason || 'Token inválido.' },
-      { status: 403 }
-    );
-  }
-
-  // O descritor só pode ser criado pelo servidor (AES-GCM autenticado).
-  // Hosts efêmeros retornados pelo Kenjitsu passam pela proteção SSRF.
-  const ssrf = await validateUrlSsrf(descriptor.url);
-  if (!ssrf.valid) {
-    return NextResponse.json(
-      { error: `Destino de mídia bloqueado: ${ssrf.reason}` },
+      { error: 'Token de reprodução inválido.' },
       { status: 403 }
     );
   }
 
   const range = request.headers.get('range');
-  const headers: Record<string, string> = {
+  const headers = filterUpstreamHeaders({
     Accept: '*/*',
     ...(descriptor.headers || {}),
-  };
+  });
   if (range) headers.Range = range;
 
   try {
-    const upstream = await fetch(descriptor.url, {
+    const upstream = await safeFetch(descriptor.url, {
       headers,
       cache: 'no-store',
-      signal: AbortSignal.timeout(30000),
+      timeoutMs: 30000,
     });
     if (!upstream.ok && upstream.status !== 206) {
       return NextResponse.json(
-        { error: `Mídia upstream respondeu HTTP ${upstream.status}.` },
-        { status: upstream.status }
+        { error: 'A fonte de mídia não respondeu com sucesso.' },
+        { status: upstream.status, headers: rateLimitHeaders(rateLimit) }
       );
     }
 
@@ -128,7 +119,7 @@ export async function GET(request: NextRequest) {
       descriptor.url.toLowerCase().includes('.m3u8');
 
     if (isManifest) {
-      const manifest = await upstream.text();
+      const manifest = await readResponseTextLimited(upstream, 512 * 1024, 30000);
       if (manifest.includes('#EXTM3U')) {
         return new NextResponse(
           rewriteHlsManifest(manifest, request, descriptor, token),
@@ -137,6 +128,7 @@ export async function GET(request: NextRequest) {
             headers: {
               'Content-Type': 'application/vnd.apple.mpegurl',
               'Cache-Control': 'no-store',
+              ...rateLimitHeaders(rateLimit),
             },
           }
         );
@@ -157,16 +149,17 @@ export async function GET(request: NextRequest) {
       if (value) responseHeaders.set(header, value);
     }
     responseHeaders.set('Cache-Control', 'no-store');
+    Object.entries(rateLimitHeaders(rateLimit)).forEach(([key, value]) => responseHeaders.set(key, value));
 
-    return new NextResponse(upstream.body, {
+    return new NextResponse(upstream.body ? withIdleTimeout(upstream.body, 30000) : null, {
       status: upstream.status,
       headers: responseHeaders,
     });
   } catch (error) {
+    console.error('[Stream Relay Error]', error instanceof Error ? error.message : 'Falha desconhecida');
     return NextResponse.json(
       {
         error: 'Falha ao retransmitir mídia.',
-        message: error instanceof Error ? error.message : 'Erro desconhecido',
       },
       { status: 502 }
     );

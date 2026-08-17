@@ -10,23 +10,17 @@ import { AnimeCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SeasonName } from '@/types/anime';
 import { formatSeasonName } from '@/utils/formatters';
+import { getCurrentSeason, getCurrentYear } from '@/utils/season';
 
 export default function SeasonsPage() {
-  const currentYear = 2024;
-  const getCurrentSeason = (): SeasonName => {
-    const month = new Date().getMonth() + 1;
-    if (month >= 1 && month <= 3) return 'winter';
-    if (month >= 4 && month <= 6) return 'spring';
-    if (month >= 7 && month <= 9) return 'summer';
-    return 'fall';
-  };
+  const currentYear = getCurrentYear();
 
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedSeason, setSelectedSeason] = useState<SeasonName>(getCurrentSeason());
   const [page, setPage] = useState(1);
 
   // Fetch season anime automatically
-  const { data: seasonData, isLoading, isError, refetch } = useQuery({
+  const { data: seasonData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['seasonAnime', selectedYear, selectedSeason, page],
     queryFn: () => kenjitsuService.getSeasonByYearAndSeason(selectedYear, selectedSeason, page, 24),
   });
@@ -91,7 +85,7 @@ export default function SeasonsPage() {
 
       {/* Anime Grid */}
       {!isError && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4" aria-busy={isLoading || isFetching}>
           {isLoading
             ? Array.from({ length: 18 }).map((_, i) => <AnimeCardSkeleton key={i} />)
             : seasonData?.data?.map((anime, index) => <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} index={index} />)}

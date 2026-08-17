@@ -60,6 +60,9 @@
 
 .font-mono-data { font-family: var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; }
 .safe-area-bottom { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+.player-settings-popover { width: min(20rem, calc(100vw - 1rem - env(safe-area-inset-left) - env(safe-area-inset-right))); max-height: min(70dvh, 32rem); }
+.player-settings-popover button { min-height: 2.75rem; }
+.player-controls button { min-width: 2.75rem; min-height: 2.75rem; }
 .surface-panel { background: var(--surface-1); border: 1px solid var(--border-subtle); }
 .admin-field { width: 100%; min-height: 44px; border: 1px solid var(--border-strong); border-radius: var(--radius-field); background: var(--surface-2); padding: .65rem .75rem; color: var(--text-primary); font-size: .875rem; }
 .operation-card { display: grid; gap: 1rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-media); background: var(--surface-1); padding: clamp(1rem, 3vw, 1.5rem); }

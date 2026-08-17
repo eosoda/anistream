@@ -43,8 +43,9 @@ export async function GET(request: NextRequest) {
   try {
     const providers = await providerSnapshot();
     return NextResponse.json({ providers, defaultProviderId: providers.find((provider) => provider.enabled)?.id || null, source: 'kenjitsu' });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Admin Providers Read Error]', error);
+    return NextResponse.json({ error: 'Não foi possível carregar os provedores.' }, { status: 502 });
   }
 }
 
@@ -76,8 +77,9 @@ export async function PATCH(request: NextRequest) {
     await saveKenjitsuExtensionSettings(updated);
     const providers = await providerSnapshot();
     return NextResponse.json({ success: true, provider: providers.find((provider) => provider.id === id), providers });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 502 });
+  } catch (error) {
+    console.error('[Admin Providers Update Error]', error);
+    return NextResponse.json({ error: 'Não foi possível atualizar os provedores.' }, { status: 502 });
   }
 }
 

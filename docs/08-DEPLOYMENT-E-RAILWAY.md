@@ -1,6 +1,6 @@
-# 08. Execução self-hosted e deployment futuro
+# 08. Execução self-hosted e deployment no Dokploy
 
-O foco atual do AniStream é validação local. Railway não é usado nesta fase e nenhum comando deste guia deve ser executado como deploy sem uma decisão posterior explícita.
+O foco desta etapa é validação local. O beta será publicado no Dokploy somente após autorização explícita; os comandos abaixo não fazem deploy por si só.
 
 ## 1. Stack local oficial
 
@@ -20,7 +20,7 @@ Health checks:
 
 ```bash
 curl http://localhost:3000/api/health
-curl http://localhost:3001/api/extensions/health
+docker compose exec kenjitsu wget --no-verbose --header="x-api-key: ${KENJITSU_API_KEY}" --spider http://127.0.0.1:3000/api/extensions/health
 docker compose ps
 ```
 
@@ -32,10 +32,9 @@ O Compose espera os projetos irmãos:
 ../anistream
 ../kenjitsu
 ../kenjitsu-extensions
-../extensions-source
 ```
 
-O `kenjitsu/Dockerfile.selfhosted` é compilado com os forks locais. A atualização deve acontecer no fork e entrar por PR; os repositórios oficiais não são alterados.
+O `kenjitsu/Dockerfile.selfhosted` é compilado com os forks locais. Para o Dokploy, a imagem é publicada pelo workflow do Kenjitsu com refs imutáveis dos dois repositórios.
 
 ## 3. Variáveis locais
 
@@ -47,10 +46,10 @@ As variáveis estão documentadas em `.env.example`:
 | `REDIS_URL` | Redis do AniStream. |
 | `KENJITSU_BASE_URL` | URL interna/externa do Kenjitsu. |
 | `KENJITSU_API_KEY` | Chave do Kenjitsu, quando habilitada. |
-| `ADMIN_SESSION_SECRET` | Sessões administrativas. |
+| `REDIS_PASSWORD` | Senha do Redis do AniStream. |
 | `PLAYBACK_TOKEN_SECRET` | Tokens do playback. |
 | `SOURCE_ENCRYPTION_KEY` | Descritores criptografados de mídia. |
-| `INITIAL_SETUP_KEY` | Chave opcional do primeiro setup. |
+| `INITIAL_SETUP_KEY` | Chave obrigatória e de uso único do primeiro setup em produção. |
 | `NEXT_PUBLIC_APP_URL` | URL pública da aplicação. |
 
 Quando a aplicação roda dentro do Compose, use os nomes dos serviços (`postgres`, `redis` e `kenjitsu`) como hosts. `localhost` é reservado para executar o Next.js diretamente na máquina.
@@ -62,7 +61,7 @@ Não há `AUTHORIZED_MEDIA_HOSTS`, lista M3U ou configuração equivalente. As U
 1. Suba o Compose.
 2. Abra `http://localhost:3000`.
 3. Se o banco estiver vazio, siga para `/setup`.
-4. Obtenha a chave nos logs de `anistream_selfhosted_app` se `INITIAL_SETUP_KEY` não estiver definida.
+4. Informe `INITIAL_SETUP_KEY` no cabeçalho do assistente `/setup`; em produção ela não é impressa nos logs.
 5. Crie o administrador e confirme a conexão Kenjitsu.
 6. Abra `/admin/extensions` e valide o health das fontes.
 
@@ -80,16 +79,20 @@ npm run test:kenjitsu
 
 O `npm run pre-deploy` agrupa parte desses gates, mas continua sendo um comando local.
 
-## 6. Railway — referência futura
+## 6. Dokploy — procedimento do beta
 
-Se houver decisão futura de hospedar no Railway, a adaptação deve preservar:
+No Dokploy, mantenha PostgreSQL, os dois Redis e Kenjitsu sem portas públicas; somente
+o AniStream recebe o domínio e a porta interna `3000`. Configure o Cloudflare em
+Full (Strict), permita somente 80/443 e SSH restrito no firewall da VPS e não use
+Basic Auth no domínio público. O login protegido é exclusivamente o `/admin`.
 
-- PostgreSQL gerenciado e `DATABASE_URL` privado;
-- Redis compatível com o cache do AniStream;
-- Kenjitsu self-hosted acessível pela rede privada ou serviço separado;
-- segredos fortes, sem valores padrão;
-- health check em `/api/health`;
-- execução de `prisma db push --skip-generate` somente após revisão do schema;
-- smoke Kenjitsu e E2E antes de promover a versão.
+O workflow `eosoda/kenjitsu/.github/workflows/selfhosted-image.yml` deve concluir o
+health check e o smoke das 12 extensões aprovadas antes de publicar a tag
+`kenjitsu-<sha>-extensions-<sha>`. No serviço AniStream, execute `npm run deploy:migrate`
+como etapa explícita antes de iniciar/reiniciar a aplicação. O startup não altera o
+schema.
 
-Essa seção não autoriza deploy nem substitui um plano de infraestrutura aprovado. O ambiente de desenvolvimento e os testes desta branch são exclusivamente locais.
+Backups PostgreSQL custom devem ser criados diariamente às 02:30 em
+`/var/backups/anistream/postgres/`, com checksum, retenção e restore temporário
+validados antes do beta. A ausência de cópia fora da VPS é um risco aceito apenas
+durante o beta fechado.

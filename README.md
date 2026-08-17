@@ -45,14 +45,14 @@ O **AniStream** é uma aplicação web para descoberta, acompanhamento e reprodu
 - O único Compose mantido é `docker-compose.yml`, compatível com execução local e futura hospedagem containerizada.
 - O Kenjitsu é a API única de catálogo, metadados, episódios e playback.
 - O registro atual possui 30 extensões: 25 portadas no fork `kenjitsu-extensions` e 5 nativas no Kenjitsu.
-- Extensões com domínios indisponíveis foram removidas do registro, mas seus módulos continuam preservados em `../extensions-source` para eventual atualização de domínio.
+- Extensões com domínios indisponíveis permanecem fora da allowlist do beta até uma nova revisão de smoke.
 - O fluxo de atualização passa por `upstream` → fork self-hosted → smoke local → merge na `main`; os repositórios oficiais não são alterados.
 
 ## Requisitos
 
 - Node.js 22.19+;
 - Docker Desktop com Compose;
-- os repositórios irmãos `../kenjitsu`, `../kenjitsu-extensions` e `../extensions-source` para o stack self-hosted;
+- os repositórios irmãos `../kenjitsu` e `../kenjitsu-extensions` para o stack self-hosted;
 - PostgreSQL/Redis locais quando executar sem Docker.
 
 ## Execução local recomendada
@@ -71,27 +71,24 @@ DATABASE_URL="postgresql://user:password@postgres:5432/anistream_db?schema=publi
 KENJITSU_BASE_URL="http://kenjitsu:3000"
 ```
 
-Acesse `http://localhost:3000`. Em uma instalação nova, a aplicação redireciona para `/setup`; obtenha a chave nos logs:
+Acesse `http://localhost:3000`. Em uma instalação nova, a aplicação redireciona para `/setup`; em desenvolvimento, consulte a chave no log do serviço:
 
 ```bash
-docker logs anistream_selfhosted_app
+docker compose logs app
 ```
 
 Depois da instalação, abra `/admin/homepage` para ajustar a composição da Home. O layout é migrado automaticamente da configuração legada na primeira leitura, e a publicação só acontece após salvar o rascunho e confirmar a ação.
 
-O stack padrão expõe:
+O stack padrão expõe apenas o AniStream para a máquina local:
 
 - AniStream: `http://localhost:3000`;
-- Kenjitsu: `http://localhost:3001`;
-- PostgreSQL: `localhost:5432`;
-- Redis AniStream: `localhost:6379`;
-- Redis Kenjitsu: `localhost:6380`.
+- Kenjitsu, PostgreSQL e Redis ficam acessíveis somente na rede privada do Compose.
 
 ## Execução sem Docker
 
 ```bash
 npm install
-npx prisma db push
+npm run db:migrate
 npm run dev
 ```
 
@@ -131,10 +128,10 @@ Mais detalhes em [`docs/10-TESTES-E-SCRIPTS.md`](./docs/10-TESTES-E-SCRIPTS.md).
 | `KENJITSU_REQUEST_TIMEOUT_MS` | Timeout de chamadas upstream. |
 | `KENJITSU_CACHE_TTL_SECONDS` | TTL do cache Kenjitsu. |
 | `CALENDAR_CACHE_TTL_SECONDS` | TTL do cache do calendário semanal; padrão de 1800 segundos. |
-| `ADMIN_SESSION_SECRET` | Sessões administrativas. |
+| `REDIS_PASSWORD` | Senha do Redis do AniStream. |
 | `PLAYBACK_TOKEN_SECRET` | Tokens do playback. |
 | `SOURCE_ENCRYPTION_KEY` | Criptografia de descritores de mídia. |
-| `INITIAL_SETUP_KEY` | Chave opcional do setup. |
+| `INITIAL_SETUP_KEY` | Chave obrigatória no primeiro setup de produção. |
 | `NEXT_PUBLIC_APP_URL` | URL pública/local da aplicação. |
 
 As portas locais podem ser alteradas por `ANISTREAM_APP_PORT`, `ANISTREAM_POSTGRES_PORT`, `ANISTREAM_REDIS_PORT`, `KENJITSU_PORT` e `KENJITSU_REDIS_PORT`.
@@ -149,4 +146,4 @@ As portas locais podem ser alteradas por `ANISTREAM_APP_PORT`, `ANISTREAM_POSTGR
 - [`docs/10-TESTES-E-SCRIPTS.md`](./docs/10-TESTES-E-SCRIPTS.md) — gates de validação local.
 - [Kenjitsu](https://github.com/eosoda/kenjitsu) e [documentação do Kenjitsu](https://kenjitsu-docs.vercel.app/).
 
-Railway não faz parte da validação atual. O deployment self-hosted permanece documentado como etapa futura em [`docs/08-DEPLOYMENT-E-RAILWAY.md`](./docs/08-DEPLOYMENT-E-RAILWAY.md).
+O beta self-hosted será publicado no Dokploy somente após os gates locais e autorização explícita. A topologia e o procedimento estão em [`deploy/dokploy/README.md`](./deploy/dokploy/README.md) e [`docs/08-DEPLOYMENT-E-RAILWAY.md`](./docs/08-DEPLOYMENT-E-RAILWAY.md).

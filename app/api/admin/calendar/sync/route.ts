@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     });
     return apiSuccess(state);
   } catch (error) {
-    return apiError('ADMIN_CALENDAR_SYNC_ERROR', error instanceof Error ? error.message : 'Não foi possível sincronizar o calendário.', 502);
+    console.error('[Admin Calendar Sync Error]', error);
+    return apiError('ADMIN_CALENDAR_SYNC_ERROR', 'Não foi possível sincronizar o calendário.', 502);
   }
 }

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Search, X, Loader2, Star, Tv, Mic, MicOff } from 'lucide-react';
 import { searchAvailableAnime } from '@/services/localAnimeSearch';
 import type { LocalAnimeSearchItem } from '@/types/local-search';
-import { formatStatus } from '@/utils/formatters';
+import { formatStatus, toPlainText } from '@/utils/formatters';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { Tooltip } from '@/components/ui/Tooltip';
 
@@ -290,7 +290,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
               {results.map((anime, idx) => {
                 const imageUrl =
                   anime.posterUrl || undefined;
-                const title = anime.title;
+                const title = toPlainText(anime.title) || 'Sem título';
                 const year = anime.year || '—';
                 const isSelected = selectedIndex === idx;
 
@@ -341,7 +341,7 @@ export function SearchBar({ placeholder = 'Buscar animes...', isCompact = false,
                           {anime.episodeCount} {anime.episodeCount === 1 ? 'episódio' : 'episódios'}
                         </span>
                         <span>•</span>
-                        {anime.status && <span className="text-gray-300 font-medium">{formatStatus(anime.status)}</span>}
+                        {anime.status && <span className="text-gray-300 font-medium">{formatStatus(toPlainText(anime.status))}</span>}
                       </div>
                     </div>
                   </Link>

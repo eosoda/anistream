@@ -11,6 +11,7 @@ import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { checkPtBrAvailability } from '@/utils/audioFilter';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { toPlainText } from '@/utils/formatters';
 
 interface AnimeCardProps {
   anime: JikanAnime;
@@ -38,8 +39,8 @@ export function AnimeCard({ anime, aspectRatio = 'portrait', priority = false }:
     anime.images?.jpg?.large_image_url ||
     anime.images?.webp?.large_image_url;
 
-  const title = anime.title || anime.title_english || anime.title_japanese || 'Sem título';
-  const typeStr = anime.type || 'TV';
+  const title = toPlainText(anime.title) || toPlainText(anime.title_english) || toPlainText(anime.title_japanese) || 'Sem título';
+  const typeStr = toPlainText(anime.type) || 'TV';
   const isMovie = typeStr.toLowerCase() === 'movie';
   const episodesCount = anime.episodes ? `${anime.episodes} eps` : 'Em lançamento';
   const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null);

@@ -3,7 +3,6 @@
 import React from 'react';
 
 export default function Error({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -13,7 +12,7 @@ export default function Error({
     <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center space-y-4">
       <h2 className="text-xl font-black text-white">Ops, ocorreu um erro ao carregar este conteúdo.</h2>
       <p className="text-xs text-gray-400 max-w-md">
-        {error?.message || 'Tente recarregar a página ou voltar para o início.'}
+        Tente recarregar a página ou voltar para o início.
       </p>
       <button
         onClick={() => reset()}

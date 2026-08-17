@@ -47,6 +47,16 @@ interface DiscoveredCandidate {
   audioLanguage: string;
 }
 
+interface CacheState {
+  episodeId: string;
+  status: string;
+  audioMode: string;
+  lastSuccessAt: string | null;
+  expiresAt: string | null;
+  sourceCount: number;
+  lastError: string | null;
+}
+
 export function EpisodeSourcesModal({
   isOpen,
   animeId,
@@ -69,6 +79,7 @@ export function EpisodeSourcesModal({
   // Consulta live
   const [discovering, setDiscovering] = useState(false);
   const [candidates, setCandidates] = useState<DiscoveredCandidate[]>([]);
+  const [cacheState, setCacheState] = useState<CacheState | null>(null);
 
   // Player de Teste Inline Modal
   const [testingStream, setTestingStream] = useState<{
@@ -162,30 +173,29 @@ export function EpisodeSourcesModal({
     }
   };
 
-  // Consultar extensões Kenjitsu em tempo real.
+  // Aquecer fontes temporárias no Redis. URLs nunca são retornadas nem
+  // persistidas no painel; apenas o estado operacional do episódio é exibido.
   const handleDiscoverSources = async () => {
     setDiscovering(true);
     setCandidates([]);
     try {
       const res = await fetch(
-        `/api/admin/animes/${animeId}/episodes/${episodeId}/discover-sources`,
-        { method: 'POST' }
+        `/api/admin/animes/${animeId}/episodes/${episodeId}/cache`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioMode: 'sub' }) }
       );
       const data = await res.json();
-      if (res.ok && Array.isArray(data.candidates)) {
-        setCandidates(
-          data.candidates.map((c: any) => ({ ...c }))
-        );
+      if (res.ok && data.cache) {
+        setCacheState(data.cache);
         showToast({
           type: 'success',
-          title: 'Consulta concluída',
-          message: `${data.candidates.length} mídias candidatas encontradas!`,
+          title: 'Cache atualizado',
+          message: `${data.cache.sourceCount} fonte(s) disponível(is) por tempo limitado.`,
         });
       } else {
-        showToast({ type: 'warning', title: 'Nenhuma mídia encontrada', message: 'Nenhuma extensão retornou mídia ativa.' });
+        showToast({ type: 'warning', title: 'Cache não aquecido', message: data.error || 'Nenhuma extensão retornou mídia ativa.' });
       }
-    } catch (err: any) {
-      showToast({ type: 'error', title: 'Erro de consulta', message: err.message });
+    } catch {
+      showToast({ type: 'error', title: 'Erro de cache', message: 'Falha ao aquecer as fontes do episódio.' });
     } finally {
       setDiscovering(false);
     }
@@ -207,7 +217,7 @@ export function EpisodeSourcesModal({
                 Mídia: Temp {seasonNumber} Ep {episodeNumber}
               </h3>
               <p className="text-xs text-gray-400">
-                {episodeTitle || `Episódio ${episodeNumber}`} • Consulte e teste mídias retornadas pelo Kenjitsu
+                {episodeTitle || `Episódio ${episodeNumber}`} • Aqueça fontes temporárias no Redis e acompanhe a validade
               </p>
             </div>
           </div>
@@ -237,7 +247,7 @@ export function EpisodeSourcesModal({
           <button
             onClick={() => {
               setActiveTab('discover');
-              if (candidates.length === 0) handleDiscoverSources();
+              if (candidates.length === 0 && !cacheState) void handleDiscoverSources();
             }}
             className={`px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border ${
               activeTab === 'discover'
@@ -246,7 +256,7 @@ export function EpisodeSourcesModal({
             }`}
           >
             <Sparkles size={14} />
-            <span>Kenjitsu ao vivo</span>
+            <span>Cache de mídia</span>
           </button>
 
         </div>
@@ -264,7 +274,7 @@ export function EpisodeSourcesModal({
                 <AlertTriangle size={36} className="mx-auto text-amber-400 opacity-60" />
                 <h4 className="text-sm font-bold text-white">Nenhum registro legado para este episódio</h4>
                 <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                  Use &quot;Kenjitsu ao vivo&quot; para consultar as extensões habilitadas.
+                  Use &quot;Cache de mídia&quot; para aquecer fontes temporárias.
                 </p>
               </div>
             ) : (
@@ -341,8 +351,8 @@ export function EpisodeSourcesModal({
           <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar min-h-[300px] flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400 font-bold">
-                  Mídias candidatas ({candidates.length})
+                  <span className="text-xs text-gray-400 font-bold">
+                  Estado do cache {cacheState ? `(${cacheState.sourceCount} fontes)` : ''}
                 </span>
                 <button
                   onClick={handleDiscoverSources}
@@ -350,7 +360,7 @@ export function EpisodeSourcesModal({
                   className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
                 >
                   <RefreshCw size={13} className={discovering ? 'animate-spin' : ''} />
-                  <span>Reconsultar Kenjitsu</span>
+                  <span>Atualizar cache</span>
                 </button>
               </div>
 
@@ -358,13 +368,19 @@ export function EpisodeSourcesModal({
                 <div className="py-20 flex flex-col items-center justify-center gap-3">
                   <Loader2 size={36} className="text-[#FF6B00] animate-spin" />
                   <p className="text-xs font-bold text-gray-400">
-                    Consultando extensoes Kenjitsu habilitadas em tempo real...
+                    Consultando extensões e aquecendo Redis...
                   </p>
                 </div>
               ) : candidates.length === 0 ? (
                 <div className="py-16 text-center text-gray-400 space-y-2">
                   <Film size={36} className="mx-auto text-gray-600" />
-                  <p className="text-xs">Nenhuma mídia adicional encontrada na consulta.</p>
+                  {cacheState ? (
+                    <>
+                      <p className="text-sm font-bold text-white">Status: {cacheState.status}</p>
+                      <p className="text-xs">{cacheState.sourceCount} fontes · áudio {cacheState.audioMode === 'dub' ? 'dublado' : 'legendado'} · expira {cacheState.expiresAt ? new Date(cacheState.expiresAt).toLocaleString('pt-BR') : 'sem validade'}</p>
+                      {cacheState.lastError && <p className="text-xs text-amber-300">{cacheState.lastError}</p>}
+                    </>
+                  ) : <p className="text-xs">Nenhum cache aquecido para este episódio.</p>}
                 </div>
               ) : (
                 candidates.map((cand, idx) => (

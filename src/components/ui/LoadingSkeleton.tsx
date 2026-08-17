@@ -47,3 +47,41 @@ export function DetailSkeleton() {
     </div>
   );
 }
+
+export function AnimeGridSkeleton({ count = 24 }: { count?: number }) {
+  return (
+    <div
+      className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+      role="status"
+      aria-live="polite"
+      aria-label="Carregando catálogo"
+    >
+      {Array.from({ length: count }).map((_, index) => (
+        <AnimeCardSkeleton key={index} />
+      ))}
+    </div>
+  );
+}
+
+export function AnimeListSkeleton({ count = 12 }: { count?: number }) {
+  return (
+    <div className="space-y-2" role="status" aria-live="polite" aria-label="Carregando catálogo">
+      {Array.from({ length: count }).map((_, index) => (
+        <div key={index} className="h-20 animate-pulse rounded-2xl bg-white/5" />
+      ))}
+    </div>
+  );
+}
+
+export function CatalogPageSkeleton({ count = 24 }: { count?: number }) {
+  return (
+    <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-8" aria-busy="true">
+      <div className="space-y-3 border-b border-white/10 pb-4" aria-hidden="true">
+        <div className="h-8 w-64 animate-pulse rounded bg-white/10" />
+        <div className="h-4 w-96 max-w-full animate-pulse rounded bg-white/5" />
+      </div>
+      <div className="h-12 w-full animate-pulse rounded-2xl bg-white/5" aria-hidden="true" />
+      <AnimeGridSkeleton count={count} />
+    </main>
+  );
+}

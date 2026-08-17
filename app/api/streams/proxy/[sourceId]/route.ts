@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db/prisma';
 import { decryptData } from '@/lib/security/crypto';
 import { verifyPlaybackToken } from '@/lib/security/playback-token';
 import { validateUrlSsrf } from '@/lib/security/ssrf';
-import { checkRateLimit } from '@/lib/security/rate-limit';
+import { safeFetch, filterUpstreamHeaders, withIdleTimeout } from '@/lib/security/safe-fetch';
+import { checkDistributedRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
 
 // Helper de requisição upstream com 2 retentativas e backoff exponencial (100ms, 300ms)
 async function fetchUpstreamWithRetry(
@@ -16,16 +17,11 @@ async function fetchUpstreamWithRetry(
 
   while (attempt <= maxRetries) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-      const response = await fetch(url, {
+      const response = await safeFetch(url, {
         method: 'GET',
         headers,
-        signal: controller.signal,
+        timeoutMs: 6000,
       });
-
-      clearTimeout(timeoutId);
 
       // Se respondeu com sucesso ou erro de range (206) ou client error (4xx), não tenta novamente
       if (response.ok || response.status === 206 || (response.status >= 400 && response.status < 500)) {
@@ -60,14 +56,14 @@ export async function GET(
   const token = searchParams.get('token');
 
   // 1. Protection against rate limit abuse
-  const rateLimit = checkRateLimit(request, 'stream-proxy', {
+  const rateLimit = await checkDistributedRateLimit(`stream-proxy:${getClientIp(request)}`, {
     limit: 120,
     windowMs: 60000,
   });
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Limite de solicitações de streaming excedido.' },
-      { status: 429 }
+      { status: 429, headers: rateLimitHeaders(rateLimit) }
     );
   }
 
@@ -82,7 +78,7 @@ export async function GET(
   const tokenVerification = await verifyPlaybackToken(token, sourceId);
   if (!tokenVerification.valid) {
     return NextResponse.json(
-      { error: tokenVerification.reason || 'Token de reprodução inválido.' },
+      { error: 'Token de reprodução inválido.' },
       { status: 403 }
     );
   }
@@ -128,11 +124,11 @@ export async function GET(
 
   // 5. Forward HTTP Range headers
   const range = request.headers.get('range');
-  const upstreamHeaders: Record<string, string> = {
+  const upstreamHeaders = filterUpstreamHeaders({
     'User-Agent': 'AniStream-SecureProxy/1.0',
     'Accept': '*/*',
     ...decryptedHeaders,
-  };
+  });
 
   if (range) {
     upstreamHeaders['Range'] = range;
@@ -143,8 +139,8 @@ export async function GET(
 
     if (!mediaResponse.ok && mediaResponse.status !== 206) {
       return NextResponse.json(
-        { error: `Falha ao obter mídia upstream: ${mediaResponse.statusText}` },
-        { status: mediaResponse.status }
+        { error: 'A fonte de mídia não respondeu com sucesso.' },
+        { status: mediaResponse.status, headers: rateLimitHeaders(rateLimit) }
       );
     }
 
@@ -165,15 +161,17 @@ export async function GET(
 
     responseHeaders.set('Access-Control-Allow-Origin', '*');
     responseHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    Object.entries(rateLimitHeaders(rateLimit)).forEach(([key, value]) => responseHeaders.set(key, value));
 
-    return new NextResponse(mediaResponse.body, {
+    return new NextResponse(mediaResponse.body ? withIdleTimeout(mediaResponse.body, 30000) : null, {
       status: mediaResponse.status,
       headers: responseHeaders,
     });
-  } catch (err: any) {
+  } catch (error) {
+    console.error('[Stream Proxy Error]', error instanceof Error ? error.message : 'Falha desconhecida');
     return NextResponse.json(
-      { error: 'Erro de proxy de streaming', message: err.message },
-      { status: 500 }
+      { error: 'Não foi possível retransmitir a mídia.' },
+      { status: 502 }
     );
   }
 }

@@ -7,6 +7,7 @@ import { JikanAnime } from '@/types/anime';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { RatingBadge } from '@/components/ui/RatingBadge';
 import { checkPtBrAvailability } from '@/utils/audioFilter';
+import { toPlainText } from '@/utils/formatters';
 
 interface ProgressSummary {
   watchedEpCount: number;
@@ -22,8 +23,8 @@ interface CarouselAnimeCardProps {
 }
 
 export function CarouselAnimeCard({ anime, favorited, progress, onToggleFavorite }: CarouselAnimeCardProps) {
-  const title = anime.title || anime.title_english || anime.title_japanese || 'Sem título';
-  const type = anime.type || 'TV';
+  const title = toPlainText(anime.title) || toPlainText(anime.title_english) || toPlainText(anime.title_japanese) || 'Sem título';
+  const type = toPlainText(anime.type) || 'TV';
   const isMovie = type.toLowerCase() === 'movie';
   const year = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null);
   const imageUrl = anime.images?.jpg?.image_url || anime.images?.webp?.image_url;

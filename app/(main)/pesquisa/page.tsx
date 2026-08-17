@@ -28,7 +28,7 @@ function SearchResults({ query, filters }: { query: string; filters: LocalAnimeS
     localStorage.setItem('anistream_view_mode', mode);
   };
 
-  const { data: searchData, isLoading, isError, refetch } = useQuery({
+  const { data: searchData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['availableAnimeSearch', query, filters, page],
     queryFn: ({ signal }) => searchAvailableAnime(query, page, 24, signal, filters),
     enabled: hasSearch,
@@ -59,11 +59,11 @@ function SearchResults({ query, filters }: { query: string; filters: LocalAnimeS
 
       {!isError && hasSearch ? (
         viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4" aria-busy={isLoading || isFetching}>
             {isLoading ? Array.from({ length: 12 }).map((_, index) => <AnimeCardSkeleton key={index} />) : animes.map((anime, index) => <AnimeCard key={anime.mal_id} anime={anime} index={index} />)}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2" aria-busy={isLoading || isFetching}>
             {isLoading ? Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-20 bg-white/5 rounded-2xl animate-pulse" />) : animes.map((anime, index) => <CompactAnimeCard key={anime.mal_id} anime={anime} index={index} />)}
           </div>
         )
