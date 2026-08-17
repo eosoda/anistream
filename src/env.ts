@@ -2,13 +2,24 @@ import { z } from 'zod';
 
 const isBuild = process.env.ANISTREAM_BUILD === 'true' || process.env.NEXT_PHASE === 'phase-production-build';
 const isProductionRuntime = process.env.NODE_ENV === 'production' && !isBuild;
+const localE2EUrl = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/;
+const isLocalE2ERuntime = process.env.ANISTREAM_ALLOW_INSECURE_LOCAL_E2E === 'true'
+  && localE2EUrl.test(process.env.NEXT_PUBLIC_APP_URL || '');
+const productionRedisUrl = z.string().url('REDIS_URL deve ser uma URL redis:// válida').refine((value) => {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'redis:' && parsed.password.length >= 16;
+  } catch {
+    return false;
+  }
+}, 'REDIS_URL de produção deve usar redis:// com senha de pelo menos 16 caracteres');
 
 const envSchema = z.object({
   DATABASE_URL: isProductionRuntime
     ? z.string().url('DATABASE_URL deve ser uma URL de conexão válida')
     : z.string().url('DATABASE_URL deve ser uma URL de conexão válida').default('postgresql://user:password@localhost:5432/anistream_db?schema=public'),
   REDIS_URL: isProductionRuntime
-    ? z.string().url('REDIS_URL deve ser uma URL redis:// válida')
+    ? productionRedisUrl
     : z.string().url('REDIS_URL deve ser uma URL redis:// válida').optional(),
   KENJITSU_BASE_URL: isProductionRuntime
     ? z.string().url('KENJITSU_BASE_URL deve ser uma URL válida')
@@ -29,8 +40,9 @@ const envSchema = z.object({
     ? z.string().min(32, 'SOURCE_ENCRYPTION_KEY chave de criptografia de no mínimo 32 caracteres')
     : z.string().min(32, 'SOURCE_ENCRYPTION_KEY chave de criptografia de no mínimo 32 caracteres').default('local-source-encryption-key-for-development-32'),
   NEXT_PUBLIC_APP_URL: isProductionRuntime
-    ? z.string().url('NEXT_PUBLIC_APP_URL deve ser uma URL válida')
+    ? z.string().url('NEXT_PUBLIC_APP_URL deve ser uma URL válida').refine((value) => isLocalE2ERuntime || new URL(value).protocol === 'https:', 'NEXT_PUBLIC_APP_URL de produção deve usar HTTPS')
     : z.string().url('NEXT_PUBLIC_APP_URL deve ser uma URL válida').default('http://localhost:3000'),
+  TRUSTED_PROXY_IP_HEADER: z.string().trim().min(1).default('CF-Connecting-IP'),
 });
 
 export type Env = z.infer<typeof envSchema>;

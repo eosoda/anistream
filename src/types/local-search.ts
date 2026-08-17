@@ -1,4 +1,5 @@
 import type { JikanAnime } from '@/types/anime';
+import { toPlainText } from '@/utils/formatters';
 
 export interface LocalAnimeSearchItem {
   malId: number;
@@ -27,6 +28,8 @@ export interface LocalAnimeSearchResponse {
 
 export function localSearchItemToAnime(item: LocalAnimeSearchItem): JikanAnime {
   const poster = item.posterUrl || '';
+  const title = toPlainText(item.title) || 'Sem título';
+  const originalTitle = toPlainText(item.originalTitle);
   return {
     mal_id: item.malId,
     url: `/anime/${item.malId}`,
@@ -36,15 +39,15 @@ export function localSearchItemToAnime(item: LocalAnimeSearchItem): JikanAnime {
     },
     trailer: { youtube_id: null, url: null, embed_url: null, images: { image_url: null, small_image_url: null, medium_image_url: null, large_image_url: null, maximum_image_url: null } },
     approved: true,
-    titles: [{ type: 'Default', title: item.title }],
-    title: item.title,
-    title_english: item.title,
-    title_japanese: item.originalTitle,
+    titles: [{ type: 'Default', title }],
+    title,
+    title_english: title,
+    title_japanese: originalTitle,
     title_synonyms: [],
     type: null,
     source: null,
     episodes: item.episodeCount,
-    status: item.status,
+    status: toPlainText(item.status),
     airing: false,
     aired: { from: null, to: null, string: item.year ? String(item.year) : '' },
     duration: null,

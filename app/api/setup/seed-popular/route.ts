@@ -5,15 +5,22 @@ import { getAnimeEpisodes, getTopAnime } from '@/lib/kenjitsu/catalog';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { validateSetupKey } from '@/lib/security/setup-key';
 import { assertSameOrigin } from '@/lib/security/request-origin';
+import { checkDistributedRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
+import { redisDelete, redisSetIfAbsent } from '@/lib/cache/redis';
 
 function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 export async function POST(request: NextRequest) {
+  const rateLimit = await checkDistributedRateLimit(`setup:seed:${getClientIp(request)}`, { limit: 2, windowMs: 15 * 60 * 1000 }, { failClosed: true });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: rateLimit.backend === 'unavailable' ? 'Seed temporariamente indisponível.' : 'Seed executado recentemente.' }, { status: rateLimit.backend === 'unavailable' ? 503 : 429, headers: rateLimitHeaders(rateLimit) });
+  }
+
   const auth = await verifyAdminAuth(request);
   if (!auth.authenticated) {
-    const setupKey = request.headers.get('x-setup-key') || new URL(request.url).searchParams.get('key');
+    const setupKey = request.headers.get('x-setup-key');
     if (!setupKey) return auth.errorResponse!;
     const originError = assertSameOrigin(request);
     if (originError) return originError;
@@ -21,6 +28,12 @@ export async function POST(request: NextRequest) {
     const hasSetupKey = validateSetupKey(setupKey);
     const hasAdmin = await prisma.adminUser.count();
     if (!hasSetupKey || hasAdmin > 0) return auth.errorResponse!;
+  }
+
+  const lockKey = 'anistream:setup:seed-popular:lock';
+  const lockValue = `${Date.now()}:${getClientIp(request)}`;
+  if (!(await redisSetIfAbsent(lockKey, lockValue, 15 * 60))) {
+    return NextResponse.json({ error: 'Já existe um seed em execução.' }, { status: 409, headers: rateLimitHeaders(rateLimit) });
   }
 
   try {
@@ -88,9 +101,11 @@ export async function POST(request: NextRequest) {
       seededCount++;
     }
 
-    return NextResponse.json({ success: true, message: `Catalogo Kenjitsu populado com ${seededCount} animes.`, seededCount, episodeCount });
+    return NextResponse.json({ success: true, message: `Catalogo Kenjitsu populado com ${seededCount} animes.`, seededCount, episodeCount }, { headers: rateLimitHeaders(rateLimit) });
   } catch (error) {
-    console.error('[Setup Seed Popular Error]', error);
-    return NextResponse.json({ error: 'Não foi possível popular o catálogo pelo Kenjitsu.' }, { status: 502 });
+    console.error('[Setup Seed Popular Error]', error instanceof Error ? error.message : 'Falha desconhecida');
+    return NextResponse.json({ error: 'Não foi possível popular o catálogo pelo Kenjitsu.' }, { status: 502, headers: rateLimitHeaders(rateLimit) });
+  } finally {
+    await redisDelete(lockKey);
   }
 }

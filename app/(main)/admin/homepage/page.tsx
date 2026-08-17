@@ -232,7 +232,6 @@ export default function AdminHomepagePage() {
   };
 
   // Initial hydration synchronizes the editor with the authenticated API state.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, []);
 
   const orderedBlocks = useMemo(() => state ? [...state.draft.blocks].sort((a, b) => a.order - b.order) : [], [state]);

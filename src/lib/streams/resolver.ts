@@ -6,8 +6,14 @@ import {
   ProviderAttempt,
 } from './types';
 import { validateStreamSource } from './validator';
+import { mapWithConcurrency } from '../kenjitsu/concurrency';
 
 import { KenjitsuProvider } from '../providers/kenjitsu.provider';
+import {
+  getPlaybackCache,
+  setPlaybackCache,
+  withPlaybackCacheLock,
+} from './playback-cache';
 
 export class StreamResolver {
   private providers: AnimeProvider[] = [];
@@ -35,6 +41,39 @@ export class StreamResolver {
     input: EpisodeLookupInput,
     timeoutPerProviderMs = input.resolutionMode === 'fast' ? 4500 : 9000,
     options: { mode?: 'fast' | 'complete'; validationTimeoutMs?: number } = {}
+  ): Promise<ResolveStreamResult> {
+    const mode = options.mode ?? input.resolutionMode ?? 'complete';
+    const readCached = async (): Promise<ResolveStreamResult | null> => {
+      const cached = await getPlaybackCache(input, mode).catch(() => null);
+      if (!cached?.selected) return null;
+      return {
+        ...cached,
+        attempts: cached.attempts.map((attempt) => ({ ...attempt })),
+        cacheHit: true,
+      };
+    };
+
+    const cached = await readCached();
+    if (cached) return cached;
+
+    return withPlaybackCacheLock(input, mode, async () => {
+      // Another web instance may have filled Redis while this request was
+      // waiting for the lock. Always check again before calling extensions.
+      const afterLock = await readCached();
+      if (afterLock) return afterLock;
+
+      const result = await this.resolveEpisodeStreamUncached(input, timeoutPerProviderMs, options);
+      if (result.selected) {
+        await setPlaybackCache(input, mode, result).catch(() => false);
+      }
+      return result;
+    }, { readCached });
+  }
+
+  private async resolveEpisodeStreamUncached(
+    input: EpisodeLookupInput,
+    timeoutPerProviderMs: number,
+    options: { mode?: 'fast' | 'complete'; validationTimeoutMs?: number },
   ): Promise<ResolveStreamResult> {
     const mode = options.mode ?? input.resolutionMode ?? 'complete';
 
@@ -175,12 +214,10 @@ export class StreamResolver {
         // Validate a small, ordered window only. The complete pass is reserved for
         // the alternatives request, so the first playable source can win quickly.
         const candidates = scopedSources.slice(0, 6);
-        const validations = await Promise.all(
-          candidates.map(async (source) => ({
+        const validations = (await mapWithConcurrency(candidates, async (source) => ({
             source,
             validation: await validateStreamSource(source, validationTimeoutMs),
-          }))
-        );
+          }), { concurrency: 4 })).filter((value): value is { source: StreamSource; validation: Awaited<ReturnType<typeof validateStreamSource>> } => Boolean(value));
         const playable = validations.find(({ validation }) => validation.valid);
         if (!playable) {
           throw new Error('Nenhuma fonte reproduzível no primeiro lote');
@@ -210,7 +247,7 @@ export class StreamResolver {
           error:
             err?.name === 'AbortError'
               ? `Timeout de ${timeoutPerProviderMs}ms excedido`
-              : err?.message || 'Falha ao consultar provedor',
+              : 'Falha ao consultar provedor',
         });
         throw err;
       }
@@ -272,7 +309,7 @@ export class StreamResolver {
           error:
             err?.name === 'AbortError'
               ? `Timeout de ${timeoutPerProviderMs}ms excedido`
-              : err?.message || 'Falha ao consultar provedor',
+              : 'Falha ao consultar provedor',
         });
         return [];
       }
@@ -288,13 +325,10 @@ export class StreamResolver {
     }
 
     const allSources = Array.from(rawSourcesMap.values());
-    const validSources: { source: StreamSource; latencyMs: number }[] = [];
-    await Promise.allSettled(
-      allSources.map(async (source) => {
-        const validation = await validateStreamSource(source, 3500);
-        if (validation.valid) validSources.push({ source, latencyMs: validation.latencyMs });
-      })
-    );
+    const validSources = (await mapWithConcurrency(allSources, async (source) => {
+      const validation = await validateStreamSource(source, 3500);
+      return validation.valid ? { source, latencyMs: validation.latencyMs } : null;
+    }, { concurrency: 4 })).filter((value): value is { source: StreamSource; latencyMs: number } => Boolean(value));
 
     const preferredAudio = input.preferredAudio || 'pt-BR';
     const sortedSources = validSources

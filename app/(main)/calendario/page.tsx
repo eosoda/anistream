@@ -6,6 +6,7 @@ import { AlertTriangle, Calendar, ChevronLeft, ChevronRight, Clock, RefreshCw } 
 import { SafeImage } from '@/components/ui/SafeImage';
 import { addDays, localWeekStart } from '@/lib/calendar/time';
 import type { ReleaseScheduleCalendar } from '@/types/calendar';
+import { toPlainText } from '@/utils/formatters';
 
 const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
 
@@ -50,7 +51,6 @@ export default function CalendarPage() {
 
   useEffect(() => {
     // O efeito sincroniza a consulta com a semana/timezone selecionados.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
     // A alteração de semana ou timezone é a única intenção deste efeito.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,7 +128,7 @@ export default function CalendarPage() {
                       {item.posterUrl ? <SafeImage src={item.posterUrl} alt="" fill className="object-cover transition duration-300 group-hover:scale-105" /> : <span className="grid size-full place-items-center text-[10px] text-gray-600">Sem capa</span>}
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-xs font-bold text-gray-100 group-hover:text-[#FF9A5B]">{item.title}</span>
+                      <span className="block truncate text-xs font-bold text-gray-100 group-hover:text-[#FF9A5B]">{toPlainText(item.title) || 'Anime'}</span>
                       <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500"><Clock size={11} aria-hidden="true" /> aprox. {item.time}</span>
                     </span>
                   </Link>

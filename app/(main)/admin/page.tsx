@@ -30,6 +30,7 @@ const quickLinks = [
   { label: 'Sistema', description: 'Manutenção e disponibilidade', href: '/admin/system', icon: Settings },
   { label: 'Backups', description: 'Exportar ou restaurar dados', href: '/admin/backups', icon: Database },
   { label: 'Calendário', description: 'Release Schedule semanal', href: '/admin/calendar', icon: CalendarDays },
+  { label: 'Cache de reprodução', description: 'Aquecimento e fontes temporárias', href: '/admin/cache', icon: Server },
 ];
 
 export default function AdminDashboardPage() {

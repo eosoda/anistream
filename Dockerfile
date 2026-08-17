@@ -46,7 +46,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/
 USER nextjs
 
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health/live || exit 1
 
-# Migrações versionadas e não destrutivas são aplicadas antes do servidor.
-CMD ["sh", "-c", "npx prisma migrate deploy && exec node server.js"]
+# Migrations are an explicit Dokploy/CI step. Startup only starts the server.
+CMD ["node", "server.js"]

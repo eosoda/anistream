@@ -3,9 +3,10 @@ import { prisma } from '@/lib/db/prisma';
 import { dispatchWebhooks } from '@/lib/webhooks/notifier';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { recordAdminAudit } from '@/lib/admin/audit';
-import { checkDistributedRateLimit, getClientIp } from '@/lib/security/rate-limit';
+import { checkDistributedRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
 import { CreateEpisodeReportSchema, UpdateEpisodeReportSchema } from '@/schemas/admin';
 import type { Prisma } from '@prisma/client';
+import { readJsonBodyLimited, InvalidJsonBodyError, RequestBodyTooLargeError } from '@/lib/security/body-limit';
 
 // GET: Listar chamados de erro (Admin)
 export async function GET(request: NextRequest) {
@@ -47,15 +48,15 @@ export async function POST(req: NextRequest) {
     const rateLimit = await checkDistributedRateLimit(`public-report:${getClientIp(req)}`, {
       limit: 5,
       windowMs: 10 * 60 * 1000,
-    });
+    }, { failClosed: true });
     if (!rateLimit.allowed) {
       return NextResponse.json(
-        { error: 'Muitos relatórios enviados. Tente novamente mais tarde.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil(rateLimit.resetMs / 1000)) } },
+        { error: rateLimit.backend === 'unavailable' ? 'Relatórios temporariamente indisponíveis.' : 'Muitos relatórios enviados. Tente novamente mais tarde.' },
+        { status: rateLimit.backend === 'unavailable' ? 503 : 429, headers: rateLimitHeaders(rateLimit) },
       );
     }
 
-    const parsed = CreateEpisodeReportSchema.safeParse(await req.json().catch(() => null));
+    const parsed = CreateEpisodeReportSchema.safeParse(await readJsonBodyLimited(req, 32 * 1024));
     if (!parsed.success) {
       return NextResponse.json({ error: 'Dados do relatório inválidos.' }, { status: 400 });
     }
@@ -85,8 +86,10 @@ export async function POST(req: NextRequest) {
       success: true,
       message: 'Obrigado! Seu relato de problema foi enviado aos administradores.',
       report,
-    });
+    }, { headers: rateLimitHeaders(rateLimit) });
   } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return NextResponse.json({ error: 'Relatório excede o limite permitido.' }, { status: 413 });
+    if (error instanceof InvalidJsonBodyError) return NextResponse.json({ error: 'Dados do relatório inválidos.' }, { status: 400 });
     console.error('[Public Report Create Error]', error);
     return NextResponse.json({ error: 'Não foi possível enviar o relatório.' }, { status: 500 });
   }

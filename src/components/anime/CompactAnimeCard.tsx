@@ -11,7 +11,7 @@ import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { SafeImage } from '@/components/ui/SafeImage';
 import { checkPtBrAvailability } from '@/utils/audioFilter';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { formatStatus } from '@/utils/formatters';
+import { formatStatus, toPlainText } from '@/utils/formatters';
 
 interface CompactAnimeCardProps {
   anime: JikanAnime;
@@ -36,8 +36,8 @@ export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
     anime.images?.jpg?.image_url ||
     anime.images?.webp?.image_url;
 
-  const title = anime.title || anime.title_english || anime.title_japanese || 'Sem título';
-  const typeStr = anime.type || 'TV';
+  const title = toPlainText(anime.title) || toPlainText(anime.title_english) || toPlainText(anime.title_japanese) || 'Sem título';
+  const typeStr = toPlainText(anime.type) || 'TV';
   const isMovie = typeStr.toLowerCase() === 'movie';
   const episodesCount = anime.episodes ? `${anime.episodes} eps` : 'Em lançamento';
   const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : '—');
@@ -122,7 +122,7 @@ export function CompactAnimeCard({ anime, index }: CompactAnimeCardProps) {
             )}
 
             <span>•</span>
-            <span className="text-gray-300 font-medium">{formatStatus(anime.status)}</span>
+            <span className="text-gray-300 font-medium">{formatStatus(toPlainText(anime.status))}</span>
 
             {hasDub ? (
               <span className="px-1.5 py-0.5 rounded bg-purple-600/80 text-white font-extrabold text-[9px] border border-purple-400/30">

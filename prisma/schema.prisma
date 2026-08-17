@@ -79,13 +79,51 @@ model Episode {
   airedAt             DateTime?
   publishedAt         DateTime?
 
-  anime   Anime           @relation(fields: [animeId], references: [id], onDelete: Cascade)
-  sources EpisodeSource[]
-  reports EpisodeReport[]
+  anime      Anime              @relation(fields: [animeId], references: [id], onDelete: Cascade)
+  sources    EpisodeSource[]
+  reports    EpisodeReport[]
+  cacheState EpisodeCacheState?
 
   @@unique([animeId, season, number])
   @@index([animeId, season])
   @@index([publishedAt])
+}
+
+model EpisodeCacheState {
+  id               String    @id @default(cuid())
+  episodeId        String    @unique
+  status           String    @default("idle")
+  audioMode        String    @default("sub")
+  extensionIdsJson String?
+  lastAttemptAt    DateTime?
+  lastSuccessAt    DateTime?
+  expiresAt        DateTime?
+  sourceCount      Int       @default(0)
+  lastError        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([status, expiresAt])
+  @@index([lastSuccessAt])
+}
+
+model PlaybackCacheWarmTask {
+  id          String    @id @default(cuid())
+  scope       String
+  status      String    @default("pending")
+  total       Int       @default(0)
+  completed   Int       @default(0)
+  failed      Int       @default(0)
+  optionsJson String?
+  lastError   String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, createdAt])
 }
 
 model EpisodeSource {
@@ -158,13 +196,16 @@ model AdminUser {
 
 model AdminSession {
   id        String     @id @default(cuid())
-  token     String     @unique
+  // Kept nullable only for one-way compatibility with sessions created by
+  // versions prior to the beta migration. New sessions use tokenHash.
+  token     String?    @unique
+  tokenHash String?    @unique
   userId    String
   user      AdminUser? @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime   @default(now())
 
-  @@index([token])
+  @@index([expiresAt])
   @@index([userId])
 }
 

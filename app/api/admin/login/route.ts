@@ -3,7 +3,9 @@ import crypto from 'node:crypto';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { verifyPassword } from '@/lib/security/password';
-import { checkDistributedRateLimit, getClientIp } from '@/lib/security/rate-limit';
+import { checkDistributedRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
+import { assertSameOrigin } from '@/lib/security/request-origin';
+import { hashAdminSessionToken } from '@/lib/security/admin-auth';
 
 const LoginSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
@@ -12,14 +14,18 @@ const LoginSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const originError = assertSameOrigin(request);
+    if (originError) return originError;
+
     const ipLimit = await checkDistributedRateLimit(`admin-login:ip:${getClientIp(request)}`, {
       limit: 10,
       windowMs: 15 * 60 * 1000,
-    });
+    }, { failClosed: true });
     if (!ipLimit.allowed) {
+      const status = ipLimit.backend === 'unavailable' ? 503 : 429;
       return NextResponse.json(
-        { error: 'Muitas tentativas de login. Tente novamente mais tarde.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil(ipLimit.resetMs / 1000)) } },
+        { error: 'Login temporariamente indisponível. Tente novamente mais tarde.' },
+        { status, headers: rateLimitHeaders(ipLimit) },
       );
     }
 
@@ -33,11 +39,11 @@ export async function POST(request: NextRequest) {
     const accountLimit = await checkDistributedRateLimit(`admin-login:account:${email}`, {
       limit: 5,
       windowMs: 15 * 60 * 1000,
-    });
+    }, { failClosed: true });
     if (!accountLimit.allowed) {
       return NextResponse.json(
-        { error: 'Muitas tentativas de login. Tente novamente mais tarde.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil(accountLimit.resetMs / 1000)) } },
+        { error: accountLimit.backend === 'unavailable' ? 'Login temporariamente indisponível. Tente novamente mais tarde.' : 'Muitas tentativas de login. Tente novamente mais tarde.' },
+        { status: accountLimit.backend === 'unavailable' ? 503 : 429, headers: rateLimitHeaders(accountLimit) },
       );
     }
 
@@ -66,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.adminSession.create({
       data: {
-        token,
+        tokenHash: hashAdminSessionToken(token),
         userId: user.id,
         expiresAt,
       },
@@ -85,7 +91,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set('admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       expires: expiresAt,
       path: '/',
     });

@@ -88,7 +88,7 @@ export function AnimeCarousel({
   };
 
   return (
-    <div className="w-full my-8 px-4 md:px-8">
+    <div className="w-full my-8 px-4 md:px-8" aria-busy={isLoading}>
       {/* Header */}
       <div className="flex items-end justify-between mb-4">
         <div>

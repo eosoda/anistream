@@ -4,6 +4,7 @@ import type { LocalAnimeSearchItem, LocalAnimeSearchResponse } from '@/types/loc
 import { kenjitsuClient, KenjitsuRequestError } from './client';
 import { getEnabledKenjitsuExtensions } from './settings';
 import { mapWithConcurrency } from './concurrency';
+import { toPlainText } from '@/utils/formatters';
 import type {
   KenjitsuExtensionId,
   KenjitsuExtensionSearchItem,
@@ -12,29 +13,51 @@ import type {
 
 type AnimeInputId = string | number;
 
+function cleanText(value: string | null | undefined, fallback = ''): string {
+  return toPlainText(value) || fallback;
+}
+
+function cleanUnknownText(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? cleanText(value, fallback) : fallback;
+}
+
+function cleanTextList(values: readonly (string | null | undefined)[] | null | undefined): string[] {
+  return Array.from(new Set((values || []).map((value) => toPlainText(value)).filter((value): value is string => Boolean(value))));
+}
+
 function parseDate(value: string | null | undefined): string | null {
-  if (!value || value === 'Unknown') return null;
-  const parsed = new Date(value);
+  const normalized = cleanText(value);
+  if (!normalized || normalized === 'Unknown') return null;
+  const parsed = new Date(normalized);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function normalizeStatus(status?: string | null): string | null {
-  if (!status) return null;
-  if (status === 'RELEASING') return 'Currently Airing';
-  if (status === 'FINISHED') return 'Finished Airing';
-  if (status === 'NOT_YET_RELEASED') return 'Not yet aired';
-  return status;
+  const normalized = toPlainText(status);
+  if (!normalized) return null;
+  if (normalized === 'RELEASING') return 'Currently Airing';
+  if (normalized === 'FINISHED') return 'Finished Airing';
+  if (normalized === 'NOT_YET_RELEASED') return 'Not yet aired';
+  return normalized;
 }
 
 function mapMetaToJikan(meta: KenjitsuMetaAnime, requestedId?: AnimeInputId): JikanAnime {
   const anilistId = meta.anilistId ?? undefined;
   const requestedNumeric = requestedId != null && /^\d+$/.test(String(requestedId)) ? Number(requestedId) : undefined;
   const publicId = requestedNumeric ?? anilistId ?? meta.malId ?? 0;
-  const title = meta.title?.english || meta.title?.romaji || meta.title?.native || 'Sem titulo';
-  const originalTitle = meta.title?.native || meta.title?.romaji || null;
+  const romajiTitle = cleanText(meta.title?.romaji);
+  const englishTitle = cleanText(meta.title?.english);
+  const nativeTitle = cleanText(meta.title?.native);
+  const title = englishTitle || romajiTitle || nativeTitle || 'Sem titulo';
+  const originalTitle = nativeTitle || romajiTitle || null;
   const poster = meta.image || '';
   const releaseDate = parseDate(meta.releaseDate);
   const status = normalizeStatus(meta.status);
+  const format = cleanText(meta.format) || null;
+  const releaseDateLabel = cleanText(meta.releaseDate);
+  const studio = cleanText(meta.studio);
+  const producers = cleanTextList(meta.producers);
+  const genres = cleanTextList(meta.genres);
 
   return {
     mal_id: publicId,
@@ -57,20 +80,20 @@ function mapMetaToJikan(meta: KenjitsuMetaAnime, requestedId?: AnimeInputId): Ji
     },
     approved: true,
     titles: [
-      { type: 'Romaji', title: meta.title?.romaji || title },
+      { type: 'Romaji', title: romajiTitle || title },
       { type: 'English', title },
       ...(originalTitle ? [{ type: 'Native', title: originalTitle }] : []),
     ],
     title,
-    title_english: meta.title?.english || title,
+    title_english: englishTitle || title,
     title_japanese: originalTitle,
-    title_synonyms: meta.synonyms || [],
-    type: meta.format || null,
+    title_synonyms: cleanTextList(meta.synonyms),
+    type: format,
     source: null,
     episodes: meta.episodes ?? null,
     status,
     airing: status === 'Currently Airing',
-    aired: { from: releaseDate, to: parseDate(meta.endDate), string: meta.releaseDate || '' },
+    aired: { from: releaseDate, to: parseDate(meta.endDate), string: releaseDateLabel },
     duration: meta.duration ? `${meta.duration} min per ep` : null,
     rating: null,
     score: meta.score != null ? meta.score / 10 : null,
@@ -79,15 +102,15 @@ function mapMetaToJikan(meta: KenjitsuMetaAnime, requestedId?: AnimeInputId): Ji
     popularity: null,
     members: null,
     favorites: null,
-    synopsis: meta.synopsis || null,
+    synopsis: toPlainText(meta.synopsis),
     background: null,
-    season: meta.season?.toLowerCase() || null,
+    season: cleanText(meta.season).toLowerCase() || null,
     year: meta.year ?? null,
     broadcast: { day: null, time: null, timezone: null, string: null },
-    producers: (meta.producers || []).map((name, index) => ({ mal_id: index + 1, type: 'anime', name, url: '' })),
+    producers: producers.map((name, index) => ({ mal_id: index + 1, type: 'anime', name, url: '' })),
     licensors: [],
-    studios: meta.studio ? [{ mal_id: 1, type: 'anime', name: meta.studio, url: '' }] : [],
-    genres: (meta.genres || []).map((name, index) => ({ mal_id: index + 1, type: 'anime', name, url: '' })),
+    studios: studio ? [{ mal_id: 1, type: 'anime', name: studio, url: '' }] : [],
+    genres: genres.map((name, index) => ({ mal_id: index + 1, type: 'anime', name, url: '' })),
     explicit_genres: [],
     themes: [],
     demographics: [],
@@ -102,8 +125,8 @@ function mapSearchItem(meta: KenjitsuMetaAnime): LocalAnimeSearchItem {
   return {
     malId: publicId,
     anilistId: meta.anilistId ?? null,
-    title: meta.title?.english || meta.title?.romaji || meta.title?.native || 'Sem titulo',
-    originalTitle: meta.title?.native || meta.title?.romaji || null,
+    title: cleanText(meta.title?.english) || cleanText(meta.title?.romaji) || cleanText(meta.title?.native) || 'Sem titulo',
+    originalTitle: cleanText(meta.title?.native) || cleanText(meta.title?.romaji) || null,
     posterUrl: meta.image || null,
     year: meta.year ?? null,
     rating: meta.score != null ? meta.score / 10 : null,
@@ -362,7 +385,8 @@ export async function searchAnimeCatalog(
   const payload = query.trim()
     ? await kenjitsuClient.searchMetadata(query.trim(), page, Math.min(50, Math.max(limit, 24)))
     : await kenjitsuClient.getTop('popular', page, limit);
-  const filtered = sortCatalog((payload.data || []).filter((item) => matchesFilters(item, filters)), filters);
+  const enriched = await enrichMissingScores(payload.data || []);
+  const filtered = sortCatalog(enriched.filter((item) => matchesFilters(item, filters)), filters);
   const items = filtered.slice(0, limit).map(mapSearchItem);
   return {
     data: items,
@@ -388,19 +412,22 @@ export async function getAnimeCharacters(input: AnimeInputId): Promise<JikanChar
       images: {
         jpg: { image_url: String(character.image || ''), small_image_url: String(character.image || ''), large_image_url: String(character.image || '') },
       },
-      name: String(character.name || 'Personagem'),
+      name: cleanUnknownText(character.name, 'Personagem'),
     },
-    role: String(character.role || 'Supporting'),
+    role: cleanUnknownText(character.role, 'Supporting'),
     voice_actors: Array.isArray(character.voiceActors)
-      ? character.voiceActors.map((actor) => ({
-          person: {
-            mal_id: 0,
-            url: '',
-            images: { jpg: { image_url: String((actor as any).image || ''), small_image_url: String((actor as any).image || ''), large_image_url: String((actor as any).image || '') } },
-            name: String((actor as any).name || ''),
-          },
-          language: String((actor as any).language || ''),
-        }))
+      ? character.voiceActors.map((actor) => {
+          const actorRecord = actor as Record<string, unknown>;
+          return {
+            person: {
+              mal_id: 0,
+              url: '',
+              images: { jpg: { image_url: String(actorRecord.image || ''), small_image_url: String(actorRecord.image || ''), large_image_url: String(actorRecord.image || '') } },
+              name: cleanUnknownText(actorRecord.name),
+            },
+            language: cleanUnknownText(actorRecord.language),
+          };
+        })
       : [],
   }));
 }
@@ -411,11 +438,13 @@ export async function getAnimeRelations(input: AnimeInputId): Promise<JikanRelat
   const raw = Array.isArray(payload.data) ? payload.data : [];
   const grouped = new Map<string, JikanRelation['entry']>();
   raw.forEach((item, index) => {
-    const relation = String((item as any).relationType || 'Related');
+    const record = item as Record<string, unknown>;
+    const relation = cleanUnknownText(record.relationType, 'Related');
+    const relationTitle = record.title as Record<string, unknown> | undefined;
     const entry = {
-      mal_id: Number((item as any).malId || (item as any).anilistId || index + 1),
-      type: String((item as any).type || 'anime'),
-      name: String((item as any).title?.english || (item as any).title?.romaji || 'Anime relacionado'),
+      mal_id: Number(record.malId || record.anilistId || index + 1),
+      type: cleanUnknownText(record.type, 'anime'),
+      name: cleanUnknownText(relationTitle?.english) || cleanUnknownText(relationTitle?.romaji) || 'Anime relacionado',
       url: '',
     };
     grouped.set(relation, [...(grouped.get(relation) || []), entry]);
@@ -435,7 +464,7 @@ export async function getAnimeEpisodes(input: AnimeInputId): Promise<JikanEpisod
       const providerEpisodes = resolved.info.providerEpisodes || resolved.info.data?.providerEpisodes || [];
       return providerEpisodes.flatMap((episode) => {
         if (episode.episodeNumber == null) return [];
-        return [{ mal_id: Number(episode.episodeNumber), title: episode.title || `Episodio ${episode.episodeNumber}`, aired: null, url: episode.episodeId || null }];
+        return [{ mal_id: Number(episode.episodeNumber), title: cleanText(episode.title, `Episodio ${episode.episodeNumber}`), aired: null, url: episode.episodeId || null }];
       });
     },
     { concurrency: 4 },
@@ -453,16 +482,44 @@ export async function getAnimeEpisodes(input: AnimeInputId): Promise<JikanEpisod
 
 export async function getTopAnime(category: 'popular' | 'airing' | 'upcoming' | 'rating' | 'trending', page = 1, limit = 24) {
   const payload = await kenjitsuClient.getTop(category, page, limit);
+  const sourceItems = await enrichMissingScores(payload.data || []);
+
   return {
-    data: (payload.data || []).map((item) => mapMetaToJikan(item)),
+    data: sourceItems.map((item) => mapMetaToJikan(item)),
     pagination: { current_page: payload.currentPage || page, has_next_page: Boolean(payload.hasNextPage), items: { total: payload.total || 0, per_page: limit } },
   };
+}
+
+async function enrichMissingScores(items: KenjitsuMetaAnime[]): Promise<KenjitsuMetaAnime[]> {
+  const missing = items.filter((item) => item.score == null && item.anilistId != null);
+  if (!missing.length) return items;
+
+  const details = await mapWithConcurrency(
+    missing,
+    async (item) => {
+      try {
+        const detail = await kenjitsuClient.getMetadata(Number(item.anilistId));
+        const score = detail.data?.score;
+        return score == null ? null : { anilistId: Number(item.anilistId), score };
+      } catch {
+        return null;
+      }
+    },
+    { concurrency: 4 },
+  );
+  const scoreByAnilistId = new Map(
+    details.filter((detail): detail is { anilistId: number; score: number } => Boolean(detail)).map((detail) => [detail.anilistId, detail.score]),
+  );
+  return items.map((item) => {
+    const score = item.anilistId != null ? scoreByAnilistId.get(Number(item.anilistId)) : undefined;
+    return score == null ? item : { ...item, score };
+  });
 }
 
 export async function getSeasonAnime(year: number, season: 'winter' | 'spring' | 'summer' | 'fall', page = 1, limit = 24) {
   const payload = await kenjitsuClient.getSeason(season.toUpperCase() as 'WINTER' | 'SPRING' | 'SUMMER' | 'FALL', year, page, limit);
   return {
-    data: (payload.data || []).map((item) => mapMetaToJikan(item)),
+    data: (await enrichMissingScores(payload.data || [])).map((item) => mapMetaToJikan(item)),
     pagination: { current_page: payload.currentPage || page, has_next_page: Boolean(payload.hasNextPage), items: { total: payload.total || 0, per_page: limit } },
   };
 }

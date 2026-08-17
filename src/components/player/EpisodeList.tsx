@@ -7,6 +7,7 @@ import { JikanEpisode } from '@/types/anime';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { toPlainText } from '@/utils/formatters';
 
 interface EpisodeListProps {
   animeId: number;
@@ -26,6 +27,7 @@ export function EpisodeList({
   const { progressMap } = useWatchProgress();
 
   const effectiveEpisodes: JikanEpisode[] = episodes || [];
+  const episodeTitle = (episode: JikanEpisode) => toPlainText(episode.title) || `Episódio ${episode.mal_id}`;
 
   const [activeRange, setActiveRange] = useState(0); // index of range chunk (50 episodes per range)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -40,7 +42,7 @@ export function EpisodeList({
 
   const filteredEpisodes = rangeFilteredEpisodes.filter(
     (ep) =>
-      ep.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      episodeTitle(ep).toLowerCase().includes(searchFilter.toLowerCase()) ||
       ep.mal_id.toString().includes(searchFilter)
   );
 
@@ -161,7 +163,7 @@ export function EpisodeList({
               <Link
                 key={`${ep.mal_id}-${index}`}
                 href={`/anime/${animeId}/episode/${ep.mal_id}`}
-                title={`Episódio ${ep.mal_id}: ${ep.title || 'Assistir'}`}
+                title={`Episódio ${ep.mal_id}: ${episodeTitle(ep)}`}
                 className={`group relative aspect-square rounded-xl border flex flex-col items-center justify-center p-2 text-center transition-all ${
                   progress?.completed
                     ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
@@ -206,7 +208,7 @@ export function EpisodeList({
 
                   <div className="min-w-0">
                     <h4 className="text-sm font-bold text-white group-hover:text-[#FF6B00] transition-colors truncate">
-                      Episódio {ep.mal_id}: {ep.title || 'Sem título'}
+                      Episódio {ep.mal_id}: {episodeTitle(ep)}
                     </h4>
 
                     <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">

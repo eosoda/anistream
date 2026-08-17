@@ -38,9 +38,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof HomepageConflictError) {
       void recordAdminAudit({ actorId: auth.userId, action: 'homepage.conflict', resourceType: 'homepage', resourceId: 'main', summary: 'Conflito de versão ao publicar a Home.' });
-      return apiError('HOMEPAGE_VERSION_CONFLICT', error.message, 409);
+      return apiError('HOMEPAGE_VERSION_CONFLICT', 'A Home foi alterada por outra sessão. Recarregue e tente novamente.', 409);
     }
-    if (error instanceof HomepageValidationError) return apiError('HOMEPAGE_INVALID_DOCUMENT', error.message, 422);
+    if (error instanceof HomepageValidationError) return apiError('HOMEPAGE_INVALID_DOCUMENT', 'O documento da Home não pode ser publicado.', 422);
     console.error('[Admin Homepage Publish Error]', error);
     return apiError('ADMIN_HOMEPAGE_PUBLISH_ERROR', 'Não foi possível publicar a Home.', 500);
   }

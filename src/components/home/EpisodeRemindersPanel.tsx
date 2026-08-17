@@ -21,6 +21,7 @@ import { JikanAnime } from '@/types/anime';
 
 import { useFavorites } from '@/hooks/useFavorites';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { toPlainText } from '@/utils/formatters';
 
 const REMINDERS_CONFIG_KEY = 'anistream_reminders_config_v1';
 
@@ -349,6 +350,8 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
                   const isAiring = anime.airing;
                   const epInfo = newEpisodesMap[anime.mal_id];
                   const hasNewEp = epInfo?.hasNewEpisode;
+                  const title = toPlainText(anime.title) || 'Anime';
+                  const broadcastLabel = toPlainText(anime.broadcast?.string);
 
                   return (
                     <div
@@ -362,7 +365,7 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
                           <SafeImage
                             src={anime.images.jpg.image_url}
                             animeId={anime.mal_id}
-                            alt={anime.title}
+                            alt={title}
                             width={36}
                             height={44}
                             className="w-9 h-11 object-cover rounded-xl border border-white/10 flex-shrink-0"
@@ -371,7 +374,7 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <h5 className="font-bold text-white truncate text-xs">
-                              {anime.title}
+                              {title}
                             </h5>
                             {hasNewEp && (
                               <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-500 text-black flex items-center gap-0.5 flex-shrink-0 animate-pulse">
@@ -390,9 +393,9 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
                             >
                               {isAiring ? 'Em Exibição' : 'Em Breve'}
                             </span>
-                            {anime.broadcast?.string && (
+                            {broadcastLabel && (
                               <span className="truncate hidden sm:inline">
-                                {anime.broadcast.string}
+                                {broadcastLabel}
                               </span>
                             )}
                           </div>
@@ -403,7 +406,7 @@ export function EpisodeRemindersPanel({ favorites }: EpisodeRemindersPanelProps)
                         <Tooltip content="Simular notificação deste anime" position="left">
                           <button
                             type="button"
-                            onClick={() => sendTestNotification(anime.title)}
+                            onClick={() => sendTestNotification(title)}
                             className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-gray-300 font-bold text-[11px] transition-colors border border-white/10 flex items-center gap-1"
                           >
                             <Send size={12} className="text-[#FF6B00]" />

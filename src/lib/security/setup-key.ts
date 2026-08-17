@@ -7,12 +7,14 @@ const SETUP_KEY_FILE = path.join(process.cwd(), '.setup-key');
 
 let cachedSetupKey: string | null = null;
 let hasLoggedSetupKey = false;
+let setupKeyConsumed = false;
 
 /**
  * Obtém a chave de instalação definida no ambiente ou lê/gera um token randômico temporário.
  * Mantém a chave em memória para evitar releituras e exibe os logs apenas uma vez.
  */
 export function getOrCreateSetupKey(): string {
+  if (setupKeyConsumed) return '';
   if (cachedSetupKey) {
     return cachedSetupKey;
   }
@@ -52,14 +54,14 @@ export function getOrCreateSetupKey(): string {
     }
   }
 
-  // Exibir a chave com destaque nos logs do container / terminal APENAS UMA VEZ
+  // Desenvolvimento pode exibir a chave uma vez; produção nunca imprime o segredo.
   if (!hasLoggedSetupKey) {
     hasLoggedSetupKey = true;
     console.log('\n===================================================================');
     console.log('  [AniStream Security] 🔑 CHAVE DE INSTALAÇÃO DO SETUP INICIAL:');
     console.log(`  --> ${cachedSetupKey} <--`);
     console.log('  Insira esta chave no assistente /setup para configurar a aplicação.');
-    console.log(`  URL Direta: http://localhost:3000/setup?key=${cachedSetupKey}`);
+    console.log('  Acesse /setup e envie a chave no cabeçalho x-setup-key.');
     console.log('===================================================================\n');
   }
 
@@ -70,7 +72,7 @@ export function getOrCreateSetupKey(): string {
  * Valida de forma segura em tempo constante se a chave fornecida é equivalente à chave ativa.
  */
 export function validateSetupKey(providedKey?: string | null): boolean {
-  if (!providedKey || typeof providedKey !== 'string') {
+  if (setupKeyConsumed || !providedKey || typeof providedKey !== 'string') {
     return false;
   }
 
@@ -90,6 +92,7 @@ export function validateSetupKey(providedKey?: string | null): boolean {
  * Remove o arquivo de chave temporária e reseta os caches de memória após o setup.
  */
 export function clearSetupKey(): void {
+  setupKeyConsumed = true;
   cachedSetupKey = null;
   hasLoggedSetupKey = false;
   try {

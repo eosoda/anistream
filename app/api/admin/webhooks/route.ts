@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { CreateWebhookSchema } from '@/schemas/admin';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { recordAdminAudit } from '@/lib/admin/audit';
+import { safeFetch } from '@/lib/security/safe-fetch';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,9 +37,11 @@ export async function POST(req: NextRequest) {
       void recordAdminAudit({ actorId: auth.userId, action: 'webhook.tested', resourceType: 'webhook', summary: 'Teste de webhook disparado.', metadata: { platform, host: webhookHost } });
 
       if (platform === 'DISCORD' || url.includes('discord.com')) {
-        await fetch(url, {
+        const response = await safeFetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          allowContentType: true,
+          timeoutMs: 5000,
           body: JSON.stringify({
             username: 'AniStream Bot',
             embeds: [
@@ -51,6 +54,7 @@ export async function POST(req: NextRequest) {
             ],
           }),
         });
+        if (!response.ok) return NextResponse.json({ error: 'O webhook não aceitou a mensagem de teste.' }, { status: 502 });
       }
 
       return NextResponse.json({ success: true, message: 'Notificação de teste disparada com sucesso!' });

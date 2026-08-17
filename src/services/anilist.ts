@@ -1,11 +1,15 @@
 import type { AniListMedia, JikanAnime } from '@/types/anime';
 import { kenjitsuService } from './kenjitsu';
+import { toPlainText } from '@/utils/formatters';
 
 function mapAnime(anime: JikanAnime): AniListMedia {
+  const titleRomaji = toPlainText(anime.title) || toPlainText(anime.title_japanese) || 'Anime';
+  const titleEnglish = toPlainText(anime.title_english) || titleRomaji;
+  const titleNative = toPlainText(anime.title_japanese) || titleRomaji;
   const title = {
-    romaji: anime.title || anime.title_japanese || 'Anime',
-    english: anime.title_english || anime.title || 'Anime',
-    native: anime.title_japanese || anime.title || 'Anime',
+    romaji: titleRomaji,
+    english: titleEnglish,
+    native: titleNative,
   };
   const cover = anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '';
   return {
@@ -14,13 +18,13 @@ function mapAnime(anime: JikanAnime): AniListMedia {
     title,
     bannerImage: anime.bannerImage || cover || null,
     coverImage: { extraLarge: cover, large: cover, medium: cover, color: null },
-    description: anime.synopsis || null,
+    description: toPlainText(anime.synopsis),
     episodes: anime.episodes,
-    status: anime.status || 'UNKNOWN',
+    status: toPlainText(anime.status) || 'UNKNOWN',
     meanScore: anime.score != null ? anime.score * 10 : null,
     popularity: null,
     trending: null,
-    genres: anime.genres?.map((genre) => genre.name) || [],
+    genres: anime.genres?.map((genre) => toPlainText(genre.name)).filter((genre): genre is string => Boolean(genre)) || [],
   };
 }
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { decryptData } from '@/lib/security/crypto';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { validateUrlSsrf } from '@/lib/security/ssrf';
+import { safeFetch } from '@/lib/security/safe-fetch';
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuth(request);
@@ -71,12 +72,9 @@ export async function POST(request: NextRequest) {
           console.warn('[Dead Links SSRF validation blocked]', { sourceId: source.id, reason: ssrfResult.reason });
           status = 400;
         } else {
-          const controller = new AbortController();
-          timeoutId = setTimeout(() => controller.abort(), 4000);
-
-          const res = await fetch(decryptedUrl, {
+          const res = await safeFetch(decryptedUrl, {
             method: 'HEAD',
-            signal: controller.signal,
+            timeoutMs: 4000,
             headers: { 'User-Agent': 'AniStream-DeadLinkFinder/1.0' },
           });
 
@@ -84,7 +82,7 @@ export async function POST(request: NextRequest) {
           isOk = res.ok || res.status === 200 || res.status === 206 || res.status === 302;
         }
       } catch (error) {
-        console.warn('[Dead Links Check Error]', { sourceId: source.id, error });
+        console.warn('[Dead Links Check Error]', { sourceId: source.id, error: error instanceof Error ? error.message : 'Falha desconhecida' });
         isOk = false;
         status = 504;
       } finally {

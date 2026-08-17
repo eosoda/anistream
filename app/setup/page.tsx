@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -45,18 +45,11 @@ function getPasswordStrength(password: string) {
 
 function SetupWizardForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [testingDb, setTestingDb] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [dbConnected, setDbConnected] = useState(false);
-  const [postgresPingMs, setPostgresPingMs] = useState<number | null>(null);
-  const [stats, setStats] = useState<{
-    animeCount: number;
-    episodeCount: number;
-  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [setupKey, setSetupKey] = useState('');
   const [keyValid, setKeyValid] = useState<boolean | null>(null);
@@ -71,18 +64,13 @@ function SetupWizardForm() {
   const [isSeedingPopular, setIsSeedingPopular] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    const urlKey = searchParams.get('key');
-    // The setup key is an external URL input synchronized into the wizard state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (urlKey) setSetupKey(urlKey);
-  }, [searchParams]);
-
   const checkStatus = useCallback(async () => {
     setTestingDb(true);
     try {
-      const keyQuery = setupKey ? `?key=${encodeURIComponent(setupKey)}` : '';
-      const response = await fetch(`/api/setup/status${keyQuery}`);
+      const response = await fetch('/api/setup/status', {
+        headers: setupKey ? { 'x-setup-key': setupKey } : undefined,
+        cache: 'no-store',
+      });
       const data = await response.json();
 
       if (data.isInitialized) {
@@ -91,12 +79,9 @@ function SetupWizardForm() {
       }
 
       setDbConnected(Boolean(data.dbConnected));
-      setPostgresPingMs(data.postgresPingMs || 0);
-      setStats(data.stats || null);
       if (setupKey) setKeyValid(data.keyValid);
     } catch {
       setDbConnected(false);
-      setPostgresPingMs(null);
     } finally {
       setTestingDb(false);
       setCheckingStatus(false);
@@ -105,7 +90,6 @@ function SetupWizardForm() {
 
   useEffect(() => {
     // The initial request synchronizes this client view with the setup API.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void checkStatus();
   }, [checkStatus]);
 
@@ -116,9 +100,8 @@ function SetupWizardForm() {
     try {
       const response = await fetch('/api/setup/initialize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-setup-key': setupKey },
         body: JSON.stringify({
-          setupKey,
           admin: {
             name: adminName,
             email: adminEmail,
@@ -244,7 +227,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
                 />
               </div>
               <p className={`text-[10px] ${keyValid === false ? 'text-red-400' : 'text-gray-400'}`}>
-                Consulte os logs do container Docker (<code>docker logs anistream_selfhosted_app</code>) para visualizar a chave.
+                Use o valor de <code>INITIAL_SETUP_KEY</code> configurado no ambiente do serviço para continuar.
               </p>
             </div>
 
@@ -255,7 +238,7 @@ Catálogo e mídia   : API Kenjitsu self-hosted
                   <div>
                     <h2 className="text-sm font-bold text-white">Conexão PostgreSQL</h2>
                     <p className="text-xs text-gray-400">
-                      {dbConnected ? `Conectado! Latência: ${postgresPingMs}ms` : 'Falha ao conectar. Verifique DATABASE_URL.'}
+                      {dbConnected ? 'Conectado e pronto para a instalação.' : 'Falha ao conectar. Verifique DATABASE_URL.'}
                     </p>
                   </div>
                 </div>
@@ -273,13 +256,6 @@ Catálogo e mídia   : API Kenjitsu self-hosted
                 </div>
               </div>
 
-              {stats && (
-                <div className="grid grid-cols-3 gap-2 border-t border-white/10 pt-2 text-center">
-                  <div className="rounded-xl bg-white/5 p-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Animes</span><span className="text-xs font-mono font-bold text-white">{stats.animeCount}</span></div>
-                  <div className="rounded-xl bg-white/5 p-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Episódios</span><span className="text-xs font-mono font-bold text-white">{stats.episodeCount}</span></div>
-                  <div className="rounded-xl bg-white/5 p-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Kenjitsu</span><span className="text-xs font-mono font-bold text-emerald-400">Ativo</span></div>
-                </div>
-              )}
             </div>
 
             <button

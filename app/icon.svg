@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>AniStream</title>
+  <rect width="64" height="64" rx="16" fill="#FF6B00"/>
+  <path d="M27 19.5c-2.2-1.35-5 .23-5 2.81v19.38c0 2.58 2.8 4.16 5 2.81l16-9.69a3.29 3.29 0 0 0 0-5.62l-16-9.69Z" fill="#fff"/>
+</svg>

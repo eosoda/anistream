@@ -29,6 +29,80 @@ export interface SafeAlternative {
   quality: string;
   audioLanguage: string;
   playbackUrl: string;
+  subtitles: SafeSubtitleTrack[];
+}
+
+export interface SafeSubtitleTrack {
+  id: string;
+  language: string;
+  label: string;
+  format: string;
+  url: string;
+}
+
+function subtitleTrackId(language: string, label: string, url: string, index: number): string {
+  const value = `${language}|${label}|${url}`;
+  let hash = 0;
+
+  for (let charIndex = 0; charIndex < value.length; charIndex += 1) {
+    hash = (hash * 31 + value.charCodeAt(charIndex)) | 0;
+  }
+
+  return `subtitle-${Math.abs(hash).toString(36)}-${index}`;
+}
+
+function serializeSubtitles(
+  subtitles?: StreamSource['subtitles'],
+  source?: Pick<StreamSource, 'id' | 'type' | 'headers' | 'requiresProxy'>,
+  token?: string
+): SafeSubtitleTrack[] {
+  const usedIds = new Set<string>();
+  const shouldRelay = Boolean(source?.requiresProxy && source.id.startsWith('kenjitsu:') && token);
+
+  return (subtitles || []).flatMap((subtitle, index) => {
+    if (!subtitle.url) return [];
+
+    const language = subtitle.language || 'und';
+    const label = subtitle.label || language;
+    const baseId = subtitleTrackId(language, label, subtitle.url, index);
+    let id = baseId;
+    let suffix = 2;
+
+    while (usedIds.has(id)) {
+      id = `${baseId}-${suffix}`;
+      suffix += 1;
+    }
+    usedIds.add(id);
+
+    return [{
+      id,
+      language,
+      label,
+      format: subtitle.format || 'vtt',
+      url: shouldRelay
+        ? buildRelayPlaybackUrl(source!.id, subtitle.url, subtitle.format || 'vtt', source!.headers, token!)
+        : subtitle.url,
+    }];
+  });
+}
+
+function buildRelayPlaybackUrl(
+  sourceId: string,
+  url: string,
+  type: string,
+  headers: Record<string, string> | undefined,
+  token: string
+): string {
+  const payload = encryptData(
+    JSON.stringify({
+      sourceId,
+      url,
+      type,
+      headers: headers || {},
+    })
+  );
+
+  return `/api/streams/relay?token=${encodeURIComponent(token)}&payload=${encodeURIComponent(payload)}`;
 }
 
 function buildPlaybackUrl(
@@ -41,15 +115,7 @@ function buildPlaybackUrl(
     source.requiresProxy &&
     source.id.startsWith('kenjitsu:')
   ) {
-    const payload = encryptData(
-      JSON.stringify({
-        sourceId: source.id,
-        url: source.url,
-        type: source.type,
-        headers: source.headers || {},
-      })
-    );
-    return `/api/streams/relay?token=${encodeURIComponent(token)}&payload=${encodeURIComponent(payload)}`;
+    return buildRelayPlaybackUrl(source.id, source.url, source.type, source.headers, token);
   }
 
   return `/api/streams/proxy/${source.id}?token=${encodeURIComponent(token)}`;
@@ -135,27 +201,29 @@ export async function serializeStreamSource(source: StreamSource): Promise<SafeA
     quality: source.quality || 'auto',
     audioLanguage: source.audioLanguage || 'ja',
     playbackUrl: buildPlaybackUrl(source, token),
+    subtitles: serializeSubtitles(source.subtitles, source, token),
   };
 }
 
 export async function serializeStreamResult(
   result: ResolveStreamResult,
-  context: StreamResolveContext
+  context: StreamResolveContext,
+  options: { includeAlternatives?: boolean } = {},
 ) {
   if (!result.selected) return null;
 
   const selectedToken = await generatePlaybackToken(result.selected.id, undefined, 15);
-  const [safeAlternatives, safeSelected] = await Promise.all([
-    Promise.all(result.alternatives.map((source) => serializeStreamSource(source))),
-    Promise.resolve({
+  const safeAlternatives = options.includeAlternatives
+    ? await Promise.all(result.alternatives.map((source) => serializeStreamSource(source)))
+    : [];
+  const safeSelected = {
       playbackUrl: buildPlaybackUrl(result.selected, selectedToken),
       provider: result.selected.provider,
       type: result.selected.type,
       quality: result.selected.quality || 'auto',
       audioLanguage: result.selected.audioLanguage || 'ja',
-      subtitles: result.selected.subtitles || [],
-    }),
-  ]);
+      subtitles: serializeSubtitles(result.selected.subtitles, result.selected, selectedToken),
+    };
 
   return {
     ...safeSelected,
@@ -164,7 +232,7 @@ export async function serializeStreamResult(
     opening: context.opening,
     resolution: {
       phase: result.phase || 'complete',
-      alternativesPending: result.alternativesPending ?? false,
+      alternativesPending: options.includeAlternatives ? false : result.alternativesPending ?? result.alternatives.length > 0,
       cacheHit: result.cacheHit ?? false,
     },
   };

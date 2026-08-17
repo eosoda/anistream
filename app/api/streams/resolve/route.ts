@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { EpisodeLookupInputSchema } from '@/schemas/episode';
 import { defaultStreamResolver } from '@/lib/streams/resolver';
-import { checkRateLimit } from '@/lib/security/rate-limit';
+import { checkDistributedRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import {
   prepareStreamResolveContext,
@@ -10,7 +10,7 @@ import {
 
 export async function POST(request: NextRequest) {
   const reqPath = request.nextUrl.pathname;
-  const rateLimit = checkRateLimit(request, 'resolve-stream', {
+  const rateLimit = await checkDistributedRateLimit(`resolve-stream:${getClientIp(request)}`, {
     limit: 30,
     windowMs: 60000,
   });
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       'Limite de solicitações de stream atingido. Aguarde 1 minuto.',
       429,
       undefined,
-      undefined,
+      rateLimitHeaders(rateLimit),
       reqPath
     );
   }
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       'Erro ao resolver fontes de streaming.',
       500,
       undefined,
-      undefined,
+      rateLimitHeaders(rateLimit),
       reqPath
     );
   }

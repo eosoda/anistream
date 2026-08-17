@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 
 let cachedToken: string | undefined;
 let sessionPromise: Promise<string> | undefined;
+const routedPages = new WeakSet<Page>();
 
 function envValue(name: string): string | undefined {
   const direct = process.env[name];
@@ -17,22 +18,20 @@ function envValue(name: string): string | undefined {
 
 async function createAdminSession(page: Page): Promise<string> {
   const baseUrl = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000').origin;
+  const requestOrigin = envValue('E2E_APP_ORIGIN') ?? envValue('NEXT_PUBLIC_APP_URL') ?? baseUrl;
   const setupKey = envValue('INITIAL_SETUP_KEY');
   const email = envValue('E2E_ADMIN_EMAIL') ?? 'e2e-admin@anistream.test';
   const password = envValue('E2E_ADMIN_PASSWORD') ?? 'E2e-admin-password-2026!';
 
   if (setupKey) {
     await page.request.post(`${baseUrl}/api/setup/initialize`, {
-      headers: { Origin: baseUrl, 'x-setup-key': setupKey },
-      data: {
-        setupKey,
-        admin: { name: 'E2E Administrator', email, password },
-      },
+      headers: { Origin: requestOrigin, 'x-setup-key': setupKey },
+      data: { admin: { name: 'E2E Administrator', email, password } },
     });
   }
 
   const response = await page.request.post(`${baseUrl}/api/admin/login`, {
-    headers: { Origin: baseUrl },
+    headers: { Origin: requestOrigin },
     data: { email, password },
   });
   if (!response.ok()) {
@@ -55,5 +54,13 @@ export async function signInAdmin(page: Page): Promise<void> {
   });
   const token = await sessionPromise;
   const baseUrl = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000').origin;
+  const requestOrigin = envValue('E2E_APP_ORIGIN') ?? envValue('NEXT_PUBLIC_APP_URL') ?? baseUrl;
+  if (!routedPages.has(page) && requestOrigin !== baseUrl) {
+    await page.route('**/api/**', async (route) => {
+      const headers = { ...route.request().headers(), origin: requestOrigin };
+      await route.continue({ headers });
+    });
+    routedPages.add(page);
+  }
   await page.context().addCookies([{ name: 'admin_token', value: token, url: baseUrl }]);
 }

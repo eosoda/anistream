@@ -41,9 +41,12 @@ function normalize(value: unknown): KenjitsuExtensionSetting[] {
   const byId = new Map(value.map((item) => [item?.id, item]));
   return defaults.map((fallback) => {
     const current = byId.get(fallback.id);
+    const isAllowedInBeta = KENJITSU_BETA_ALLOWLIST.includes(fallback.id as (typeof KENJITSU_BETA_ALLOWLIST)[number]);
     return {
       id: fallback.id,
-      enabled: typeof current?.enabled === 'boolean' ? current.enabled : fallback.enabled,
+      // Persisted settings cannot re-enable an extension outside the tested
+      // beta allowlist, even after an older database is restored.
+      enabled: isAllowedInBeta && (typeof current?.enabled === 'boolean' ? current.enabled : fallback.enabled),
       nsfw: typeof current?.nsfw === 'boolean' ? current.nsfw : fallback.nsfw,
       lastTestedAt: typeof current?.lastTestedAt === 'string' ? current.lastTestedAt : null,
       lastTestStatus: ['healthy', 'degraded', 'down', 'unknown'].includes(current?.lastTestStatus) ? current.lastTestStatus : null,
@@ -78,4 +81,7 @@ export async function saveKenjitsuExtensionSettings(settings: KenjitsuExtensionS
     create: { key: KENJITSU_EXTENSION_SETTING_KEY, value: JSON.stringify(normalize(settings)) },
     update: { value: JSON.stringify(normalize(settings)) },
   });
+  // O conjunto de extensões faz parte da chave do cache de reprodução. A
+  // versão muda sem tentar apagar chaves temporárias concorrentes.
+  await import('@/lib/streams/playback-cache').then(({ bumpPlaybackCacheVersion }) => bumpPlaybackCacheVersion()).catch(() => undefined);
 }

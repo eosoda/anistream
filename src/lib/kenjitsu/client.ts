@@ -202,7 +202,7 @@ export const kenjitsuClient = {
     if (server) params.set('server', server);
     return requestJson<KenjitsuResponse<KenjitsuVideoData> & { headers?: { Referer?: string | null } }>(
       `/api/extensions/${extensionId}/sources?${params.toString()}`,
-      0,
+      seconds(Math.min(240, Math.max(15, env.KENJITSU_CACHE_TTL_SECONDS || 240))),
     );
   },
 

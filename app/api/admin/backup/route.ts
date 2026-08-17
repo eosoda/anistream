@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { recordAdminAudit } from '@/lib/admin/audit';
+import { readJsonBodyLimited, InvalidJsonBodyError, RequestBodyTooLargeError } from '@/lib/security/body-limit';
+import { toPlainText } from '@/utils/formatters';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -16,6 +18,10 @@ function stringValue(record: JsonRecord, key: string, fallback = ''): string {
 
 function optionalString(record: JsonRecord, key: string): string | null {
   return typeof record[key] === 'string' ? record[key] as string : null;
+}
+
+function optionalPlainText(record: JsonRecord, key: string): string | null {
+  return toPlainText(optionalString(record, key));
 }
 
 function numberValue(record: JsonRecord, key: string, fallback = 0): number {
@@ -85,8 +91,8 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
           title,
           normalizedTitle: stringValue(animeData, 'normalizedTitle', title.toLowerCase()),
           originalTitle: optionalString(animeData, 'originalTitle'),
-          description: optionalString(animeData, 'description'),
-          synopsis: optionalString(animeData, 'synopsis') || optionalString(animeData, 'description'),
+          description: optionalPlainText(animeData, 'description'),
+          synopsis: optionalPlainText(animeData, 'synopsis') || optionalPlainText(animeData, 'description'),
           posterUrl: optionalString(animeData, 'posterUrl'),
           backdropUrl: optionalString(animeData, 'backdropUrl'),
           rating: optionalNumber(animeData, 'rating'),
@@ -103,8 +109,8 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
           normalizedTitle: stringValue(animeData, 'normalizedTitle', title.toLowerCase()),
           originalTitle: optionalString(animeData, 'originalTitle'),
           slug,
-          description: optionalString(animeData, 'description'),
-          synopsis: optionalString(animeData, 'synopsis') || optionalString(animeData, 'description'),
+          description: optionalPlainText(animeData, 'description'),
+          synopsis: optionalPlainText(animeData, 'synopsis') || optionalPlainText(animeData, 'description'),
           posterUrl: optionalString(animeData, 'posterUrl'),
           backdropUrl: optionalString(animeData, 'backdropUrl'),
           rating: optionalNumber(animeData, 'rating'),
@@ -205,7 +211,7 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
           where: { animeId_season_number: { animeId: anime.id, season, number } },
           update: {
             title: optionalString(episodeData, 'title'),
-            description: optionalString(episodeData, 'description'),
+            description: optionalPlainText(episodeData, 'description'),
             overview: optionalString(episodeData, 'overview'),
             thumbnailUrl: optionalString(episodeData, 'thumbnailUrl'),
             durationSeconds: optionalNumber(episodeData, 'durationSeconds'),
@@ -220,7 +226,7 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
             season,
             number,
             title: optionalString(episodeData, 'title'),
-            description: optionalString(episodeData, 'description'),
+            description: optionalPlainText(episodeData, 'description'),
             overview: optionalString(episodeData, 'overview'),
             thumbnailUrl: optionalString(episodeData, 'thumbnailUrl'),
             durationSeconds: optionalNumber(episodeData, 'durationSeconds'),
@@ -278,7 +284,7 @@ async function importBackup(data: JsonRecord): Promise<{ importedAnimes: number;
               ...(optionalString(reportData, 'id') ? { id: stringValue(reportData, 'id') } : {}),
               episodeId: episode.id,
               type: stringValue(reportData, 'type', 'OTHER'),
-              description: optionalString(reportData, 'description'),
+              description: optionalPlainText(reportData, 'description'),
               status: stringValue(reportData, 'status', 'PENDING'),
             },
           });
@@ -530,7 +536,7 @@ export async function POST(request: NextRequest) {
   if (!auth.authenticated) return auth.errorResponse!;
 
   try {
-    const body = asRecord(await request.json().catch(() => null));
+    const body = asRecord(await readJsonBodyLimited(request, 10 * 1024 * 1024));
     const data = asRecord(body.data);
     if (!Array.isArray(data.animes) || data.animes.length > 10000) {
       return NextResponse.json({ error: 'Formato de arquivo JSON de backup inválido.' }, { status: 400 });
@@ -551,6 +557,8 @@ export async function POST(request: NextRequest) {
       ...result,
     });
   } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return NextResponse.json({ error: 'Arquivo de backup excede o limite de 10 MB.' }, { status: 413 });
+    if (error instanceof InvalidJsonBodyError) return NextResponse.json({ error: 'Formato de arquivo JSON de backup inválido.' }, { status: 400 });
     console.error('[Admin Backup Import Error]', error);
     return NextResponse.json({ error: 'Não foi possível restaurar o catálogo.' }, { status: 500 });
   }

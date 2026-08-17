@@ -28,13 +28,14 @@ export async function GET() {
   try {
     const kenjitsuStart = Date.now();
     const healthCheck = kenjitsuClient.getExtensionHealth();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Kenjitsu health timeout')), Math.min(env.KENJITSU_REQUEST_TIMEOUT_MS, 5000));
+      timeoutId = setTimeout(() => reject(new Error('Kenjitsu health timeout')), Math.min(env.KENJITSU_REQUEST_TIMEOUT_MS, 5000));
     });
-    const result = await Promise.race([healthCheck, timeout]);
+    const result = await Promise.race([healthCheck, timeout]).finally(() => { if (timeoutId) clearTimeout(timeoutId); });
     kenjitsuLatencyMs = Date.now() - kenjitsuStart;
-    kenjitsuHealthy = Array.isArray(result.data);
-    kenjitsuExtensionCount = kenjitsuHealthy ? result.data.length : 0;
+    kenjitsuExtensionCount = Array.isArray(result.data) ? result.data.length : 0;
+    kenjitsuHealthy = kenjitsuExtensionCount > 0;
   } catch {
     kenjitsuHealthy = false;
   }
@@ -53,5 +54,5 @@ export async function GET() {
         extensionCount: kenjitsuExtensionCount,
       },
     },
-  }, { status: isHealthy ? 200 : 503 });
+  }, { status: isHealthy ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
 }

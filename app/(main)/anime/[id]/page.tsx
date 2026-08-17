@@ -42,6 +42,7 @@ import {
   formatSource,
   formatNumber,
   formatRating,
+  toPlainText,
 } from '@/utils/formatters';
 
 export default function AnimeDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -125,7 +126,21 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
     anime.images?.jpg?.large_image_url ||
     '';
 
-  const mainTitle = anime.title || anime.title_english || 'Anime';
+  const englishTitle = toPlainText(anime.title_english);
+  const japaneseTitle = toPlainText(anime.title_japanese);
+  const mainTitle = toPlainText(anime.title) || englishTitle || japaneseTitle || 'Anime';
+  const plainSynopsis = toPlainText(anime.synopsis);
+  const plainSeason = toPlainText(anime.season);
+  const typeLabel = toPlainText(anime.type) || 'TV';
+  const statusLabel = toPlainText(anime.status);
+  const sourceLabel = toPlainText(anime.source);
+  const durationLabel = toPlainText(anime.duration);
+  const ratingLabel = toPlainText(anime.rating);
+  const plainStudios = (anime.studios || []).map((studio) => ({ ...studio, name: toPlainText(studio.name) || '—' }));
+  const plainProducers = (anime.producers || []).map((producer) => ({ ...producer, name: toPlainText(producer.name) || '—' }));
+  const plainGenres = (anime.genres || []).map((genre) => ({ ...genre, name: toPlainText(genre.name) || '—' }));
+  const plainThemes = (anime.themes || []).map((theme) => ({ ...theme, name: toPlainText(theme.name) || '—' }));
+  const plainDemographics = (anime.demographics || []).map((demographic) => ({ ...demographic, name: toPlainText(demographic.name) || '—' }));
   const yearStr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : '—');
 
   const scrollToEpisodes = () => {
@@ -248,10 +263,10 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-3 py-1 rounded-full bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30 font-extrabold text-xs">
-                  {formatStatus(anime.status)}
+                  {formatStatus(statusLabel)}
                 </span>
                 <span className="px-3 py-1 rounded-full bg-white/10 text-gray-300 border border-white/10 font-bold text-xs">
-                  {anime.type || 'TV'} • {formatSeasonName(anime.season)} {yearStr}
+                  {typeLabel} • {formatSeasonName(plainSeason)} {yearStr}
                 </span>
                 <RatingBadge score={anime.score} />
               </div>
@@ -260,9 +275,9 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                 {mainTitle}
               </h1>
 
-              {anime.title_japanese && (
+              {japaneseTitle && (
                 <p className="text-xs md:text-sm text-gray-400 font-medium">
-                  {anime.title_japanese} {anime.title_english && `• ${anime.title_english}`}
+                  {japaneseTitle} {englishTitle && `• ${englishTitle}`}
                 </p>
               )}
             </div>
@@ -306,7 +321,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                 <div>
                   <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Estúdio</span>
                   <p className="text-sm font-black text-white truncate max-w-[100px]">
-                    {anime.studios?.[0]?.name || '—'}
+                    {plainStudios[0]?.name || '—'}
                   </p>
                 </div>
               </div>
@@ -320,7 +335,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                   Sinopse
                 </h3>
 
-                {anime.synopsis && anime.synopsis.length > 220 && (
+                {plainSynopsis && plainSynopsis.length > 220 && (
                   <button
                     onClick={() => setIsSynopsisExpanded(!isSynopsisExpanded)}
                     className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-1"
@@ -343,15 +358,15 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                   !isSynopsisExpanded ? 'line-clamp-3 md:line-clamp-4' : ''
                 }`}
               >
-                {anime.synopsis || 'Nenhuma sinopse cadastrada até o momento.'}
+                {plainSynopsis || 'Nenhuma sinopse cadastrada até o momento.'}
               </p>
             </div>
 
             {/* Quick Genres chips */}
-            {anime.genres && anime.genres.length > 0 && (
+            {plainGenres.length > 0 && (
               <div className="flex flex-wrap gap-2 items-center pt-1">
                 <span className="text-xs font-bold text-gray-400 mr-1">Gêneros:</span>
-                {anime.genres.map((genre) => (
+                {plainGenres.map((genre) => (
                   <GenreBadge key={genre.mal_id} name={genre.name} />
                 ))}
               </div>
@@ -426,55 +441,55 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                     Sinopse Completa
                   </h3>
                   <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
-                    {anime.synopsis || 'Nenhuma sinopse cadastrada.'}
+                    {plainSynopsis || 'Nenhuma sinopse cadastrada.'}
                   </p>
                 </div>
 
                 <div className="p-6 rounded-2xl glass-panel grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs border border-white/10">
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Status</span>
-                    <span className="text-white font-bold">{formatStatus(anime.status)}</span>
+                    <span className="text-white font-bold">{formatStatus(statusLabel)}</span>
                   </div>
 
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Ano / Temporada</span>
                     <span className="text-white font-bold">
-                      {formatSeasonName(anime.season)} {yearStr}
+                      {formatSeasonName(plainSeason)} {yearStr}
                     </span>
                   </div>
 
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Formato</span>
-                    <span className="text-white font-bold">{anime.type || 'TV'}</span>
+                    <span className="text-white font-bold">{typeLabel}</span>
                   </div>
 
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Fonte Original</span>
-                    <span className="text-white font-bold">{formatSource(anime.source)}</span>
+                    <span className="text-white font-bold">{formatSource(sourceLabel)}</span>
                   </div>
 
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Estúdio</span>
                     <span className="text-white font-bold">
-                      {anime.studios?.map((s) => s.name).join(', ') || '—'}
+                      {plainStudios.map((studio) => studio.name).join(', ') || '—'}
                     </span>
                   </div>
 
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Produtores</span>
                     <span className="text-white font-bold">
-                      {anime.producers?.slice(0, 3).map((p) => p.name).join(', ') || '—'}
+                      {plainProducers.slice(0, 3).map((producer) => producer.name).join(', ') || '—'}
                     </span>
                   </div>
 
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Duração p/ Ep</span>
-                    <span className="text-white font-bold">{anime.duration || '—'}</span>
+                    <span className="text-white font-bold">{durationLabel || '—'}</span>
                   </div>
 
                   <div>
                     <span className="text-gray-500 block font-semibold mb-1">Classificação</span>
-                    <span className="text-white font-bold">{formatRating(anime.rating)}</span>
+                    <span className="text-white font-bold">{formatRating(ratingLabel)}</span>
                   </div>
                 </div>
 
@@ -488,7 +503,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                       {relations.map((rel, idx) => (
                         <div key={`rel-${idx}`} className="p-3 rounded-xl bg-white/5 space-y-1.5 border border-white/5">
                           <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                            {rel.relation}
+                            {toPlainText(rel.relation) || 'Relacionado'}
                           </span>
                           <div className="flex flex-wrap gap-2">
                             {rel.entry.map((entry, entryIdx) => (
@@ -497,7 +512,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
                                 href={`/anime/${entry.mal_id}`}
                                 className="px-3 py-1 rounded-lg bg-white/5 hover:bg-[#FF6B00]/20 text-white hover:text-[#FF6B00] text-xs font-semibold border border-white/10 transition-colors"
                               >
-                                {entry.name} ({entry.type})
+                                {toPlainText(entry.name) || 'Anime relacionado'} ({toPlainText(entry.type) || 'anime'})
                               </Link>
                             ))}
                           </div>
@@ -562,12 +577,12 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
               <div className="space-y-3 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 font-medium">Status</span>
-                  <span className="font-bold text-white">{formatStatus(anime.status)}</span>
+                  <span className="font-bold text-white">{formatStatus(statusLabel)}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 font-medium">Formato</span>
-                  <span className="font-bold text-white">{anime.type || 'TV'}</span>
+                  <span className="font-bold text-white">{typeLabel}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -577,20 +592,20 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 font-medium">Duração por Ep</span>
-                  <span className="font-bold text-white">{anime.duration || '—'}</span>
+                  <span className="font-bold text-white">{durationLabel || '—'}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 font-medium">Temporada</span>
                   <span className="font-bold text-white">
-                    {formatSeasonName(anime.season)} {yearStr}
+                    {formatSeasonName(plainSeason)} {yearStr}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 font-medium">Estúdio</span>
                   <span className="font-bold text-white">
-                    {anime.studios?.map((s) => s.name).join(', ') || '—'}
+                    {plainStudios.map((studio) => studio.name).join(', ') || '—'}
                   </span>
                 </div>
 
@@ -602,38 +617,38 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             {/* Themes & Demographics */}
-            {(anime.themes?.length || anime.demographics?.length) ? (
+            {(plainThemes.length || plainDemographics.length) ? (
               <div className="p-5 rounded-2xl glass-panel border border-white/10 space-y-3">
                 <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-400 pb-2 border-b border-white/10">
                   Temas e Público
                 </h3>
 
-                {anime.themes && anime.themes.length > 0 && (
+                {plainThemes.length > 0 && (
                   <div className="space-y-1.5">
                     <span className="text-[11px] text-gray-500 font-bold">Temas:</span>
                     <div className="flex flex-wrap gap-1.5">
-                      {anime.themes.map((t) => (
+                      {plainThemes.map((theme) => (
                         <span
-                          key={t.mal_id}
+                          key={theme.mal_id}
                           className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-[11px] font-medium"
                         >
-                          {t.name}
+                          {theme.name}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {anime.demographics && anime.demographics.length > 0 && (
+                {plainDemographics.length > 0 && (
                   <div className="space-y-1.5 pt-1">
                     <span className="text-xs text-gray-400 font-bold">Demografia:</span>
                     <div className="flex flex-wrap gap-1.5">
-                      {anime.demographics.map((d) => (
+                      {plainDemographics.map((demographic) => (
                         <span
-                          key={d.mal_id}
+                          key={demographic.mal_id}
                           className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[11px] font-bold"
                         >
-                          {d.name}
+                          {demographic.name}
                         </span>
                       ))}
                     </div>

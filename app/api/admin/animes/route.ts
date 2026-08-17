@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { normalizeAnimeTitle } from '@/lib/anime/normalize-title';
 import type { Prisma } from '@prisma/client';
 import { recordAdminAudit } from '@/lib/admin/audit';
+import { toPlainText } from '@/utils/formatters';
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuth(request);
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
         originalTitle: data.originalTitle,
         normalizedTitle,
         slug,
-        description: data.description,
+        description: toPlainText(data.description),
         posterUrl: data.posterUrl,
         backdropUrl: data.bannerUrl,
         releaseYear: data.releaseYear,

@@ -20,7 +20,10 @@ export default function AdminLoginPage() {
       try {
         const res = await fetch('/api/setup/status');
         const data = await res.json();
-        if (!data.isInitialized) {
+        // Only redirect when the setup endpoint positively confirms that the
+        // database is reachable and still uninitialized. A transient database
+        // failure must not replace the login form with the setup wizard.
+        if (data.dbConnected === true && data.isInitialized === false) {
           router.replace('/setup');
         }
       } catch {

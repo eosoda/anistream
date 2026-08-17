@@ -132,7 +132,6 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
 
   useEffect(() => {
     // A página sincroniza o formulário com o registro solicitado.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadAnime();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -463,7 +462,7 @@ export default function AdminEditAnimePage({ params }: { params: Promise<{ id: s
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <button type="button" className="admin-button is-ghost" onClick={() => openEpisodeOpening(episode)}><Film size={14} /> Abertura</button>
-                      <button type="button" className="admin-button is-secondary" onClick={() => setSelectedEpisode({ episodeId: episode.id, episodeNumber: episode.number, seasonNumber: episode.season, episodeTitle: episode.title })}><Tv size={14} /> Consultar mídia</button>
+                      <button type="button" className="admin-button is-secondary" onClick={() => setSelectedEpisode({ episodeId: episode.id, episodeNumber: episode.number, seasonNumber: episode.season, episodeTitle: episode.title })}><Tv size={14} /> Cachear mídia</button>
                       <button type="button" className="admin-icon-button is-danger" onClick={() => void deleteEpisode(episode.id, episode.number)} aria-label={`Excluir episódio ${episode.number}`}><Trash2 size={15} /></button>
                     </div>
                   </div>

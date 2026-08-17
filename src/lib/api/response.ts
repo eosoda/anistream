@@ -34,7 +34,7 @@ interface SuccessOptions {
 }
 
 /**
- * Log estruturado em formato JSON para serviços de monitoramento (Grafana, Datadog, Railway)
+ * Log estruturado em formato JSON para serviços de monitoramento (Grafana/Datadog)
  */
 function logApiEvent(
   level: 'info' | 'warn' | 'error',

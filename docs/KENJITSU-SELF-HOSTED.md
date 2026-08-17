@@ -8,9 +8,7 @@ Os três projetos são mantidos em forks da conta `eosoda`, com `origin` apontan
 
 - `../kenjitsu` → `eosoda/kenjitsu`;
 - `../kenjitsu-extensions` → `eosoda/kenjitsu-extensions`;
-- `../extensions-source` → `eosoda/extensions-source`.
-
-`extensions-source` é a referência Kotlin/AnYomi. Os módulos necessários são portados para TypeScript no fork `kenjitsu-extensions`. O AniStream nunca altera os repositórios oficiais.
+O build self-hosted usa diretamente `kenjitsu-extensions` como contexto. O AniStream nunca altera repositórios oficiais.
 
 ## Subir localmente
 
@@ -25,14 +23,15 @@ Serviços padrão:
 | Serviço | Endereço |
 | :--- | :--- |
 | AniStream | `http://localhost:3000` |
-| Kenjitsu | `http://localhost:3001` |
-| PostgreSQL | `localhost:5432` |
-| Redis do AniStream | `localhost:6379` |
-| Redis do Kenjitsu | `localhost:6380` |
+| Kenjitsu | rede interna `http://kenjitsu:3000` |
+| PostgreSQL | rede interna `postgres:5432` |
+| Redis do AniStream | rede interna `redis:6379` |
+| Redis do Kenjitsu | rede interna `kenjitsu-redis:6379` |
 
 O Compose compila `kenjitsu/Dockerfile.selfhosted` usando os dois forks irmãos como contexto. A imagem final é independente do caminho do host.
 
-Se já houver outro stack ocupando as portas, use os overrides de `.env.example`: `ANISTREAM_APP_PORT`, `ANISTREAM_POSTGRES_PORT`, `ANISTREAM_REDIS_PORT`, `KENJITSU_PORT` e `KENJITSU_REDIS_PORT`.
+Somente a porta local do AniStream é publicada pelo Compose. Os demais serviços
+continuam privados, como no Dokploy.
 
 ## Configuração do AniStream
 
@@ -40,7 +39,7 @@ O mínimo para execução local está em `.env.example`:
 
 ```dotenv
 DATABASE_URL="postgresql://user:password@localhost:5432/anistream_db?schema=public"
-REDIS_URL="redis://localhost:6379"
+REDIS_URL="redis://:password@localhost:6379"
 KENJITSU_BASE_URL="http://localhost:3001"
 KENJITSU_API_KEY=""
 KENJITSU_REQUEST_TIMEOUT_MS="10000"
@@ -57,7 +56,7 @@ Verifique o stack antes de testar o painel:
 
 ```bash
 curl http://localhost:3000/api/health
-curl http://localhost:3001/api/extensions/health
+docker compose exec kenjitsu wget --no-verbose --header="x-api-key: ${KENJITSU_API_KEY}" --spider http://127.0.0.1:3000/api/extensions/health
 ```
 
 O painel `/admin/extensions` controla habilitação, NSFW, status, latência, versão, origem, capacidades e teste individual das extensões. A operação em lote usa a mesma matriz e registra alterações no `AdminAuditLog`.
@@ -88,7 +87,9 @@ Uma falha isolada do upstream não deve ser transformada em fallback silencioso.
 
 Por segurança, o smoke normal exige correspondência exata para extensões portadas. As extensões nativas usam o mapping do AniList. Quando a busca de uma fonte retorna resultados genéricos ou páginas de episódio, é possível testar somente a cadeia da primeira entrada com `KENJITSU_SMOKE_PROBE_FALLBACK=true`; o resultado aparece como aviso e não vira fallback na resolução do catálogo.
 
-O inventário self-hosted atual possui 30 extensões. As entradas `animesgames`, `animesotaku`, `hentaistube`, `meusanimes`, `funanimetv`, `darkmahou` e `doramogo` foram removidas do registro porque seus domínios não entregam mais uma fonte utilizável (DNS/timeout, 404, página encerrada ou domínio estacionado). Os módulos continuam preservados em `../extensions-source` para reavaliação caso os sites retornem ou o upstream publique uma migração de domínio.
+O inventário self-hosted atual possui 30 extensões. A allowlist do beta é menor e
+está definida no AniStream a partir do último smoke funcional; entradas fora dela
+permanecem desabilitadas mesmo que existam em configurações antigas.
 
 ## Atualizar dos upstreams
 

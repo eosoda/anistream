@@ -1,6 +1,7 @@
 import { getAnimeCatalog, searchAnimeCatalog } from '@/lib/kenjitsu/catalog';
 import { KenjitsuRequestError } from '@/lib/kenjitsu/client';
 import type { JikanAnime } from '@/types/anime';
+import { toPlainText } from '@/utils/formatters';
 import { normalizeAnimeTitle } from './normalize-title';
 
 export interface StandardAnimeMetadata {
@@ -53,26 +54,28 @@ export async function searchAnimeMetadata(query: string): Promise<StandardAnimeM
 }
 
 function mapAnime(anime: JikanAnime): StandardAnimeMetadata {
-  const title = anime.title || anime.title_english || anime.title_japanese || 'Anime sem titulo';
+  const titleEnglish = toPlainText(anime.title_english);
+  const titleJapanese = toPlainText(anime.title_japanese);
+  const title = toPlainText(anime.title) || titleEnglish || titleJapanese || 'Anime sem titulo';
   const aliases = Array.from(
-    new Set([title, anime.title_english, anime.title_japanese, ...(anime.title_synonyms || [])].filter(Boolean)),
+    new Set([title, titleEnglish, titleJapanese, ...(anime.title_synonyms || []).map((value) => toPlainText(value))].filter(Boolean)),
   ) as string[];
 
   return {
     malId: anime.kenjitsu?.malId ?? undefined,
     anilistId: anime.kenjitsu?.anilistId ?? anime.mal_id,
     title,
-    originalTitle: anime.title_japanese || undefined,
+    originalTitle: titleJapanese || undefined,
     normalizedTitle: normalizeAnimeTitle(title),
     slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `anime-${anime.mal_id}`,
     posterUrl: anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url,
     bannerUrl: anime.bannerImage || anime.images?.jpg?.large_image_url,
     releaseYear: anime.year || undefined,
-    status: anime.status || undefined,
-    description: anime.synopsis || undefined,
+    status: toPlainText(anime.status) || undefined,
+    description: toPlainText(anime.synopsis) || undefined,
     episodesCount: anime.episodes || undefined,
     rating: anime.score || undefined,
-    genres: anime.genres?.map((genre) => genre.name).join(', '),
+    genres: anime.genres?.map((genre) => toPlainText(genre.name)).filter((name): name is string => Boolean(name)).join(', '),
     aliases,
   };
 }
@@ -88,19 +91,21 @@ function mapSearchItem(item: {
   status: string | null;
   episodeCount: number;
 }): StandardAnimeMetadata {
+  const title = toPlainText(item.title) || 'Anime sem titulo';
+  const originalTitle = toPlainText(item.originalTitle);
   return {
     malId: item.anilistId ? undefined : item.malId,
     anilistId: item.anilistId ?? item.malId,
-    title: item.title,
-    originalTitle: item.originalTitle || undefined,
-    normalizedTitle: normalizeAnimeTitle(item.title),
-    slug: item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `anime-${item.malId}`,
+    title,
+    originalTitle: originalTitle || undefined,
+    normalizedTitle: normalizeAnimeTitle(title),
+    slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `anime-${item.malId}`,
     posterUrl: item.posterUrl || undefined,
     bannerUrl: item.posterUrl || undefined,
     releaseYear: item.year || undefined,
-    status: item.status || undefined,
+    status: toPlainText(item.status) || undefined,
     episodesCount: item.episodeCount || undefined,
     rating: item.rating || undefined,
-    aliases: [item.title, item.originalTitle || ''].filter(Boolean),
+    aliases: [title, originalTitle || ''].filter(Boolean),
   };
 }

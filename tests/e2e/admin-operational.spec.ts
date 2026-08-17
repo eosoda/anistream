@@ -45,12 +45,10 @@ test.describe('Painel administrativo operacional', () => {
   });
 
   test('redireciona login bem-sucedido para a visão geral do painel', async ({ page }) => {
-    await page.route('**/api/admin/login', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
-    });
+    await page.context().clearCookies();
     await page.goto('/admin/login');
-    await page.locator('#admin-email').fill('admin@example.com');
-    await page.locator('#admin-password').fill('password-123456');
+    await page.locator('#admin-email').fill(process.env.E2E_ADMIN_EMAIL ?? 'e2e-admin@anistream.test');
+    await page.locator('#admin-password').fill(process.env.E2E_ADMIN_PASSWORD ?? 'E2e-admin-password-2026!');
     await page.getByRole('button', { name: 'Entrar no Painel' }).click();
     await expect(page).toHaveURL(/\/admin$/);
   });

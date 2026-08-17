@@ -18,6 +18,7 @@ const labels: Record<string, string> = {
   integrations: 'Integrações',
   broadcasts: 'Comunicados',
   releases: 'Releases',
+  cache: 'Cache de reprodução',
 };
 
 export function AdminHeader({

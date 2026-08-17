@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess({ ...saved, preview: buildNavigationPreview(saved) });
   } catch (error) {
-    if (error instanceof NavigationConflictError) return apiError('NAVIGATION_VERSION_CONFLICT', error.message, 409);
+    if (error instanceof NavigationConflictError) return apiError('NAVIGATION_VERSION_CONFLICT', 'A navegação foi alterada por outra sessão. Recarregue e tente novamente.', 409);
     if (error instanceof ZodError) return apiError('NAVIGATION_INVALID', 'Revise os campos destacados antes de publicar.', 422, validationDetails(error));
     console.error('[Admin Navigation Save Error]', error);
     return apiError('ADMIN_NAVIGATION_SAVE_ERROR', 'Não foi possível salvar a navegação.', 500);

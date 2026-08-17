@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchAnimeCatalog } from '@/lib/kenjitsu/catalog';
 import { KenjitsuRequestError } from '@/lib/kenjitsu/client';
-import { checkRateLimit } from '@/lib/security/rate-limit';
+import { checkDistributedRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
 
 export async function GET(request: NextRequest) {
   const reqPath = request.nextUrl.pathname;
-  const rateLimit = checkRateLimit(request, 'search', { limit: 60, windowMs: 60000 });
+  const rateLimit = await checkDistributedRateLimit(`search:${getClientIp(request)}`, { limit: 60, windowMs: 60000 });
   if (!rateLimit.allowed) {
-    return NextResponse.json({ error: 'Muitas requisições de pesquisa. Tente novamente mais tarde.' }, { status: 429 });
+    return NextResponse.json({ error: 'Muitas requisições de pesquisa. Tente novamente mais tarde.' }, { status: 429, headers: rateLimitHeaders(rateLimit) });
   }
 
   const query = request.nextUrl.searchParams.get('q')?.trim() || '';
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       audioLanguage: request.nextUrl.searchParams.get('audioLanguage') as 'all' | 'subbed_pt' | 'dubbed_pt' | 'pt_br' | undefined,
     });
     return NextResponse.json(result, {
-      headers: { 'Cache-Control': 'private, max-age=60' },
+      headers: { 'Cache-Control': 'private, max-age=60', ...rateLimitHeaders(rateLimit) },
     });
   } catch (error) {
     const status = error instanceof KenjitsuRequestError ? error.status : 502;
